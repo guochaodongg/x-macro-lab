@@ -27,6 +27,10 @@
   <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <path d="M3 3v18h18"/><path d="M6 16l4-5 3 3 5-7"/>
   </symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2.5" y="4" width="19" height="12.5" rx="2"/><path d="M9 20.5h6M12 16.5v4"/>
+    <circle cx="7.6" cy="10.2" r="1.5"/><path d="M12.6 8.6h5M12.6 11.8h5"/>
+  </symbol>
   <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 5.5V20.5"/>
   </symbol>
@@ -76,6 +80,7 @@
       <button role="tab" aria-selected="false" data-tab="timing"><svg class="ic"><use href="#i-clock"/></svg>时序计算</button>
       <button role="tab" aria-selected="false" data-tab="vtc"><svg class="ic"><use href="#i-clock"/></svg>时序对比</button>
       <button role="tab" aria-selected="false" data-tab="gamma"><svg class="ic"><use href="#i-chart"/></svg>伽马验证</button>
+      <button role="tab" aria-selected="false" data-tab="mccs"><svg class="ic"><use href="#i-monitor"/></svg>DDC/CI 控制</button>
       <button role="tab" aria-selected="false" data-tab="learn"><svg class="ic"><use href="#i-book"/></svg>学习 EDID</button>
       <button role="tab" aria-selected="false" data-tab="about"><svg class="ic"><use href="#i-info"/></svg>关于</button>
     </nav>
@@ -403,6 +408,156 @@
     <div class="stack" id="gam-out"></div>
   </section>
 
+  <section class="panel" id="panel-mccs">
+    <p class="muted" style="margin-top:0">
+      通过 <b>DDC/CI（MCCS）</b> 直接读写显示器内部寄存器：亮度、对比度、背光、输入源、色温、
+      静音、电源模式、累计使用时间……还可以读取显示器的 <b>capabilities 能力字符串</b>，
+      解析出它究竟支持哪些 VCP 码和哪些取值，并生成任意 DDC/CI 报文的字节。
+      <b>浏览器不能直接访问显示器的 I²C 总线</b>，所以真实的收发需要一个跑在本机的小桥接程序
+      （Windows 用系统自带 dxva2 接口，Linux/macOS 用 ddcutil）；不装桥接也能用：
+      手工粘贴能力字符串即可解析，报文构建器可离线生成字节与等价命令行。
+    </p>
+
+    <div class="card" style="margin-bottom:18px">
+      <header><h3>本地桥接</h3><span class="spacer"></span><span class="chip" id="mccs-chip">未连接</span></header>
+      <div class="body">
+        <div class="field-row">
+          <div class="field"><label for="mccs-base">桥接地址</label>
+            <input type="text" id="mccs-base" value="http://127.0.0.1:8760" spellcheck="false"></div>
+          <div class="field"><label for="mccs-monitor">目标显示器</label>
+            <select id="mccs-monitor"><option value="0">（未连接）</option></select></div>
+          <div class="field"><label>&nbsp;</label>
+            <div class="btn-row"><button class="primary" id="mccs-connect">检测连接</button></div></div>
+        </div>
+        <p class="small muted" id="mccs-bridge-status" style="margin:6px 0 0"></p>
+        <details class="small" style="margin-top:10px">
+          <summary>桥接怎么启动？（下载两个文件 → 一条命令）</summary>
+          <div style="padding-top:8px">
+            <ol style="margin:0 0 8px 18px; padding:0">
+              <li>下载 <a href="tools/ddc-bridge.js" download>ddc-bridge.js</a> 与
+                  <a href="tools/ddc-windows.ps1" download>ddc-windows.ps1</a>，放在同一个文件夹</li>
+              <li>在该文件夹打开终端，执行下面这条命令（需要 Node.js）</li>
+              <li>浏览器打开 <code>http://127.0.0.1:8760/?tab=mccs</code>，页面会自动连上桥接</li>
+            </ol>
+            <div class="btn-row">
+              <pre class="mono" id="mccs-cmd" style="margin:0;padding:8px 10px;background:var(--code-bg);border:1px solid var(--border);border-radius:var(--radius-sm)">node ddc-bridge.js</pre>
+              <button class="sm ghost" id="mccs-copycmd">复制命令</button>
+            </div>
+            <p class="hint">Windows 走系统 dxva2 接口，无需安装任何东西；Linux / macOS 需安装
+              <code>ddcutil</code> 并给当前用户 <code>/dev/i2c-*</code> 的访问权限。
+              显示器端要在 OSD 菜单里打开 <b>DDC/CI</b>（多数型号默认开启）。</p>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:18px">
+      <header><h3>读取 / 写入 VCP</h3><span class="spacer"></span><span class="chip" id="mccs-rw-chip">—</span></header>
+      <div class="body">
+        <div class="field-row">
+          <div class="field"><label for="mccs-filter">筛选码表</label>
+            <input type="text" id="mccs-filter" placeholder="10 / 亮度 / brightness" spellcheck="false"></div>
+          <div class="field" style="grid-column:span 2"><label for="mccs-code">VCP 码</label>
+            <select id="mccs-code"></select></div>
+        </div>
+        <p class="hint" id="mccs-codeinfo" style="margin:-6px 0 12px"></p>
+        <div class="field-row">
+          <div class="field"><label for="mccs-value">写入值（0–65535）</label>
+            <input type="number" id="mccs-value" value="0" min="0" max="65535"></div>
+          <div class="field"><label for="mccs-ncv">该码的可选值（读能力字符串后自动填充）</label>
+            <select id="mccs-ncv"><option value="">（无）</option></select></div>
+          <div class="field"><label>&nbsp;</label>
+            <div class="btn-row">
+              <button id="mccs-get">读取</button>
+              <button class="primary" id="mccs-set">写入</button>
+              <button class="sm" id="mccs-scan">扫描常用码</button>
+              <button class="sm" id="mccs-save">保存设置</button>
+            </div></div>
+        </div>
+        <div class="stack" id="mccs-result"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:18px">
+      <header><h3>DDC/CI 报文构建器</h3><span class="spacer"></span>
+        <span class="chip">纯离线，不依赖桥接</span></header>
+      <div class="body">
+        <div class="field-row">
+          <div class="field"><label for="mccs-kind">命令</label>
+            <select id="mccs-kind">
+              <option value="get">0x01 读取 VCP</option>
+              <option value="set" selected>0x03 写入 VCP</option>
+              <option value="save">0x0C 保存设置</option>
+              <option value="reset">0x09 VCP 复位</option>
+              <option value="cap">0xF3 读取能力字符串</option>
+              <option value="raw">自定义载荷</option>
+            </select></div>
+          <div class="field"><label for="mccs-wide">VCP 码宽度</label>
+            <select id="mccs-wide">
+              <option value="auto" selected>自动（≤0xFF 用 1 字节）</option>
+              <option value="1">1 字节（ddcutil / ddcctl / Windows dxva2 通用形式）</option>
+              <option value="2">2 字节（DDC/CI 1.1 规范变体，少数主机）</option>
+              <option value="3">3 字节（厂商 24 位扩展码，仅 ddcutil 可寻址）</option>
+            </select></div>
+          <div class="field"><label for="mccs-bcode">VCP 码（十六进制）</label>
+            <input type="text" id="mccs-bcode" value="10" spellcheck="false"></div>
+          <div class="field"><label for="mccs-bvalue">数值（十进制）</label>
+            <input type="text" id="mccs-bvalue" value="80" spellcheck="false"></div>
+        </div>
+        <div class="field-row" id="mccs-rawrow">
+          <div class="field"><label for="mccs-bop">操作码（十六进制，自定义模式用）</label>
+            <input type="text" id="mccs-bop" value="01" spellcheck="false"></div>
+          <div class="field" style="grid-column:span 2"><label for="mccs-bpayload">载荷字节（十六进制，自定义模式用）</label>
+            <input type="text" id="mccs-bpayload" placeholder="10 00" spellcheck="false"></div>
+        </div>
+        <div class="btn-row" style="margin-bottom:12px">
+          <button class="sm ghost" id="mccs-bcopy">复制报文</button>
+          <button class="sm ghost" id="mccs-bsync">从上面的码表取值</button>
+        </div>
+        <div class="stack" id="mccs-bout"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:18px">
+      <header><h3>显示器能力字符串（capabilities）</h3><span class="spacer"></span>
+        <span class="chip" id="mccs-cap-chip">未读取</span></header>
+      <div class="body">
+        <div class="btn-row" style="margin-bottom:10px">
+          <button class="primary" id="mccs-cap-read">从显示器读取</button>
+          <button id="mccs-cap-parse">解析下面的字符串</button>
+          <button class="sm ghost" id="mccs-cap-sample">填入样例</button>
+        </div>
+        <div class="field"><label for="mccs-cap-text">原文（也可以从 SoftMCCS / ddcutil capabilities 里粘贴）</label>
+          <textarea id="mccs-cap-text" rows="4" spellcheck="false" style="width:100%"></textarea></div>
+        <div class="stack" id="mccs-cap-out"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:18px">
+      <header><h3>VCP 码参考表</h3><span class="spacer"></span><span class="chip" id="mccs-ref-chip"></span></header>
+      <div class="body">
+        <div class="field-row">
+          <div class="field" style="grid-column:span 2"><label for="mccs-ref-filter">筛选（码 / 名称 / 分组）</label>
+            <input type="text" id="mccs-ref-filter" placeholder="60 / 输入源 / 几何" spellcheck="false"></div>
+        </div>
+        <div id="mccs-ref"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <header><h3>命令日志</h3><span class="spacer"></span>
+        <span class="chip" id="mccs-log-chip">0 条</span></header>
+      <div class="body">
+        <div class="btn-row" style="margin-bottom:10px">
+          <button class="sm ghost" id="mccs-log-copy">复制全部</button>
+          <button class="sm ghost" id="mccs-log-save">导出 .txt</button>
+          <button class="sm ghost" id="mccs-log-clear">清空</button>
+        </div>
+        <div id="mccs-log"></div>
+      </div>
+    </div>
+  </section>
+
   <!-- ================================================ 学习 Learn ========= -->
   <section class="panel" id="panel-learn">
     <div class="card" style="margin-bottom:18px"><div class="body">
@@ -530,12 +685,13 @@
     <div class="grid cols-2">
       <div class="card"><div class="body">
         <h3>关于本工具</h3>
-        <p>这是一个 <b>纯静态、纯前端</b> 的 EDID 工具箱，功能覆盖 edidcraft.com 的解析、生成、校验与时序计算四大部分，另加入时序对比与伽马曲线验证扩展工具，所有运算都由浏览器端 JavaScript 实现：</p>
+        <p>这是一个 <b>纯静态、纯前端</b> 的 EDID 工具箱，功能覆盖 edidcraft.com 的解析、生成、校验与时序计算四大部分，另加入时序对比、伽马曲线验证与 DDC/CI 显示器控制扩展工具，所有运算都由浏览器端 JavaScript 实现：</p>
         <ul class="small muted">
-          <li>没有后端、没有 API 请求，页面不发起任何远程调用；</li>
+          <li>没有后端、不请求任何远程接口，页面逻辑全部在本地运行；</li>
           <li>不加载任何 CDN 资源（图标为内联 SVG、字体为系统字体）；</li>
-          <li>只有 <code>index.html</code> + <code>css/</code> + <code>js/</code> 三部分，没有任何构建步骤；</li>
+          <li>只有 <code>index.html</code> + <code>css/</code> + <code>js/</code>，外带可选的 <code>tools/</code> 本地桥接，没有任何构建步骤；</li>
           <li>因此可以直接放到 GitHub Pages / Cloudflare Pages / 任意静态托管。</li>
+          <li>唯一会发起请求的地方是「DDC/CI 控制」页连接本机 <code>127.0.0.1:8760</code> 的桥接程序（浏览器无法直接访问显示器的 I²C 总线）；不装桥接时该页只做离线报文分析与码表查询。</li>
         </ul>
         <p class="small muted">你的 EDID 数据只存在于当前页面，刷新即消失（仅在浏览器本地保存主题与表单草稿）。</p>
       </div></div>
@@ -549,6 +705,7 @@
           <dt>时序</dt><dd>CVT 标准 / RB / RBv2 / RBv3 与 GTF（含隔行与缩边），输出参数表、Modeline、xrandr 命令与可写入 DTD 的字节</dd>
           <dt>时序对比</dt><dd>一次计算 CVT / CVT-RB / CVT-RBv2 / CEA-861 / DMT / 自定义六种时序，核算 DP / HDMI / DVI / SDI / RFC4175 接口带宽余量</dd>
           <dt>伽马验证</dt><dd>读取 CA410 测量数据与灰阶占比表（.xlsx 本地解析），生成实测 / 参考伽马曲线与白点一致性图表，计算平均 Gamma；内置 6 组实测数据集（默认 BT1886，切换曲线自动重绘）</dd>
+          <dt>DDC/CI 控制</dt><dd>像 MCCS 工具一样读写显示器 VCP 特性（亮度 / 对比度 / 输入源 / 电源模式…）、扫描支持码、读取并解析 capabilities 字符串；离线可用报文构建器（逐字节解释 + 校验和核对 + 等价 ddcutil / i2ctransfer / curl 命令）与 182 条 VCP 码参考表</dd>
         </div>
       </div></div>
 
@@ -568,12 +725,12 @@
         <h3>使用与开发</h3>
         <div class="kv">
           <dt>自测</dt><dd>用 Node 或浏览器控制台加载引擎即可跑通预设与校验，详见 README</dd>
-          <dt>目录</dt><dd><code>index.html</code> · <code>css/styles.css</code> · <code>js/*.js</code></dd>
+          <dt>目录</dt><dd><code>index.html</code> · <code>css/styles.css</code> · <code>js/*.js</code> · <code>tools/</code>（DDC/CI 本地桥接）</dd>
           <dt>引擎</dt><dd><code>edid-core.js</code>（常量与工具）· <code>timing.js</code>（CVT/GTF）· <code>edid-decoder.js</code> · <code>edid-encoder.js</code> · <code>edid-validator.js</code></dd>
-          <dt>扩展</dt><dd><code>zip-lite.js</code> / <code>xlsx-lite.js</code>（纯 JS 读取 .xlsx）· <code>gamma.js</code>（伽马验证与 SVG 图表）</dd>
+          <dt>扩展</dt><dd><code>zip-lite.js</code> / <code>xlsx-lite.js</code>（纯 JS 读取 .xlsx）· <code>gamma.js</code>（伽马验证与 SVG 图表）· <code>mccs.js</code> / <code>mccs-data.js</code>（DDC/CI 协议与 VCP 码表）</dd>
           <dt>校验</dt><dd>引擎自带 Node 测试脚本，可与在线服务结果逐项比对</dd>
         </div>
-        <p class="small muted" style="margin-top:10px">想做二次开发？引擎文件都是普通脚本，暴露 <code>window.EDIDCore / EDIDTiming / EDIDDecoder / EDIDEncoder / EDIDValidator</code>，可以单独取用。</p>
+        <p class="small muted" style="margin-top:10px">想做二次开发？引擎文件都是普通脚本，暴露 <code>window.EDIDCore / EDIDTiming / EDIDDecoder / EDIDEncoder / EDIDValidator / MCCS / MCCSData</code>，可以单独取用。</p>
         <div class="btn-row" style="margin-top:10px">
           <button class="sm" id="about-reset">清除本地草稿</button>
           <button class="sm" id="about-print">打印本页</button>
@@ -614,6 +771,8 @@
 <script src="js/xlsx-lite.js"></script>
 <script src="js/gamma.js"></script>
 <script src="js/gamma-data.js"></script>
+<script src="js/mccs-data.js"></script>
+<script src="js/mccs.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

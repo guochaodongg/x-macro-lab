@@ -27,6 +27,7 @@
 | **时序对比** | 多标准时序对比计算器（对标 Tom Verbeure 的 Video Timings Calculator）：一次计算 CVT / CVT-RB / CVT-RBv2 / CEA-861 / DMT / 自定义六种时序，并核算 DP / HDMI / DVI / SDI / RFC4175 各接口带宽余量 |
 | **伽马验证** | 读取 CA410 色温仪测量数据与灰阶占比表（.xlsx，浏览器本地解析，自研 ZIP / OOXML 读取器），按所选 Gamma 曲线（GammaBT1886 / 1.8 / 2.0 / 2.2 / 2.4 / 2.6）的占比映射生成参考曲线（峰值亮度 × 灰阶占比）、白点一致性（Wx / Wy）图表，并计算平均 Gamma（对数回归，与目标值偏差 ±0.05 内标绿）；可导出 PNG。**内置 6 组实测数据集**（`data/` 内，默认载入 BT1886），切换曲线即自动重绘对应图表，也支持上传自己的 .xlsx |
 | **学习 EDID** | 8 节速成课：EDID 是什么、基础块字节地图、四种描述符、18 字节 DTD 逐字节解释、CEA-861 与 DisplayID、CVT/GTF 原理、常见坑、参考资料 |
+| **DDC/CI 控制** | 像 MCCS 工具那样直接读写显示器 VCP 特性：连接本地桥接后列出物理显示器、读/写任意 VCP 码（亮度 / 对比度 / 输入源 / 电源模式…）、扫描常用码、读取并解析显示器 capabilities 字符串；离线也有**报文构建器**（逐字节字段解释 + 校验和核对 + 等价 `ddcutil` / `i2ctransfer` / PowerShell / curl 命令）和 **182 条 VCP 码参考表**（中英文名、类型 C/NC/CNC/T、读写权限、分组、枚举值含义） |
 | **关于** | 项目介绍、部署说明、开发说明、清除草稿 |
 
 附加能力：拖放 `.bin` / `.hex` / `.txt` / `.dat` / `.edid` 文件、粘贴任意十六进制文本（空格/换行/逗号/`0x` 前缀自动忽略）、`.bin/.hex` 导出、复制到剪贴板、打印 / 存 PDF、深色/浅色主题、自动保存草稿到 `localStorage`、**解析结果一键送进生成器**。
@@ -57,11 +58,16 @@ edid-x-lab/
 │   ├── xlsx-lite.js        # 纯 JS .xlsx（OOXML）解析：工作表 / sharedStrings / 单元格
 │   ├── gamma.js            # 伽马验证逻辑（数据组装、平均 Gamma、SVG 折线图，无 DOM 依赖）
 │   ├── gamma-data.js       # 内置数据集（由 _ref/gen-gamma-data.js 从 data/*.xlsx 生成）
+│   ├── mccs-data.js        # MCCS VCP 码表（182 条）+ DDC/CI 操作码表，纯数据
+│   ├── mccs.js             # DDC/CI 协议逻辑：报文构建、应答解析、能力字符串解析、命令导出（无 DOM 依赖）
 │   └── app.js              # 界面接线：标签页、表单、草稿、导出
+├── tools/                  # DDC/CI 本地桥接（非页面依赖，用到时才需要）
+│   ├── ddc-windows.ps1     # Windows 后端：dxva2.dll（P/Invoke），支持一次性与常驻两种模式
+│   └── ddc-bridge.js       # 零依赖 Node HTTP 桥接：静态站点 + /api/*，串行化 DDC 事务
 └── README.md
 ```
 
-脚本按 `core → timing → vtc-data → video-timings → decoder → encoder → validator → report → zip-lite → xlsx-lite → gamma → gamma-data → app` 的顺序加载，**顺序不能改**（都是普通 `<script>`，不是 ES module）。
+脚本按 `core → timing → vtc-data → video-timings → decoder → encoder → validator → report → zip-lite → xlsx-lite → gamma → gamma-data → mccs-data → mccs → app` 的顺序加载，**顺序不能改**（都是普通 `<script>`，不是 ES module）。
 
 > `data/*.xlsx` 是原始测量文件，页面不会去 fetch 它们（`file://` 下会被 CORS 拦），
 > 而是用 `js/gamma-data.js` 里的预提取数组，因此双击 `index.html` 也能直接看到内置图表；
@@ -142,7 +148,98 @@ git push -u origin master
 
 ---
 
-## 6. 复用引擎（二次开发）
+## 6. DDC/CI 直连显示器（本地桥接）
+
+**浏览器无法直接访问 I²C/DDC 总线**——没有任何 Web API 能发 DDC/CI 报文。所以「DDC/CI 控制」页采用
+「静态页面 + 本地桥接程序」的结构：桥接程序跑在本机、用系统 API 操作显示器，页面通过
+`http://127.0.0.1:8760` 访问它。
+
+### 6.1 启动桥接
+
+Windows（用 dxva2.dll，无需装任何依赖）：
+
+```bash
+cd edid-x-lab/tools
+node ddc-bridge.js                 # 默认 127.0.0.1:8760，静态根目录指向上一级
+# 浏览器打开 http://127.0.0.1:8760/?tab=mccs
+```
+
+Linux / macOS（依赖 `ddcutil`，桥接会自动识别后端）：
+
+```bash
+sudo apt install ddcutil           # macOS: brew install ddcutil
+cd edid-x-lab/tools && node ddc-bridge.js
+```
+
+也可以不用桥接，直接命令行操作单个显示器：
+
+```bash
+powershell -ExecutionPolicy Bypass -File ddc-windows.ps1 -Action list
+powershell -ExecutionPolicy Bypass -File ddc-windows.ps1 -Monitor 0 -Action get -Code 0x10
+powershell -ExecutionPolicy Bypass -File ddc-windows.ps1 -Monitor 0 -Action set -Code 0x12 -Value 75
+powershell -ExecutionPolicy Bypass -File ddc-windows.ps1 -Action serve   # 常驻模式，stdin/stdout 逐行 JSON
+```
+
+### 6.2 桥接接口
+
+| 接口 | 说明 |
+| --- | --- |
+| `GET /api/ping` | 健康检查 + 当前后端（`dxva2` / `ddcutil`） |
+| `GET /api/monitors` | 列出物理显示器（含 `\\.\DISPLAYn` 与描述） |
+| `GET /api/vcp?monitor=0&code=0x10` | 读 VCP：返回 `current` / `max` / `vcpType` |
+| `POST /api/vcp` | 写 VCP：body `{"monitor":0,"code":16,"value":70}` |
+| `GET /api/scan?monitor=0` | 扫描常用 VCP 码，返回每个码是否支持及当前值 |
+| `GET /api/capabilities?monitor=0` | 读取能力字符串（原样 ASCII） |
+| `POST /api/save` | 保存当前设置到显示器 NVRAM（`SaveCurrentMonitorSettings` / `ddcutil scs`） |
+| `GET /api/raw` | 恒返回 501：dxva2 只提供 VCP 与能力字符串接口，**不接受任意字节流** |
+
+桥接把硬件操作串行化（内部维护一个队列 + 常驻的 PowerShell `serve` 子进程），因为 DDC/CI 事务
+不能并发——竞态会让显示器返回乱码或直接 NAK。返回的错误码会被翻译成中文提示，例如
+`0xC0262589`（`ERROR_GRAPHICS_I2C_ERROR_TRANSMITTING_DATA` 家族）会提示「该 VCP 码不被显示器支持」。
+
+### 6.3 报文格式与 VCP 码宽度
+
+```
+主机 → 显示器： [0x51] [0x80|n] [opcode] [data…] [chk]        chk = 0x6E ⊕ 前面所有字节
+显示器 → 主机： [0x6E] [0x80|n] [opcode] [data…] [chk’]       chk’ 的地址项各实现不同，页面会逐个试算
+```
+
+VCP 码字段是**变长**的，长度字节把它算在内，三种报文的换算式不同：
+
+| 报文 | 载荷构成 | 长度字段 |
+| --- | --- | --- |
+| 读 VCP（0x01） | `opcode` + 码(n) | `0x80\|(1+n)` |
+| 写 VCP（0x03） | `opcode` + 码(n) + 数值(2) | `0x80\|(3+n)` |
+| VCP 应答（0x02） | `opcode` + 结果码(1) + 码(n) + 类型(1) + 最大值(2) + 当前值(2) | `0x80\|(7+n)` |
+
+n = 1 是**通用形式**，四个独立实现都这么做，页面默认也用它（选「自动」时 ≤0xFF 用 1 字节）：
+
+- Windows `dxva2.dll`：`SetVCPFeature(hMonitor, BYTE bVCPCode, …)`——参数本身就是单字节；
+- Linux `ddcutil`（作者给的参考报文）：请求 `6e 51 82 01 10`、应答 `6f 6e 88 02 00 10 …`；
+- macOS `ddcctl`：写 `51 84 03 <code> <hi> <lo>`、读 `51 82 01 <code>`；
+- `ddcci.py` 等第三方库同样如此。
+
+2 字节（`0x83` / `0x85`）是 DDC/CI 1.1 允许的变体，少数主机用；3 字节只用于 0xE0 以上的厂商
+24 位扩展码（如实测某型号的 `0xE2A002`）。**应答解析不看请求，直接从长度字段反推码宽**，所以
+无论对方用哪种宽度都能正确解出码值。注意 dxva2 因为参数是单字节，**无法寻址 0xE0–0xFF 之外
+的扩展码**，这类码只能配合 `ddcutil` 使用——页面会对这种组合给出告警。
+
+### 6.4 离线可用范围
+
+不用桥接也能用（纯前端逻辑）：**报文构建器**（含逐字节字段解释、校验和核对、等价
+`ddcutil` / `i2ctransfer` / PowerShell / curl 命令）与 **182 条 VCP 码参考表**；粘贴一段
+capabilities 字符串也能解析出型号、`mccs_ver`、支持的操作码、支持的全部 VCP 码及其枚举值。
+只有「读/写/扫描/保存」需要桥接。
+
+### 6.5 写入注意事项
+
+- 写 VCP 只是**临时生效**，显示器断电即丢；要保留得再点一次「保存设置」（写 NVRAM，次数有寿命）。
+- `0xD6` 电源模式写 `0x05` 会关掉画面（面板键或重新上电才能恢复），`0x04` 是真关机。
+- 部分显示器带 OSD 锁定或 DDC/CI 开关，被关掉时桥集会返回「不支持」，先在 OSD 里打开。
+
+---
+
+## 7. 复用引擎（二次开发）
 
 引擎文件都是普通脚本，会挂到 `window` 上，可以脱离界面单独使用：
 
@@ -182,14 +279,16 @@ git push -u origin master
 | `EDIDEncoder` | `encode(model)`、`defaultModel()`、`defaultDTD()`、`dtdFromTiming()`、`packDTD()`、`ceaHdExtension()`、`cea4kExtension()`、`FORMAT_PRESETS`（`1080p` / `1440p` / `4k` / `ultrawide` / `laptop` / `legacy` / `hdr`） |
 | `EDIDValidator` | `validate(bytes)`、`checkDTD(dtd)` |
 | `EDIDReport` | `decodeReport`、`validationReport`、`timingReport`、`hexViewer`、`chromaPlot`、`kv`、`card`、`chip`、`tableHtml`、`esc` |
+| `MCCS` | `buildGetVCP`、`buildSetVCP`、`buildSaveSettings`、`buildVcpReset`、`buildGetCapabilities`、`buildRaw`、`build(kind, opts)`、`parseReply`、`verifyChecksum`、`describe`、`parseCapabilities`、`vcp`、`vcpName`、`vcpText`、`formatValue`、`toDdcutil`、`toI2cTransfer`、`toCurl`、`toBridgeScript` |
+| `MCCSData` | `VCP`（182 条码表）、`OPCODES`（9 条操作码）、`VALUES`（枚举值表） |
 
 ---
 
-## 7. 自测
+## 8. 自测
 
-> 发布仓库只包含 `index.html` + `css/` + `js/`，**不含测试脚本**。下面的两种方式都不需要安装任何第三方包，可随时用来验证引擎是否完好。
+> 发布仓库包含 `index.html` + `css/` + `js/` + `data/` + `tools/`，**不含测试脚本**（测试在仓库外的 `_ref/`）。下面两种方式都不需要安装任何第三方包，可随时用来验证引擎是否完好。
 
-### 7.1 Node 里跑一遍（推荐）
+### 8.1 Node 里跑一遍（推荐）
 
 引擎文件是普通脚本，用 `vm.runInThisContext` 在同一个全局上下文里依次加载即可（它们靠 `window`/`global` 互相引用，所以**必须共享同一个上下文**）：
 
@@ -222,7 +321,7 @@ console.log(EDIDTiming.modeline(cvt));
 console.log(EDIDTiming.compare(cvt, gtf).recommendation);
 ```
 
-### 7.2 浏览器控制台里跑一遍
+### 8.2 浏览器控制台里跑一遍
 
 打开页面后按 F12，在控制台直接输入（引擎已挂在 `window` 上）：
 
@@ -235,7 +334,7 @@ Object.keys(EDIDEncoder.FORMAT_PRESETS).map(k => {
 });
 ```
 
-### 7.3 界面层
+### 8.3 界面层
 
 界面（`app.js`）依赖真实 DOM，需要 [jsdom](https://www.npmjs.com/package/jsdom) 才能自动化。jsdom **不是**项目依赖，装在目录之外即可，避免污染这个纯静态仓库：
 
@@ -246,9 +345,13 @@ NODE_PATH=/tmp/edid-domtest/node_modules node your-dom-test.js
 
 Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 
+> 本项目的测试脚本（`_ref/test-*.js`，覆盖编解码往返、时序矩阵、报告层、时序对比、伽马、
+> DDC/CI 协议、以及 jsdom 驱动的界面层）都在仓库外的 `_ref/`，不会随静态站点发布。
+> 当前基线：**108 / 356 / 2094 / 20095 / 122 / 258 / 64，全部 0 失败**。
+
 ---
 
-## 8. 已知边界
+## 9. 已知边界
 
 - **DisplayID** 只解析到“分节”层级（标签/版本/长度/偏移），不做逐节内容解释；生成器也按分节字节原样写入。
 - **VTB** 与**块映射表**同样只做结构与标签层面的处理。
@@ -259,9 +362,12 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 - **伽马验证**页只读取每个工作簿的**第一个工作表**，仅支持 `.xlsx / .xlsm`（OOXML 格式，与 Python 版工具一致）；`.xls`（老二进制格式）不支持。平均 Gamma 的对数回归算法与内部 Python 版「Gamma Curve Verification Tool」逐点一致（含边界跳过规则），基准数据实测结果为 2.157。
 - **伽马验证的内置数据集**（`data/` 内 6 份 CA410 实测数据 + 1 份灰阶占比表）是定版样本：内置模式下行号只能在已提取的区间（测量 271-526 / 占比 2-257）内收窄，列号固定为 A/G/E/F、B~G；需要其它列或整表其他区间时请切到「自定义上传 .xlsx」。
 
+- **DDC/CI 控制**页必须配合 `tools/` 下的本地桥接才能操作硬件：浏览器没有访问 I²C 总线的 API，`file://` 或 GitHub Pages 上只能使用报文构建器、码表与能力字符串解析。桥接监听在回环地址并带 CORS 头，只接受本机页面发起的请求；在公共网络中不要把它暴露到 `0.0.0.0`。
+- 显示器差异极大：capabilities 未声明某码不等于一定不支持（反之亦然，以实际读写结果为准）；`0xE0–0xFF` 是厂商自定义区间，同一个码在不同品牌含义完全不同。Windows 的 dxva2 路径只能寻址 `0x00–0xFF` 的单字节 VCP 码，`0xE2A002` 这类 24 位扩展码需要 `ddcutil`。实测本机 `DISPLAY1` 是虚拟显示器，能读 VCP 但读能力字符串会返回 `INVALID_MESSAGE_LENGTH`，属正常现象。
+
 ---
 
-## 9. 说明
+## 10. 说明
 
 本项目的代码与文案为独立实现，功能对标 edidcraft.com。「时序对比」页的功能对标 Tom Verbeure 的
 Video Timings Calculator（其 DMT/VIC 标准时序数据与 CVT 公式来自 VESA/CTA 公开规范，算法经交叉验证对齐）。

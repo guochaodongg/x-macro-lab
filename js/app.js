@@ -1908,6 +1908,851 @@
     });
   }
 
+  /* ===================== DDC/CI（MCCS）控制 ===================== */
+  var MCCS_LS = 'edidcraft-local:mccs';
+
+  var mccs = {
+    base: 'http://127.0.0.1:8760',
+    connected: false,
+    backend: '',
+    monitors: [],
+    monitor: 0,
+    last: null,          /* 最近一次读取结果 */
+    lastCode: 0x10,
+    cap: null,           /* 已解析的能力字符串 */
+    capText: '',
+    capValues: {},       /* VCP 码 -> 该显示器声明的「取值 -> 文案」表（仅非连续量） */
+    capCodes: {},        /* VCP 码 -> true：显示器在 capabilities 里声明了它 */
+    log: [],
+    refFilter: ''
+  };
+
+  var MCCS_SAMPLE_CAP =
+    'prot(monitor)type(LCD)model(Q27G11SEP)cmds(01 02 03 07 0C E3 F3)' +
+    'vcp(02 04 05 08 0B 0C 10 12 13 14(05 06 08 0B) 16 18 1A 60(0F 11) 62 ' +
+    '86(01 02 0B 0C 0D 0E 0F 10 11 12 13 23) 87 8D(01 02) B6 C0 C6 C8 C9 CA ' +
+    'CC(01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 12 14 16 1E 24) ' +
+    'DC(00 0B 0C 0D 0E 0F 10 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94) ' +
+    'E2A002 E2A003 E2A006 E2A020(00 02) E2A040(00 01) F8E112(00 01 02 03 04) ' +
+    'F8E151(00 01 02 03) F8E158 F8E159(00 01 02 03 04) F8E15A(00 01 02) ' +
+    'F8E15B(00 01 02 03 04) F8E17F F8E190)mswhql(1)asset_eep(40)mccs_ver(2.2)';
+
+  /* ---------------------------------------------------------- 小工具 */
+
+  function mccsTable(head, rows) {
+    if (!rows.length) return '<div class="empty">无</div>';
+    return '<div class="table-scroll"><table><thead><tr>' +
+      head.map(function (h) { return '<th>' + h + '</th>'; }).join('') +
+      '</tr></thead><tbody>' + rows.map(function (r) {
+        return '<tr>' + r.map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+
+  function mccsKv(rows) {
+    return '<dl class="kv">' + rows.map(function (r) {
+      return '<dt>' + r[0] + '</dt><dd class="' + (r[2] || '') + '">' + (r[3] ? r[1] : esc(r[1])) + '</dd>';
+    }).join('') + '</dl>';
+  }
+
+  function mccsPre(text, id) {
+    return '<pre class="mono" style="margin:8px 0 0;padding:10px 12px;background:var(--code-bg);' +
+      'border:1px solid var(--border);border-radius:var(--radius-sm);overflow:auto"' +
+      (id ? ' id="' + id + '"' : '') + '>' + esc(text) + '</pre>';
+  }
+
+  function mccsCopy(text, label) {
+    function done() { toast('已复制', label || '', 'ok'); }
+    function fallback() {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      ta.remove();
+      if (ok) done(); else toast('复制失败', '请手动选中文本复制', 'warn');
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else fallback();
+  }
+
+  function mccsDownload(name, text) {
+    var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+  }
+
+  function mccsLog(kind, text) {
+    mccs.log.unshift({ t: new Date(), kind: kind, text: text });
+    if (mccs.log.length > 400) mccs.log.length = 400;
+    mccsRenderLog();
+  }
+
+  function mccsRenderLog() {
+    var chip = $('#mccs-log-chip');
+    if (chip) chip.textContent = mccs.log.length + ' 条';
+    var box = $('#mccs-log');
+    if (!box) return;
+    if (!mccs.log.length) {
+      box.innerHTML = '<div class="empty">还没有操作记录。</div>';
+      return;
+    }
+    var cls = { TX: 'info', RX: 'ok', ERR: 'err', INFO: '' };
+    box.innerHTML = '<div class="table-scroll"><table><tbody>' + mccs.log.map(function (e) {
+      var t = ('0' + e.t.getHours()).slice(-2) + ':' + ('0' + e.t.getMinutes()).slice(-2) + ':' +
+        ('0' + e.t.getSeconds()).slice(-2);
+      return '<tr><td class="mono nowrap">' + t + '</td><td class="nowrap"><span class="chip ' +
+        (cls[e.kind] || '') + '">' + esc(e.kind) + '</span></td><td class="mono">' + esc(e.text) + '</td></tr>';
+    }).join('') + '</tbody></table></div>';
+  }
+
+  /* ---------------------------------------------------------- 桥接连接 */
+
+  function mccsOnLocalhost() {
+    return location.protocol.indexOf('http') === 0 &&
+      (location.hostname === '127.0.0.1' || location.hostname === 'localhost');
+  }
+
+  function mccsBaseUrl() {
+    return (mccs.base || '').replace(/\/+$/, '');
+  }
+
+  function mccsFetch(base, path, opts, timeout) {
+    if (typeof fetch !== 'function') {
+      return Promise.resolve({ ok: false, error: '当前浏览器不支持 fetch，无法连接桥接' });
+    }
+    var init = { method: (opts && opts.method) || 'GET', cache: 'no-store' };
+    if (opts && opts.body) {
+      init.headers = { 'Content-Type': 'application/json' };
+      init.body = JSON.stringify(opts.body);
+    }
+    var timer = null;
+    if (typeof AbortController !== 'undefined') {
+      var ctl = new AbortController();
+      init.signal = ctl.signal;
+      timer = setTimeout(function () { ctl.abort(); }, timeout || 40000);
+    }
+    return fetch(base + path, init).then(function (r) {
+      if (timer) clearTimeout(timer);
+      return r.json().catch(function () {
+        return { ok: false, error: 'HTTP ' + r.status + '：桥接返回的不是 JSON（地址是否正确？）' };
+      });
+    }, function (e) {
+      if (timer) clearTimeout(timer);
+      return { ok: false, error: '无法连接桥接：' + (e && e.message ? e.message : e) };
+    });
+  }
+
+  function mccsSetChip(text, kind) {
+    var chip = $('#mccs-chip');
+    if (!chip) return;
+    chip.className = 'chip ' + (kind || '');
+    chip.textContent = text;
+  }
+
+  function mccsConnect() {
+    var manual = mccsBaseUrl();
+    var bases = [];
+    if (mccsOnLocalhost()) bases.push('');           /* 页面就是桥接托管的：同源优先 */
+    if (manual) bases.push(manual);
+    if (location.protocol === 'file:') bases.push('http://127.0.0.1:8760');
+
+    mccsSetChip('连接中…', 'warn');
+    $('#mccs-bridge-status').textContent = '正在探测 ' + (bases.length ? bases.map(function (b) {
+      return b || (location.origin + '（同源）');
+    }).join('、') : '（未配置地址）') + ' …';
+
+    var i = 0;
+    function tryNext() {
+      if (i >= bases.length) {
+        mccs.connected = false;
+        mccsSetChip('未连接', 'warn');
+        $('#mccs-bridge-status').innerHTML =
+          '没有检测到桥接服务。请先在本机启动 <code>ddc-bridge.js</code>（见上方折叠说明），' +
+          '然后点「检测连接」。未连接时仍然可以使用下方的<b>能力字符串解析</b>与<b>报文构建器</b>（纯离线）。';
+        mccsLog('ERR', '桥接连接失败');
+        return;
+      }
+      var base = bases[i++];
+      mccsFetch(base, '/api/ping', null, 8000).then(function (p) {
+        if (!p || !p.ok) return tryNext();
+        mccs.base = base || mccs.base;
+        mccs.backend = p.backend || '';
+        mccsSave();
+        return mccsFetch(base, '/api/monitors', null, 30000).then(function (m) {
+          if (!m || !m.ok) {
+            mccs.connected = true;
+            mccsSetChip('已连接', 'ok');
+            $('#mccs-bridge-status').innerHTML = '桥接已连接（后端 <code>' + esc(p.backend) +
+              '</code>），但列出显示器失败：' + esc(m && m.error ? m.error : '未知错误') +
+              (m && m.hint ? '（' + esc(m.hint) + '）' : '');
+            mccsLog('ERR', '列出显示器失败：' + (m && m.error ? m.error : '未知'));
+            return;
+          }
+          mccs.connected = true;
+          mccs.monitors = m.monitors || [];
+          mccsFillMonitors();
+          mccsSetChip('已连接 · ' + mccs.monitors.length + ' 台显示器', 'ok');
+          $('#mccs-bridge-status').innerHTML = '桥接已连接：后端 <code>' + esc(p.backend) +
+            '</code>，平台 <code>' + esc(p.platform) + '</code>，站点根目录 <code>' + esc(p.root || '') + '</code>。';
+          mccsLog('INFO', '桥接已连接（' + p.backend + '），发现 ' + mccs.monitors.length + ' 台显示器');
+        });
+      });
+    }
+    tryNext();
+  }
+
+  function mccsFillMonitors() {
+    var sel = $('#mccs-monitor');
+    if (!sel) return;
+    sel.innerHTML = '';
+    if (!mccs.monitors.length) {
+      sel.innerHTML = '<option value="0">（未发现显示器）</option>';
+      return;
+    }
+    mccs.monitors.forEach(function (mo) {
+      var o = document.createElement('option');
+      o.value = String(mo.index);
+      o.textContent = '#' + mo.index + ' — ' + (mo.description || mo.device || '显示器') +
+        (mo.device ? '（' + mo.device + '）' : '');
+      sel.appendChild(o);
+    });
+    sel.value = String(mccs.monitors.some(function (x) { return x.index === mccs.monitor; }) ? mccs.monitor : 0);
+    mccs.monitor = parseInt(sel.value, 10) || 0;
+  }
+
+  /* ---------------------------------------------------------- 码表选择 */
+
+  function mccsFillCodeSelect(filter) {
+    var sel = $('#mccs-code');
+    if (!sel) return;
+    var f = (filter || '').trim().toLowerCase();
+    var groups = {}, order = [];
+    (window.MCCSData ? window.MCCSData.VCP : []).forEach(function (e) {
+      var text = (MCCS.vcpText(e.c) + ' ' + e.zh + ' ' + e.en + ' ' + e.g).toLowerCase();
+      if (f && text.indexOf(f) < 0) return;
+      if (!groups[e.g]) { groups[e.g] = []; order.push(e.g); }
+      groups[e.g].push(e);
+    });
+    var keep = sel.value;
+    sel.innerHTML = '';
+    var total = 0;
+    order.forEach(function (g) {
+      var og = document.createElement('optgroup');
+      og.label = g + '（' + groups[g].length + '）';
+      groups[g].forEach(function (e) {
+        var o = document.createElement('option');
+        o.value = MCCS.vcpText(e.c);
+        o.textContent = MCCS.vcpText(e.c) + ' · ' + e.zh + ' · ' +
+          (e.t === 'C' ? '连续量' : (e.t === 'NC' ? '非连续量' : e.t)) + ' · ' + MCCS.rwText(e.rw) +
+          (mccs.capCodes[e.c] ? ' ✓' : '');
+        og.appendChild(o);
+        total++;
+      });
+      sel.appendChild(og);
+    });
+    if (keep && sel.querySelector('option[value="' + keep + '"]')) sel.value = keep;
+  }
+
+  function mccsParseCodeInput(text) {
+    var s = String(text || '').trim().replace(/^0x/i, '');
+    if (!/^[0-9a-f]{1,6}$/i.test(s)) return null;
+    return parseInt(s, 16);
+  }
+
+  function mccsCurrentCode() {
+    var v = $('#mccs-code') ? $('#mccs-code').value : '10';
+    var c = mccsParseCodeInput(v);
+    return c === null ? 0x10 : c;
+  }
+
+  function mccsCodeInfo(code) {
+    var e = MCCS.vcp(code);
+    var parts = [];
+    if (e) {
+      parts.push('<b>' + MCCS.vcpText(code) + '</b> ' + esc(e.zh) + '（' + esc(e.en) + '）');
+      parts.push(MCCS.typeText(e.t) + ' · ' + MCCS.rwText(e.rw) + ' · 分组 ' + esc(e.g));
+      if (e.n) parts.push(esc(e.n));
+    } else {
+      parts.push('<b>' + MCCS.vcpText(code) + '</b> 未收录的码（很可能是厂商自定义码）');
+    }
+    if (mccs.capCodes[code]) {
+      var map = mccs.capValues[code];
+      parts.push('该显示器声明支持' + (map ?
+        '，取值：' + Object.keys(map).map(function (k) { return map[k]; }).join(' / ') :
+        '（连续量，取值以读取返回的最大值为准）'));
+    }
+    return parts.join('　·　');
+  }
+
+  /* 从能力字符串里取出每个码声明的取值，做成「值 -> 文案」表；
+     同时记录「显示器声明支持哪些码」（连续量码不带取值，也要记下来） */
+  function mccsBuildCapValues() {
+    var values = {}, codes = {};
+    if (mccs.cap && mccs.cap.vcp) {
+      mccs.cap.vcp.forEach(function (f) {
+        codes[f.code] = true;
+        if (f.values && f.values.length) {
+          var m = {};
+          f.values.forEach(function (v) { m[v] = MCCS.formatValue(f.code, v); });
+          values[f.code] = m;
+        }
+      });
+    }
+    mccs.capValues = values;
+    mccs.capCodes = codes;
+  }
+
+  function mccsSyncNcSelect(code) {
+    var sel = $('#mccs-ncv');
+    if (!sel) return;
+    var map = mccs.capValues[code];
+    sel.innerHTML = '';
+    if (!map) {
+      var e = MCCS.vcp(code);
+      if (e && e.v) map = e.v;
+    }
+    if (!map) {
+      sel.innerHTML = '<option value="">（该码没有已知枚举值）</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">（选择后自动填入）</option>';
+    Object.keys(map).forEach(function (k) {
+      var o = document.createElement('option');
+      o.value = String(k);
+      o.textContent = map[k] + '（' + k + '）';
+      sel.appendChild(o);
+    });
+  }
+
+  function mccsCodeChanged() {
+    var code = mccsCurrentCode();
+    $('#mccs-codeinfo').innerHTML = mccsCodeInfo(code);
+    mccsSyncNcSelect(code);
+    mccs.lastCode = code;
+    mccsBuild();
+  }
+
+  /* ---------------------------------------------------------- 读写操作 */
+
+  function mccsMonitorIndex() {
+    var sel = $('#mccs-monitor');
+    var n = sel ? parseInt(sel.value, 10) : 0;
+    return isNaN(n) ? 0 : n;
+  }
+
+  function mccsCheckConnected() {
+    if (!mccs.connected) {
+      toast('未连接桥接', '请先启动并连接本机桥接服务', 'warn');
+      $('#mccs-result').innerHTML = '<div class="notice warn">尚未连接桥接服务：真实读写需要先在本机运行 ' +
+        '<code>ddc-bridge.js</code>，再点「检测连接」。<br>不想装桥接的话，下面的报文构建器与能力字符串解析都能离线用。</div>';
+      return false;
+    }
+    return true;
+  }
+
+  function mccsGet() {
+    if (!mccsCheckConnected()) return;
+    var code = mccsCurrentCode();
+    var idx = mccsMonitorIndex();
+    var req = MCCS.buildGetVCP({ code: code, wide: mccsWide() });
+    mccsLog('TX', 'GET  monitor=' + idx + ' vcp=' + MCCS.vcpText(code) + '  ' + MCCS.hex(req));
+    $('#mccs-rw-chip').className = 'chip warn';
+    $('#mccs-rw-chip').textContent = '读取中…';
+    mccsFetch(mccsBaseUrl(), '/api/vcp?monitor=' + idx + '&code=0x' + code.toString(16), null, 30000)
+      .then(function (r) {
+        if (!r || !r.ok) {
+          $('#mccs-rw-chip').className = 'chip err';
+          $('#mccs-rw-chip').textContent = '读取失败';
+          mccsLog('ERR', (r && r.error ? r.error : '读取失败') + (r && r.hint ? '  → ' + r.hint : ''));
+          mccsShowError(r, code, '读');
+          return;
+        }
+        mccs.last = r;
+        $('#mccs-rw-chip').className = 'chip ok';
+        $('#mccs-rw-chip').textContent = '当前值 ' + r.current + ' / ' + r.max;
+        mccsLog('RX', 'GET  vcp=' + MCCS.vcpText(code) + ' current=' + r.current + ' max=' + r.max +
+          ' → ' + MCCS.formatValue(code, r.current, mccs.capValues[code]));
+        if (r.max) { $('#mccs-value').max = String(r.max); }
+        mccsShowRead(r, code, req);
+      });
+  }
+
+  function mccsSet() {
+    if (!mccsCheckConnected()) return;
+    var code = mccsCurrentCode();
+    var idx = mccsMonitorIndex();
+    var value = parseInt($('#mccs-value').value, 10);
+    if (isNaN(value)) { toast('数值无效', '请输入 0–65535', 'warn'); return; }
+    var req = MCCS.buildSetVCP({ code: code, value: value, wide: mccsWide() });
+    mccsLog('TX', 'SET  monitor=' + idx + ' vcp=' + MCCS.vcpText(code) + ' value=' + value + '  ' + MCCS.hex(req));
+    $('#mccs-rw-chip').className = 'chip warn';
+    $('#mccs-rw-chip').textContent = '写入中…';
+    mccsFetch(mccsBaseUrl(), '/api/vcp', { method: 'POST', body: { monitor: idx, code: code, value: value } }, 30000)
+      .then(function (r) {
+        if (!r || !r.ok) {
+          $('#mccs-rw-chip').className = 'chip err';
+          $('#mccs-rw-chip').textContent = '写入失败';
+          mccsLog('ERR', (r && r.error ? r.error : '写入失败') + (r && r.hint ? '  → ' + r.hint : ''));
+          mccsShowError(r, code, '写');
+          return;
+        }
+        $('#mccs-rw-chip').className = 'chip ok';
+        $('#mccs-rw-chip').textContent = '已写入 ' + value;
+        mccsLog('RX', 'SET  vcp=' + MCCS.vcpText(code) + ' value=' + value + ' → 成功');
+        mccsShowWrite(code, value, req);
+      });
+  }
+
+  function mccsSaveSettings() {
+    if (!mccsCheckConnected()) return;
+    var idx = mccsMonitorIndex();
+    var req = MCCS.buildSaveSettings();
+    mccsLog('TX', 'SAVE monitor=' + idx + '（MCCS 0x0C 保存当前设置到 NVRAM）  ' + MCCS.hex(req));
+    mccsFetch(mccsBaseUrl(), '/api/save', { method: 'POST', body: { monitor: idx } }, 30000).then(function (r) {
+      if (!r || !r.ok) {
+        mccsLog('ERR', (r && r.error ? r.error : '保存失败') + (r && r.hint ? '  → ' + r.hint : ''));
+        $('#mccs-result').innerHTML = '<div class="notice err">保存设置失败：' + esc(r && r.error ? r.error : '') +
+          (r && r.hint ? '<br>' + esc(r.hint) : '') + '</div>';
+        return;
+      }
+      mccsLog('RX', 'SAVE → 成功');
+      $('#mccs-result').innerHTML = '<div class="notice ok">已发送「保存当前设置」（MCCS 操作码 0x0C），' +
+        '显示器会把当前各项设置写入自己的 NVRAM。</div>' +
+        '<p class="hint">对应报文：<code>' + MCCS.hex(req) + '</code>；等价命令：<code>ddcutil scs</code></p>';
+    });
+  }
+
+  function mccsScan() {
+    if (!mccsCheckConnected()) return;
+    var idx = mccsMonitorIndex();
+    mccsLog('TX', 'SCAN monitor=' + idx + '（依次读取常用 VCP 码）');
+    $('#mccs-result').innerHTML = '<div class="notice">正在扫描常用 VCP 码，DDC/CI 每次读写约 40–150 ms，请稍候…</div>';
+    mccsFetch(mccsBaseUrl(), '/api/scan?monitor=' + idx, null, 120000).then(function (r) {
+      if (!r || !r.ok) {
+        $('#mccs-result').innerHTML = '<div class="notice err">扫描失败：' + esc(r && r.error ? r.error : '') + '</div>';
+        mccsLog('ERR', '扫描失败：' + (r && r.error ? r.error : ''));
+        return;
+      }
+      var okCount = r.results.filter(function (x) { return x.ok; }).length;
+      mccsLog('RX', 'SCAN 完成：' + okCount + ' / ' + r.count + ' 个码有响应');
+      var rows = r.results.map(function (x) {
+        var e = MCCS.vcp(x.code);
+        return [
+          '<a href="#" class="mono" data-mccs-pick="' + x.code + '">' + MCCS.vcpText(x.code) + '</a>',
+          e ? esc(e.zh) : '<span class="muted">未收录</span>',
+          x.ok ? '<span class="mono">' + x.current + '</span>' : '<span class="muted">—</span>',
+          x.ok ? '<span class="mono">' + (x.max === null || x.max === undefined ? '—' : x.max) : '',
+          x.ok ? esc(MCCS.formatValue(x.code, x.current, mccs.capValues[x.code])) :
+            '<span class="chip err">无响应</span>'
+        ];
+      });
+      $('#mccs-result').innerHTML = '<div class="notice ok">扫描完成：' + okCount + ' / ' + r.count +
+        ' 个码有响应（点击码值可载入上方读写框）。</div>' +
+        mccsTable(['VCP', '名称', '当前值', '最大值', '含义'], rows);
+    });
+  }
+
+  function mccsShowError(r, code, verb) {
+    var msg = (r && r.error) ? r.error : (verb + '失败');
+    $('#mccs-result').innerHTML = '<div class="notice err"><b>' + esc(verb + ' ' + MCCS.vcpText(code) + ' 失败') + '</b><br>' +
+      esc(msg) + (r && r.hint ? '<br><b>原因提示：</b>' + esc(r.hint) : '') +
+      '<br><span class="small">常见原因：显示器未开启 DDC/CI、该 VCP 码不被支持、中间接了 KVM / 转接器、' +
+      '或在虚拟显示器上操作。</span></div>';
+  }
+
+  function mccsShowRead(r, code, req) {
+    var e = MCCS.vcp(code);
+    var rows = [
+      ['显示器', '#' + r.monitor + (r.description ? '（' + r.description + '）' : '')],
+      ['VCP 码', MCCS.vcpText(code) + (e ? '　' + e.zh : ''), 'mono'],
+      ['类型', e ? MCCS.typeText(e.t) : (r.vcpType === 1 || r.vcpType === 0 ?
+        '由系统 API 报告（vcpType=' + r.vcpType + '）' : '未知')],
+      ['当前值', String(r.current), 'mono'],
+      ['最大值', String(r.max), 'mono'],
+      ['取值含义', MCCS.formatValue(code, r.current, mccs.capValues[code])],
+      ['能力字符串', mccs.capCodes[code] ? '该显示器声明支持此码' : '未读取能力字符串，或该码未在 capabilities 中声明']
+    ];
+    var html = mccsKv(rows);
+    html += '<p class="hint" style="margin-top:10px">本页会发出的请求报文（实际收发由桥接完成）：</p>' +
+      mccsPre(MCCS.hex(req));
+    html += '<p class="hint">等价命令行：</p>' +
+      mccsPre('ddcutil --display ' + (r.monitor + 1) + ' getvcp ' + MCCS.vcpText(code) + '\n' +
+        MCCS.toCurl('get', { monitor: r.monitor, code: code, base: mccsBaseUrl() || location.origin }));
+    html += '<div class="btn-row" style="margin-top:10px">' +
+      '<button class="sm ghost" data-mccs-copy="' + esc(MCCS.toDdcutil('get', { monitor: r.monitor, code: code })) + '">复制 ddcutil 命令</button>' +
+      '<button class="sm ghost" data-mccs-goto="write">把当前值填到写入框</button></div>';
+    $('#mccs-result').innerHTML = html;
+  }
+
+  function mccsShowWrite(code, value, req) {
+    var html = mccsKv([
+      ['结果', '写入成功（显示器未报错；多数型号写入成功时不回包）'],
+      ['VCP 码', MCCS.vcpText(code) + ' → ' + value, 'mono'],
+      ['取值含义', MCCS.formatValue(code, value, mccs.capValues[code])]
+    ]);
+    html += '<p class="hint" style="margin-top:10px">本页发出的请求报文：</p>' + mccsPre(MCCS.hex(req));
+    html += '<p class="hint">接着点一次「读取」即可回读确认；写入的是临时值，要断电保留需要「保存设置」。</p>';
+    $('#mccs-result').innerHTML = html;
+  }
+
+  /* ---------------------------------------------------------- 报文构建器 */
+
+  /* 返回用户显式选择的码宽；'auto' 返回 undefined，交给 MCCS.normWide() 按码值决定 */
+  function mccsWide() {
+    if (!$('#mccs-wide')) return undefined;
+    var v = $('#mccs-wide').value;
+    if (v === 'auto' || v === '') return undefined;
+    var n = parseInt(v, 10);
+    return (n === 1 || n === 2 || n === 3) ? n : undefined;
+  }
+
+  function mccsBuild() {
+    var kind = $('#mccs-kind') ? $('#mccs-kind').value : 'set';
+    var wide = mccsWide();
+    var code = mccsParseCodeInput($('#mccs-bcode') ? $('#mccs-bcode').value : '');
+    if (code === null) code = 0x10;
+    var value = parseInt($('#mccs-bvalue') ? $('#mccs-bvalue').value : '0', 10);
+    if (isNaN(value)) value = 0;
+    var op = mccsParseCodeInput($('#mccs-bop') ? $('#mccs-bop').value : '1');
+    if (op === null) op = 0x01;
+    var payload = MCCS.bytes($('#mccs-bpayload') ? $('#mccs-bpayload').value : '');
+
+    $('#mccs-rawrow').style.display = (kind === 'raw') ? '' : 'none';
+
+    var bytes;
+    if (kind === 'get') bytes = MCCS.buildGetVCP({ code: code, wide: wide });
+    else if (kind === 'set') bytes = MCCS.buildSetVCP({ code: code, value: value, wide: wide });
+    else if (kind === 'save') bytes = MCCS.buildSaveSettings();
+    else if (kind === 'reset') bytes = MCCS.buildVcpReset({ code: code, wide: wide });
+    else if (kind === 'cap') bytes = MCCS.buildGetCapabilities({ offset: 0 });
+    else bytes = MCCS.buildRaw({ opcode: op, payload: payload });
+
+    /* 实际生效的码宽（'auto' 时按码值推算），用于告警文案 */
+    var useWide = MCCS.normWide(wide, code);
+    var isVcpKind = (kind === 'get' || kind === 'set' || kind === 'reset');
+    var warn = [];
+    if (isVcpKind && code > 0xFFFF && useWide < 3) warn.push('VCP 码超过 16 位（0x' + MCCS.hex6(code) +
+      '），按 ' + useWide + ' 字节发送会被截断——该码需要选 3 字节宽度。');
+    if (isVcpKind && code > 0xFF && useWide < 3) warn.push('VCP 码 0x' + MCCS.hex6(code) +
+      ' 超过 1 字节：Windows 桥接（dxva2）的 VCP 码参数是单字节，无法寻址该码，只能配合 ddcutil 使用。');
+    if (kind === 'cap') warn.push('读取能力字符串时该 2 字节字段是「偏移量」，不是 VCP 码宽度。');
+    if (kind === 'set' && value > 0xFFFF) warn.push('数值超过 16 位，将被截断。');
+
+    var rows = MCCS.describe(bytes).map(function (r) {
+      return ['<span class="mono">' + MCCS.hex2(r.value) + '</span>', esc(r.field), esc(r.note)];
+    });
+    var html = '';
+    if (warn.length) {
+      html += '<div class="notice warn">' + warn.map(esc).join('<br>') + '</div>';
+    }
+    html += mccsKv([
+      ['报文', MCCS.hex(bytes), 'mono'],
+      ['长度字段', '0x' + MCCS.hex2(bytes[1]) + '（低 7 位 = ' + (bytes[1] & 0x7F) + ' 个数据字节，不含校验和）', 'mono'],
+      ['校验和', '0x' + MCCS.hex2(bytes[bytes.length - 1]) + '　= 0x6E ⊕ 前面所有字节', 'mono'],
+      ['用途', mccsKindText(kind)]
+    ]);
+    html += '<p class="hint" style="margin-top:10px">逐字节解释：</p>' +
+      mccsTable(['字节', '字段', '说明'], rows);
+
+    var cmds = [];
+    if (kind === 'get' || kind === 'set' || kind === 'save' || kind === 'cap') {
+      cmds.push(MCCS.toDdcutil(kind, { monitor: mccsMonitorIndex(), code: code, value: value }));
+      cmds.push(MCCS.toBridgeScript(kind, { monitor: mccsMonitorIndex(), code: code, value: value }));
+      cmds.push(MCCS.toCurl(kind, { monitor: mccsMonitorIndex(), code: code, value: value, base: mccsBaseUrl() }));
+    }
+    cmds.push(MCCS.toI2cTransfer(bytes, 4, 11));
+    html += '<p class="hint" style="margin-top:12px">等价命令行（可直接复制到终端执行）：</p>' +
+      mccsPre(cmds.join('\n'));
+    $('#mccs-bout').innerHTML = html;
+  }
+
+  function mccsKindText(kind) {
+    if (kind === 'get') return '读取一个 VCP 特性的当前值与最大值（Get VCP Feature）';
+    if (kind === 'set') return '写入一个 VCP 特性的值（Set VCP Feature）';
+    if (kind === 'save') return '让显示器把当前设置保存到 NVRAM（Save Current Settings）';
+    if (kind === 'reset') return '把某个 VCP 特性复位为默认值（VCP Reset）';
+    if (kind === 'cap') return '读取显示器的 capabilities 能力字符串（分片读取，偏移 0）';
+    return '自定义操作码 + 载荷（调试用）';
+  }
+
+  /* ---------------------------------------------------------- 能力字符串 */
+
+  function mccsCapRead() {
+    if (!mccsCheckConnected()) return;
+    var idx = mccsMonitorIndex();
+    mccsLog('TX', 'CAP  monitor=' + idx + '（读取能力字符串）');
+    $('#mccs-cap-chip').className = 'chip warn';
+    $('#mccs-cap-chip').textContent = '读取中…';
+    mccsFetch(mccsBaseUrl(), '/api/capabilities?monitor=' + idx, null, 60000).then(function (r) {
+      if (!r || !r.ok) {
+        $('#mccs-cap-chip').className = 'chip err';
+        $('#mccs-cap-chip').textContent = '读取失败';
+        mccsLog('ERR', 'CAP 失败：' + (r && r.error ? r.error : '') + (r && r.hint ? ' → ' + r.hint : ''));
+        $('#mccs-cap-out').innerHTML = '<div class="notice err"><b>读取能力字符串失败</b><br>' +
+          esc(r && r.error ? r.error : '') + (r && r.hint ? '<br><b>原因提示：</b>' + esc(r.hint) : '') +
+          '<br><span class="small">部分显示器（或虚拟 / 转接的显示通道）不实现该功能，这时无法读取。' +
+          '可以改用 ddcutil capabilities，或从 SoftMCCS 里复制字符串粘贴到上面的文本框解析。</span></div>';
+        return;
+      }
+      $('#mccs-cap-text').value = r.text || '';
+      mccsLog('RX', 'CAP  读到 ' + String(r.text || '').length + ' 字符');
+      $('#mccs-cap-chip').className = 'chip ok';
+      $('#mccs-cap-chip').textContent = String(r.text || '').length + ' 字符';
+      mccsCapParse(r.text, r.format);
+    });
+  }
+
+  function mccsCapParse(text, format) {
+    text = (text === undefined) ? $('#mccs-cap-text').value : text;
+    if (!text || !String(text).trim()) {
+      $('#mccs-cap-out').innerHTML = '<div class="notice warn">还没有能力字符串：请先「从显示器读取」，或把字符串粘贴到上面的文本框后点「解析」。</div>';
+      return;
+    }
+    if (format === 'ddcutil' || /^\s*Model:/im.test(text)) {
+      /* ddcutil 的 capabilities 输出已经是人类可读文本，直接展示，不做结构化解析 */
+      $('#mccs-cap-out').innerHTML = '<div class="notice">这是 ddcutil 的解析后输出（不是原始能力字符串），按原样展示：</div>' +
+        mccsPre(text);
+      return;
+    }
+    var cap = MCCS.parseCapabilities(text);
+    mccs.cap = cap;
+    mccs.capText = text;
+    mccsBuildCapValues();
+    mccsFillCodeSelect($('#mccs-filter').value);
+    mccsCodeChanged();
+
+    var meta = [
+      ['设备类型 prot/type', (cap.prot || '—') + ' / ' + (cap.type || '—')],
+      ['型号 model', cap.model || '—'],
+      ['MCCS 版本', cap.mccsVer || '—'],
+      ['支持的命令', cap.cmds.length ? cap.cmds.map(function (c) {
+        return '0x' + MCCS.hex2(c);
+      }).join(' ') : '—'],
+      ['其它键', Object.keys(cap.keys).length ? Object.keys(cap.keys).map(function (k) {
+        return k + '(' + cap.keys[k].trim() + ')';
+      }).join(' ') : '—']
+    ];
+    if (cap.mswhql) meta.push(['mswhql', cap.mswhql]);
+    if (cap.assetEep) meta.push(['asset_eep', cap.assetEep]);
+
+    var rows = cap.vcp.map(function (f) {
+      var e = MCCS.vcp(f.code);
+      var vals = f.values && f.values.length ? f.values.map(function (v) {
+        return esc(MCCS.formatValue(f.code, v));
+      }).join('、') : (f.groups && f.groups.length > 1 ? '<span class="muted">复合非连续量（分组取值）</span>' : '<span class="muted">连续量 / 未列出取值</span>');
+      return [
+        '<a href="#" class="mono" data-mccs-pick="' + f.code + '">' + MCCS.vcpText(f.code) + '</a>',
+        e ? esc(e.zh) : '<span class="muted">未收录（厂商自定义）</span>',
+        e ? MCCS.typeText(e.t) : '—',
+        e ? MCCS.rwText(e.rw) : '—',
+        vals
+      ];
+    });
+
+    $('#mccs-cap-out').innerHTML =
+      '<div class="notice ok">能力字符串解析结果：共声明 <b>' + cap.count + '</b> 个 VCP 特性。</div>' +
+      mccsKv(meta) +
+      '<p class="hint" style="margin-top:12px">显示器声明的 VCP 特性（点击码值可载入上方读写框）：</p>' +
+      mccsTable(['VCP', '名称', '类型', '读写', '取值'], rows) +
+      '<p class="hint">原始字符串：</p>' + mccsPre(text);
+    mccsLog('INFO', 'CAP 解析：' + cap.count + ' 个特性，型号 ' + (cap.model || '—') +
+      '，MCCS ' + (cap.mccsVer || '—'));
+  }
+
+  /* ---------------------------------------------------------- 参考表 */
+
+  function mccsRenderRef() {
+    var f = (mccs.refFilter || '').trim().toLowerCase();
+    var rows = [];
+    (window.MCCSData ? window.MCCSData.VCP : []).forEach(function (e) {
+      var text = (MCCS.vcpText(e.c) + ' ' + e.zh + ' ' + e.en + ' ' + e.g + ' ' + (e.n || '')).toLowerCase();
+      if (f && text.indexOf(f) < 0) return;
+      var vals = e.v ? Object.keys(e.v).map(function (k) {
+        return esc(MCCS.formatValue(e.c, parseInt(k, 10)));
+      }).join('、') : '';
+      rows.push([
+        '<a href="#" class="mono" data-mccs-pick="' + e.c + '">' + MCCS.vcpText(e.c) + '</a>',
+        esc(e.zh), esc(e.en), MCCS.typeText(e.t), MCCS.rwText(e.rw), esc(e.g),
+        vals || (e.n ? esc(e.n) : '')
+      ]);
+    });
+    $('#mccs-ref').innerHTML = mccsTable(['VCP', '名称', '英文名', '类型', '读写', '分组', '取值 / 备注'], rows);
+    if ($('#mccs-ref-chip')) {
+      var all = window.MCCSData ? window.MCCSData.VCP.length : 0;
+      $('#mccs-ref-chip').textContent = rows.length + ' / ' + all + ' 条';
+    }
+  }
+
+  /* ---------------------------------------------------------- 初始化 */
+
+  function mccsSave() {
+    try { localStorage.setItem(MCCS_LS, JSON.stringify({ base: mccs.base, monitor: mccs.monitor })); } catch (e) { /* ignore */ }
+  }
+
+  function initMCCS() {
+    try {
+      var saved = JSON.parse(localStorage.getItem(MCCS_LS) || '{}');
+      if (saved.base) mccs.base = saved.base;
+      if (typeof saved.monitor === 'number') mccs.monitor = saved.monitor;
+    } catch (e) { /* ignore */ }
+
+    $('#mccs-base').value = mccs.base;
+    $('#mccs-value').max = '65535';
+    mccsFillCodeSelect('');
+    $('#mccs-code').value = '10';
+    mccsRenderRef();
+    mccsRenderLog();
+    mccsCodeChanged();
+    mccsBuild();
+
+    $('#mccs-connect').addEventListener('click', mccsConnect);
+    $('#mccs-monitor').addEventListener('change', function () {
+      mccs.monitor = mccsMonitorIndex();
+      mccsSave();
+    });
+    $('#mccs-base').addEventListener('change', function () {
+      mccs.base = mccsBaseUrl();
+      mccsSave();
+    });
+    $('#mccs-filter').addEventListener('input', function () { mccsFillCodeSelect(this.value); });
+    $('#mccs-code').addEventListener('change', mccsCodeChanged);
+    $('#mccs-ncv').addEventListener('change', function () {
+      if (this.value !== '') $('#mccs-value').value = this.value;
+    });
+    $('#mccs-get').addEventListener('click', mccsGet);
+    $('#mccs-set').addEventListener('click', mccsSet);
+    $('#mccs-scan').addEventListener('click', mccsScan);
+    $('#mccs-save').addEventListener('click', mccsSaveSettings);
+
+    ['mccs-kind', 'mccs-wide', 'mccs-bcode', 'mccs-bvalue', 'mccs-bop', 'mccs-bpayload'].forEach(function (id) {
+      $('#' + id).addEventListener('input', mccsBuild);
+      $('#' + id).addEventListener('change', mccsBuild);
+    });
+    $('#mccs-bcopy').addEventListener('click', function () {
+      var kind = $('#mccs-kind').value;
+      var code = mccsParseCodeInput($('#mccs-bcode').value) || 0;
+      var value = parseInt($('#mccs-bvalue').value, 10) || 0;
+      var wide = mccsWide();
+      var b = MCCS.build(kind, {
+        code: code, value: value, wide: wide,
+        opcode: mccsParseCodeInput($('#mccs-bop').value) || 1,
+        payload: MCCS.bytes($('#mccs-bpayload').value)
+      });
+      mccsCopy(MCCS.hex(b), '报文');
+    });
+    $('#mccs-bsync').addEventListener('click', function () {
+      $('#mccs-bcode').value = MCCS.vcpText(mccsCurrentCode()).replace(/^0x/, '');
+      $('#mccs-bvalue').value = $('#mccs-value').value;
+      mccsBuild();
+    });
+
+    $('#mccs-copycmd').addEventListener('click', function () { mccsCopy('node ddc-bridge.js', '启动命令'); });
+
+    $('#mccs-cap-read').addEventListener('click', mccsCapRead);
+    $('#mccs-cap-parse').addEventListener('click', function () { mccsCapParse(); });
+    $('#mccs-cap-sample').addEventListener('click', function () {
+      $('#mccs-cap-text').value = MCCS_SAMPLE_CAP;
+      mccsCapParse();
+      toast('已填入样例', '这是一台真实显示器的能力字符串', 'ok');
+    });
+
+    $('#mccs-ref-filter').addEventListener('input', function () {
+      mccs.refFilter = this.value;
+      mccsRenderRef();
+    });
+
+    $('#mccs-log-copy').addEventListener('click', function () {
+      if (!mccs.log.length) { toast('日志为空', '', 'warn'); return; }
+      mccsCopy(mccs.logText(), '命令日志');
+    });
+    $('#mccs-log-save').addEventListener('click', function () {
+      mccsDownload('ddcci-log.txt', mccsLogText());
+    });
+    $('#mccs-log-clear').addEventListener('click', function () {
+      mccs.log = [];
+      mccsRenderLog();
+    });
+
+    /* 结果区内的按钮与链接（事件委托） */
+    $('#mccs-result').addEventListener('click', function (ev) {
+      var el = ev.target.closest ? ev.target.closest('[data-mccs-pick],[data-mccs-copy],[data-mccs-goto]') : null;
+      if (!el) return;
+      ev.preventDefault();
+      if (el.hasAttribute('data-mccs-pick')) {
+        var code = parseInt(el.getAttribute('data-mccs-pick'), 10);
+        $('#mccs-code').value = MCCS.vcpText(code);
+        mccsCodeChanged();
+        $('#mccs-filter').value = '';
+        mccsFillCodeSelect('');
+        $('#mccs-code').value = MCCS.vcpText(code);
+        window.scrollTo({ top: $('#panel-mccs').offsetTop, behavior: 'smooth' });
+      } else if (el.hasAttribute('data-mccs-copy')) {
+        mccsCopy(el.getAttribute('data-mccs-copy'), '命令');
+      } else if (el.getAttribute('data-mccs-goto') === 'write') {
+        if (mccs.last && typeof mccs.last.current === 'number') {
+          $('#mccs-value').value = mccs.last.current;
+          toast('已填入当前值', String(mccs.last.current), 'ok');
+        }
+      }
+    });
+    $('#mccs-cap-out').addEventListener('click', function (ev) {
+      var el = ev.target.closest ? ev.target.closest('[data-mccs-pick]') : null;
+      if (!el) return;
+      ev.preventDefault();
+      var code = parseInt(el.getAttribute('data-mccs-pick'), 10);
+      $('#mccs-filter').value = '';
+      mccsFillCodeSelect('');
+      $('#mccs-code').value = MCCS.vcpText(code);
+      mccsCodeChanged();
+      toast('已载入 VCP 码', MCCS.vcpText(code), 'ok');
+    });
+    $('#mccs-ref').addEventListener('click', function (ev) {
+      var el = ev.target.closest ? ev.target.closest('[data-mccs-pick]') : null;
+      if (!el) return;
+      ev.preventDefault();
+      var code = parseInt(el.getAttribute('data-mccs-pick'), 10);
+      $('#mccs-filter').value = '';
+      mccsFillCodeSelect('');
+      $('#mccs-code').value = MCCS.vcpText(code);
+      mccsCodeChanged();
+    });
+
+    /* 切到本标签页时，如果还没连接就自动探测一次 */
+    var tabBtn = $('nav.tabs button[data-tab="mccs"]');
+    if (tabBtn) {
+      tabBtn.addEventListener('click', function () {
+        if (!mccs.connected) mccsConnect();
+      });
+    }
+
+    if (mccsOnLocalhost()) {
+      /* 页面本身就是桥接托管的：直接自动连接 */
+      mccsConnect();
+    } else {
+      mccsSetChip('未连接', '');
+      $('#mccs-bridge-status').innerHTML = '未连接。点「检测连接」尝试连接本机桥接；' +
+        '若页面不是由桥接托管，请确认桥接地址（默认 <code>http://127.0.0.1:8760</code>）已启动。';
+    }
+  }
+
+  function mccsLogText() {
+    var pad = function (n) { return ('0' + n).slice(-2); };
+    return mccs.log.slice().reverse().map(function (e) {
+      var d = e.t;
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' +
+        pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) + '  [' + e.kind + '] ' + e.text;
+    }).join('\n');
+  }
+
   function init() {
     var draft = load();
     if (draft) {
@@ -1937,6 +2782,7 @@
     initTiming();
     initVTC();
     initGamma();
+    initMCCS();
 
     $$('nav.tabs button').forEach(function (b) {
       b.addEventListener('click', function () { switchTab(b.getAttribute('data-tab')); });
