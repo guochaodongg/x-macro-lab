@@ -1548,31 +1548,183 @@
 
   /* ===================== 伽马验证（Gamma verification） ===================== */
 
-  var gam = { wb1: null, wb2: null, name1: '', name2: '', last: null };
+  var gam = {
+    source: 'builtin',        /* 'builtin' | 'file' */
+    key: null,                /* selected built-in dataset key */
+    wb1: null, wb2: null, name1: '', name2: '',
+    last: null                /* { res, cfg } of the last rendered charts */
+  };
   var GAMMA_MAX_FILE = 32 * 1024 * 1024;
+
+  function gamDatasets() {
+    return (window.GammaData && window.GammaData.datasets) ? window.GammaData.datasets : [];
+  }
+
+  function gamDataset(key) {
+    var list = gamDatasets();
+    for (var i = 0; i < list.length; i++) if (list[i].key === key) return list[i];
+    return null;
+  }
 
   function initGamma() {
     var sel = $('#gam-curve');
-    GAMMA.CURVES.forEach(function (c) {
-      var o = document.createElement('option');
-      o.value = c.name;
-      o.textContent = c.name + '（占比列 ' + c.col + '）';
-      sel.appendChild(o);
-    });
-    sel.addEventListener('change', function () {
-      $('#gam-title').value = this.value;
-    });
+    var list = gamDatasets();
+    if (list.length) {
+      list.forEach(function (d) {
+        var o = document.createElement('option');
+        o.value = d.key;
+        o.textContent = d.key + '（目标 γ ' + d.target.toFixed(1) + '，占比列 ' + d.dutyCol + '）';
+        sel.appendChild(o);
+      });
+    } else {
+      GAMMA.CURVES.forEach(function (c) {
+        var o = document.createElement('option');
+        o.value = c.name;
+        o.textContent = c.name + '（占比列 ' + c.col + '）';
+        sel.appendChild(o);
+      });
+    }
+    gamBuiltinList();
+    $('#gam-source').addEventListener('change', gamSourceChange);
+    sel.addEventListener('change', gamCurveChange);
     $('#gam-file1').addEventListener('change', function () { gamRead(this, 1); });
     $('#gam-file2').addEventListener('change', function () { gamRead(this, 2); });
     $('#gam-run').addEventListener('click', gamRun);
     $('#gam-save').addEventListener('click', gamSave);
+    ['gam-r1s', 'gam-r1e', 'gam-r2s', 'gam-r2e'].forEach(function (id) {
+      $('#' + id).addEventListener('input', gamRangeChange);
+    });
+    gamToggleSource();
+    /* default: bundled BT1886 measurement data */
+    var first = list.length ? list[0].key : ($('#gam-curve').value || 'GammaBT1886');
+    gamApplyBuiltin(first);
   }
 
-  function gamChip() {
+  function gamBuiltinList() {
+    var host = $('#gam-builtin-list');
+    if (!host) return;
+    var D = window.GammaData;
+    if (!D) { host.innerHTML = '<div>（未找到内置数据文件）</div>'; return; }
+    var rows = D.datasets.map(function (d) {
+      return '<div>' + d.file + ' — <a href="data/' + d.file + '" download>' + d.file + '</a>' +
+        '<span class="muted"> · 目标 γ ' + d.target.toFixed(1) + ' · 占比列 ' + d.dutyCol +
+        ' · ' + d.count + ' 点 · 实测 Avg γ ' + d.avgGamma.toFixed(3) + '</span></div>';
+    });
+    rows.push('<div>' + D.duty.file + ' — <a href="data/' + D.duty.file + '" download>' + D.duty.file + '</a>' +
+      '<span class="muted"> · 灰阶占比表（B~G 列对应 6 条曲线）</span></div>');
+    host.innerHTML = rows.join('');
+  }
+
+  function gamToggleSource() {
+    var builtin = gam.source === 'builtin';
+    $('#gam-builtin-info').classList.toggle('hide', !builtin);
+    $('#gam-file-rows').classList.toggle('hide', builtin);
+  }
+
+  function gamSourceChange() {
+    gam.source = $('#gam-source').value === 'file' ? 'file' : 'builtin';
+    gamToggleSource();
+    if (gam.source === 'builtin') {
+      gamApplyBuiltin(gam.key || $('#gam-curve').value || 'GammaBT1886');
+    } else {
+      $('#gam-status').textContent = '自定义模式：请选择测量数据 Excel 文件' +
+        (gam.name1 ? '（当前已加载 ' + gam.name1 + '）' : '') + '，然后点击「生成图表」。';
+    }
+  }
+
+  function gamCurveChange() {
+    var key = $('#gam-curve').value;
+    if (gam.source === 'builtin') {
+      gamApplyBuiltin(key);
+      return;
+    }
+    var curve = GAMMA.curveByName(key.replace('_', '.'));
+    $('#gam-title').value = curve ? curve.name : key;
+    if (gam.wb1) gamRun();
+  }
+
+  function gamRangeChange() {
+    if (gam.source === 'builtin') gamApplyBuiltin(gam.key || $('#gam-curve').value);
+  }
+
+  function gamClampRow(v, lo, hi, def) {
+    if (v === null || isNaN(v)) return def;
+    return Math.min(Math.max(v, lo), hi);
+  }
+
+  /* ---------- built-in datasets ---------- */
+
+  function gamApplyBuiltin(key) {
+    var ds = gamDataset(key);
+    if (!ds) return;
+    var D = window.GammaData;
+    var duty = D.duty;
+
+    gam.source = 'builtin';
+    gam.key = key;
+    $('#gam-curve').value = key;
+    $('#gam-xcol').value = 'A';
+    $('#gam-ycol').value = 'G';
+    $('#gam-wxcol').value = 'E';
+    $('#gam-wycol').value = 'F';
+    $('#gam-r1s').value = ds.rowStart;
+    $('#gam-r1e').value = ds.rowEnd;
+    $('#gam-r2s').value = duty.rowStart;
+    $('#gam-r2e').value = duty.rowEnd;
+    $('#gam-title').value = ds.curve;
+
+    /* row fields narrow the stored range (clamped to what was extracted) */
+    var r1s = gamClampRow(gamRow('gam-r1s'), ds.rowStart, ds.rowEnd, ds.rowStart);
+    var r1e = gamClampRow(gamRow('gam-r1e'), r1s, ds.rowEnd, ds.rowEnd);
+    var r2s = gamClampRow(gamRow('gam-r2s'), duty.rowStart, duty.rowEnd, duty.rowStart);
+    var r2e = gamClampRow(gamRow('gam-r2e'), r2s, duty.rowEnd, duty.rowEnd);
+    var off1 = r1s - ds.rowStart, n1 = r1e - r1s + 1;
+    var off2 = r2s - duty.rowStart, n2 = r2e - r2s + 1;
+
+    var measure = {
+      A: ds.x.slice(off1, off1 + n1),
+      G: ds.y.slice(off1, off1 + n1),
+      E: ds.wx.slice(off1, off1 + n1),
+      F: ds.wy.slice(off1, off1 + n1)
+    };
+    var dutySrc = {};
+    dutySrc[ds.dutyCol] = duty.columns[ds.dutyCol].slice(off2, off2 + n2);
+
+    var cfg = {
+      xCol: 'A', yCol: 'G', wxCol: 'E', wyCol: 'F', dutyCol: ds.dutyCol,
+      curve: ds.curve, key: ds.key,
+      title: $('#gam-title').value.trim() || ds.curve,
+      xlabel: $('#gam-xlabel').value.trim() || 'Input Level',
+      ylabel: $('#gam-ylabel').value.trim() || 'Luminance(nits)'
+    };
+    var res = GAMMA.assemble(measure, dutySrc, cfg);
+    gam.last = { res: res, cfg: cfg };
+    gamRender();
+
+    var clamped = (r1s !== ds.rowStart || r1e !== ds.rowEnd || r2s !== duty.rowStart || r2e !== duty.rowEnd);
+    var msg = '内置数据集 ' + ds.file + '（' + res.xs.length + ' 点）已载入；参考曲线取 ' +
+      duty.file + ' 的 ' + ds.dutyCol + ' 列（' + ds.curve + '）。';
+    if (clamped) msg += '行范围已按内置数据的可用区间（' + ds.rowStart + '-' + ds.rowEnd + ' / ' +
+      duty.rowStart + '-' + duty.rowEnd + '）裁剪。';
+    gamChip('内置: ' + ds.file);
+    $('#gam-builtin-line').textContent = '当前：测量数据 ' + ds.file + '（第 ' + r1s + '-' + r1e +
+      ' 行）＋ 灰阶占比 ' + duty.file + '（第 ' + r2s + '-' + r2e + ' 行，' + ds.dutyCol + ' 列 ' +
+      ds.curve + '）。切换「选择验证的 Gamma 曲线」即自动重绘对应图表。';
+    gamShowStats(res, ds.curve, ds.target);
+    $('#gam-status').textContent = msg;
+  }
+
+  /* ---------- custom uploads ---------- */
+
+  function gamChip(text) {
+    $('#gam-chip').textContent = text;
+  }
+
+  function gamFileChip() {
     var parts = [];
     if (gam.name1) parts.push('测量: ' + gam.name1);
     if (gam.name2) parts.push('占比: ' + gam.name2);
-    $('#gam-chip').textContent = parts.length ? parts.join(' ｜ ') : '未选择文件';
+    gamChip(parts.length ? parts.join(' ｜ ') : '未选择文件');
   }
 
   function gamRead(input, which) {
@@ -1588,8 +1740,9 @@
         var wb = window.XLSXLite.parse(new Uint8Array(fr.result));
         if (which === 1) { gam.wb1 = wb; gam.name1 = file.name; }
         else { gam.wb2 = wb; gam.name2 = file.name; }
-        gamChip();
+        gamFileChip();
         $('#gam-status').textContent = '已加载: ' + file.name + '（工作表: ' + wb.sheetNames.join(', ') + '）';
+        if (gam.wb1) gamRun();
       } catch (ex) {
         $('#gam-status').textContent = '解析 ' + file.name + ' 失败: ' + ex.message;
       }
@@ -1616,10 +1769,13 @@
   }
 
   function gamRun() {
+    if (gam.source === 'builtin' && !gam.wb1) { gamApplyBuiltin(gam.key || $('#gam-curve').value); return; }
     if (!gam.wb1) {
-      $('#gam-status').textContent = '请先选择测量数据 Excel 文件。';
+      $('#gam-status').textContent = '请先选择测量数据 Excel 文件，或把「数据来源」切回内置测量数据。';
       return;
     }
+    var curveName = $('#gam-curve').value;
+    var curve = GAMMA.curveByName(curveName.replace('_', '.')) || GAMMA.CURVES[0];
     var cfg = {
       xCol: gamCol('gam-xcol', 'A'),
       yCol: gamCol('gam-ycol', 'G'),
@@ -1627,8 +1783,8 @@
       wyCol: gamCol('gam-wycol', 'F'),
       r1s: gamRow('gam-r1s'), r1e: gamRow('gam-r1e'),
       r2s: gamRow('gam-r2s'), r2e: gamRow('gam-r2e'),
-      curve: $('#gam-curve').value,
-      title: $('#gam-title').value.trim() || $('#gam-curve').value,
+      curve: curve.name,
+      title: $('#gam-title').value.trim() || curve.name,
       xlabel: $('#gam-xlabel').value.trim() || 'Input Level',
       ylabel: $('#gam-ylabel').value.trim() || 'Luminance(nits)'
     };
@@ -1654,7 +1810,6 @@
         [cfg.xCol, cfg.yCol, cfg.wxCol, cfg.wyCol], cfg.r1s, cfg.r1e);
       var duty = null;
       if (gam.wb2) {
-        var curve = GAMMA.curveByName(cfg.curve);
         duty = GAMMA.extractColumns(gam.wb2.sheet(0), [curve.col], cfg.r2s, cfg.r2e);
         cfg.dutyCol = curve.col;
       }
@@ -1665,17 +1820,8 @@
       }
       gam.last = { res: res, cfg: cfg };
       gamRender();
-      var avg = GAMMA.avgGamma(res.xs, res.ys);
-      var target = GAMMA.targetGamma(cfg.curve);
-      var el = $('#gam-gamma');
-      if (avg === null) {
-        el.textContent = 'Avg γ: N/A';
-        el.style.color = 'var(--text)';
-      } else {
-        el.textContent = 'Avg γ: ' + avg.toFixed(3) + (target !== null ? '，Ideal γ: ' + target.toFixed(1) : '');
-        var LIMIT = 0.05;
-        el.style.color = (target !== null && Math.abs(avg - target) <= LIMIT) ? 'var(--ok)' : 'var(--err)';
-      }
+      gamFileChip();
+      gamShowStats(res, curve.name, curve.gamma);
       var msg = '图表已生成，显示 ' + res.xs.length + ' 条数据';
       if (res.dropped) msg += '（' + res.dropped + ' 行因缺少数值被跳过）';
       if (!res.refs && duty) msg += '；灰阶占比存在空值，未绘制参考曲线';
@@ -1684,6 +1830,22 @@
     } catch (ex) {
       $('#gam-status').textContent = '生成图表失败: ' + ex.message;
     }
+  }
+
+  /* ---------- shared rendering ---------- */
+
+  function gamShowStats(res, curveName, target) {
+    var avg = GAMMA.avgGamma(res.xs, res.ys);
+    var el = $('#gam-gamma');
+    if (avg === null) {
+      el.textContent = 'Avg γ: N/A';
+      el.style.color = 'var(--text)';
+      return null;
+    }
+    el.textContent = 'Avg γ: ' + avg.toFixed(3) + (target != null ? '，Ideal γ: ' + target.toFixed(1) : '');
+    var LIMIT = 0.05;
+    el.style.color = (target != null && Math.abs(avg - target) <= LIMIT) ? 'var(--ok)' : 'var(--err)';
+    return avg;
   }
 
   function gamRender() {

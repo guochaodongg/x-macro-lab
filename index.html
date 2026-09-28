@@ -336,20 +336,38 @@
       <b>亮度数据（.xlsx）</b>与<b>灰阶占比表（.xlsx）</b>，按所选 Gamma 曲线的占比映射生成
       参考曲线（参考亮度 = 峰值亮度 × 灰阶占比），同时绘制白点一致性（Wx / Wy）图表，
       并按对数回归计算平均 Gamma。列号 / 行范围与 Python 版工具一致。
-      <b>全浏览器本地解析，无任何数据外发。</b>
+      <b>已内置 6 组实测数据（默认载入 BT1886），切换「选择验证的 Gamma 曲线」即自动重绘对应图表；</b>
+      也可以上传自己的 .xlsx。<b>全浏览器本地解析，无任何数据外发。</b>
     </p>
     <div class="card" style="margin-bottom:18px">
       <header><h3>数据源</h3><span class="spacer"></span><span class="chip" id="gam-chip">未选择文件</span></header>
       <div class="body">
         <div class="field-row">
-          <div class="field" style="flex:2"><label for="gam-file1">测量数据文件（CA410 色温仪测量数据，.xlsx）</label>
-            <input type="file" id="gam-file1" accept=".xlsx,.xlsm"></div>
+          <div class="field"><label for="gam-source">数据来源</label>
+            <select id="gam-source">
+              <option value="builtin" selected>内置测量数据（库内，开箱即用）</option>
+              <option value="file">自定义上传 .xlsx</option>
+            </select>
+          </div>
           <div class="field"><label for="gam-curve">选择验证的 Gamma 曲线</label>
             <select id="gam-curve"></select></div>
         </div>
-        <div class="field-row">
-          <div class="field" style="flex:2"><label for="gam-file2">灰阶占比文件（Gamma 0~255 灰阶占比，.xlsx，可选）</label>
-            <input type="file" id="gam-file2" accept=".xlsx,.xlsm"></div>
+        <div id="gam-builtin-info">
+          <p class="small muted" id="gam-builtin-line" style="margin:8px 0 6px"></p>
+          <details class="small">
+            <summary>内置数据文件（可下载原始 .xlsx）</summary>
+            <div id="gam-builtin-list" class="small"></div>
+          </details>
+        </div>
+        <div id="gam-file-rows" class="hide">
+          <div class="field-row">
+            <div class="field" style="flex:2"><label for="gam-file1">测量数据文件（CA410 色温仪测量数据，.xlsx）</label>
+              <input type="file" id="gam-file1" accept=".xlsx,.xlsm"></div>
+          </div>
+          <div class="field-row">
+            <div class="field" style="flex:2"><label for="gam-file2">灰阶占比文件（Gamma 0~255 灰阶占比，.xlsx，可选）</label>
+              <input type="file" id="gam-file2" accept=".xlsx,.xlsm"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -530,7 +548,7 @@
           <dt>校验</dt><dd>结构与校验和、日期范围、色度合法性与 sRGB 一致性、时序自洽、描述符格式、扩展块一致性，分级报告</dd>
           <dt>时序</dt><dd>CVT 标准 / RB / RBv2 / RBv3 与 GTF（含隔行与缩边），输出参数表、Modeline、xrandr 命令与可写入 DTD 的字节</dd>
           <dt>时序对比</dt><dd>一次计算 CVT / CVT-RB / CVT-RBv2 / CEA-861 / DMT / 自定义六种时序，核算 DP / HDMI / DVI / SDI / RFC4175 接口带宽余量</dd>
-          <dt>伽马验证</dt><dd>读取 CA410 测量数据与灰阶占比表（.xlsx 本地解析），生成实测 / 参考伽马曲线与白点一致性图表，计算平均 Gamma</dd>
+          <dt>伽马验证</dt><dd>读取 CA410 测量数据与灰阶占比表（.xlsx 本地解析），生成实测 / 参考伽马曲线与白点一致性图表，计算平均 Gamma；内置 6 组实测数据集（默认 BT1886，切换曲线自动重绘）</dd>
         </div>
       </div></div>
 
@@ -595,6 +613,7 @@
 <script src="js/zip-lite.js"></script>
 <script src="js/xlsx-lite.js"></script>
 <script src="js/gamma.js"></script>
+<script src="js/gamma-data.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
