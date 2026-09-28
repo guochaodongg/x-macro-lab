@@ -24,6 +24,9 @@
   <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>
   </symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 3v18h18"/><path d="M6 16l4-5 3 3 5-7"/>
+  </symbol>
   <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 5.5V20.5"/>
   </symbol>
@@ -72,6 +75,7 @@
       <button role="tab" aria-selected="false" data-tab="validator"><svg class="ic"><use href="#i-shield"/></svg>校验</button>
       <button role="tab" aria-selected="false" data-tab="timing"><svg class="ic"><use href="#i-clock"/></svg>时序计算</button>
       <button role="tab" aria-selected="false" data-tab="vtc"><svg class="ic"><use href="#i-clock"/></svg>时序对比</button>
+      <button role="tab" aria-selected="false" data-tab="gamma"><svg class="ic"><use href="#i-chart"/></svg>伽马验证</button>
       <button role="tab" aria-selected="false" data-tab="learn"><svg class="ic"><use href="#i-book"/></svg>学习 EDID</button>
       <button role="tab" aria-selected="false" data-tab="about"><svg class="ic"><use href="#i-info"/></svg>关于</button>
     </nav>
@@ -326,6 +330,61 @@
     <div class="stack" id="vtc-out"></div>
   </section>
 
+  <section class="panel" id="panel-gamma">
+    <p class="muted" style="margin-top:0">
+      伽马曲线验证（功能移植自内部 Gamma Curve Verification Tool）。读取 CA410 色温仪测量的
+      <b>亮度数据（.xlsx）</b>与<b>灰阶占比表（.xlsx）</b>，按所选 Gamma 曲线的占比映射生成
+      参考曲线（参考亮度 = 峰值亮度 × 灰阶占比），同时绘制白点一致性（Wx / Wy）图表，
+      并按对数回归计算平均 Gamma。列号 / 行范围与 Python 版工具一致。
+      <b>全浏览器本地解析，无任何数据外发。</b>
+    </p>
+    <div class="card" style="margin-bottom:18px">
+      <header><h3>数据源</h3><span class="spacer"></span><span class="chip" id="gam-chip">未选择文件</span></header>
+      <div class="body">
+        <div class="field-row">
+          <div class="field" style="flex:2"><label for="gam-file1">测量数据文件（CA410 色温仪测量数据，.xlsx）</label>
+            <input type="file" id="gam-file1" accept=".xlsx,.xlsm"></div>
+          <div class="field"><label for="gam-curve">选择验证的 Gamma 曲线</label>
+            <select id="gam-curve"></select></div>
+        </div>
+        <div class="field-row">
+          <div class="field" style="flex:2"><label for="gam-file2">灰阶占比文件（Gamma 0~255 灰阶占比，.xlsx，可选）</label>
+            <input type="file" id="gam-file2" accept=".xlsx,.xlsm"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:18px">
+      <header><h3>列与行设置</h3></header>
+      <div class="body">
+        <div class="field-row">
+          <div class="field"><label for="gam-xcol">Input Level 所在列</label><input type="text" id="gam-xcol" value="A" maxlength="3"></div>
+          <div class="field"><label for="gam-ycol">Luminance 所在列</label><input type="text" id="gam-ycol" value="G" maxlength="3"></div>
+          <div class="field"><label for="gam-wxcol">色度一致性曲线 Wx 所在列</label><input type="text" id="gam-wxcol" value="E" maxlength="3"></div>
+          <div class="field"><label for="gam-wycol">色度一致性曲线 Wy 所在列</label><input type="text" id="gam-wycol" value="F" maxlength="3"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label for="gam-r1s">测量亮度数据 起始行</label><input type="number" id="gam-r1s" value="271" min="1" step="1"></div>
+          <div class="field"><label for="gam-r1e">测量亮度数据 终止行</label><input type="number" id="gam-r1e" value="526" min="1" step="1"></div>
+          <div class="field"><label for="gam-r2s">灰阶占比数据 起始行</label><input type="number" id="gam-r2s" value="2" min="1" step="1"></div>
+          <div class="field"><label for="gam-r2e">灰阶占比数据 终止行</label><input type="number" id="gam-r2e" value="257" min="1" step="1"></div>
+        </div>
+        <div class="field-row">
+          <div class="field" style="flex:2"><label for="gam-title">图表标题</label><input type="text" id="gam-title" value="GammaBT1886"></div>
+          <div class="field"><label for="gam-xlabel">X 轴标题</label><input type="text" id="gam-xlabel" value="Input Level"></div>
+          <div class="field"><label for="gam-ylabel">Y 轴标题</label><input type="text" id="gam-ylabel" value="Luminance(nits)"></div>
+        </div>
+      </div>
+    </div>
+    <div class="field-row" style="align-items:center;margin-bottom:14px">
+      <button class="primary" id="gam-run"><svg class="ic"><use href="#i-chart"/></svg>生成图表</button>
+      <button class="sm" id="gam-save"><svg class="ic"><use href="#i-download"/></svg>保存图表 PNG</button>
+      <span class="spacer"></span>
+      <span id="gam-gamma" style="font-weight:700"></span>
+    </div>
+    <p class="muted" id="gam-status" style="margin-top:0">请先选择测量数据 Excel 文件，然后点击「生成图表」。</p>
+    <div class="stack" id="gam-out"></div>
+  </section>
+
   <!-- ================================================ 学习 Learn ========= -->
   <section class="panel" id="panel-learn">
     <div class="card" style="margin-bottom:18px"><div class="body">
@@ -453,7 +512,7 @@
     <div class="grid cols-2">
       <div class="card"><div class="body">
         <h3>关于本工具</h3>
-        <p>这是一个 <b>纯静态、纯前端</b> 的 EDID 工具箱，功能覆盖 edidcraft.com 的解析、生成、校验与时序计算四大部分，所有运算都由浏览器端 JavaScript 实现：</p>
+        <p>这是一个 <b>纯静态、纯前端</b> 的 EDID 工具箱，功能覆盖 edidcraft.com 的解析、生成、校验与时序计算四大部分，另加入时序对比与伽马曲线验证扩展工具，所有运算都由浏览器端 JavaScript 实现：</p>
         <ul class="small muted">
           <li>没有后端、没有 API 请求，页面不发起任何远程调用；</li>
           <li>不加载任何 CDN 资源（图标为内联 SVG、字体为系统字体）；</li>
@@ -470,6 +529,8 @@
           <dt>生成</dt><dd>厂商 / 产品 / 序列号、日期与版本、数字 / 模拟输入、色度、既定与标准时序、描述符与扩展块，自动校验和</dd>
           <dt>校验</dt><dd>结构与校验和、日期范围、色度合法性与 sRGB 一致性、时序自洽、描述符格式、扩展块一致性，分级报告</dd>
           <dt>时序</dt><dd>CVT 标准 / RB / RBv2 / RBv3 与 GTF（含隔行与缩边），输出参数表、Modeline、xrandr 命令与可写入 DTD 的字节</dd>
+          <dt>时序对比</dt><dd>一次计算 CVT / CVT-RB / CVT-RBv2 / CEA-861 / DMT / 自定义六种时序，核算 DP / HDMI / DVI / SDI / RFC4175 接口带宽余量</dd>
+          <dt>伽马验证</dt><dd>读取 CA410 测量数据与灰阶占比表（.xlsx 本地解析），生成实测 / 参考伽马曲线与白点一致性图表，计算平均 Gamma</dd>
         </div>
       </div></div>
 
@@ -491,6 +552,7 @@
           <dt>自测</dt><dd>用 Node 或浏览器控制台加载引擎即可跑通预设与校验，详见 README</dd>
           <dt>目录</dt><dd><code>index.html</code> · <code>css/styles.css</code> · <code>js/*.js</code></dd>
           <dt>引擎</dt><dd><code>edid-core.js</code>（常量与工具）· <code>timing.js</code>（CVT/GTF）· <code>edid-decoder.js</code> · <code>edid-encoder.js</code> · <code>edid-validator.js</code></dd>
+          <dt>扩展</dt><dd><code>zip-lite.js</code> / <code>xlsx-lite.js</code>（纯 JS 读取 .xlsx）· <code>gamma.js</code>（伽马验证与 SVG 图表）</dd>
           <dt>校验</dt><dd>引擎自带 Node 测试脚本，可与在线服务结果逐项比对</dd>
         </div>
         <p class="small muted" style="margin-top:10px">想做二次开发？引擎文件都是普通脚本，暴露 <code>window.EDIDCore / EDIDTiming / EDIDDecoder / EDIDEncoder / EDIDValidator</code>，可以单独取用。</p>
@@ -530,6 +592,9 @@
 <script src="js/edid-encoder.js"></script>
 <script src="js/edid-validator.js"></script>
 <script src="js/edid-report.js"></script>
+<script src="js/zip-lite.js"></script>
+<script src="js/xlsx-lite.js"></script>
+<script src="js/gamma.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

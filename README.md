@@ -24,6 +24,8 @@
 | **生成** | 可视化表单组包：厂商/产品/序列号、日期与版本、数字（位深/接口/颜色编码）或模拟（电平/同步方式）输入、DPMS 与特性位、色度坐标（一键 sRGB / D65）、17 项既定时序、最多 8 组标准时序、4 个可切换类型的描述符槽位、可增删的 CEA / DisplayID / VTB / 块映射扩展块；校验和自动计算，实时十六进制预览 + 自校验结果 |
 | **校验** | 结构、固定头、块长度、逐块校验和、扩展块数量一致性、日期范围、色度合法性与 sRGB 一致性、时序自洽、描述符格式（文本终止符、范围限制填充、CVT 参数）、CEA/VSDB/HDR/色度块一致性；按**错误 / 警告 / 提示**三级报告 |
 | **时序计算** | VESA **CVT 1.1**（标准消隐）与 **CVT 1.2**（RB / RBv2 / RBv3）、**GTF 1.1**（含隔行与缩边）；输出完整参数表、消隐结构图、X11 `Modeline`、`xrandr --newmode` / `--addmode`，以及可直接写进 DTD 的 18 字节 |
+| **时序对比** | 多标准时序对比计算器（对标 Tom Verbeure 的 Video Timings Calculator）：一次计算 CVT / CVT-RB / CVT-RBv2 / CEA-861 / DMT / 自定义六种时序，并核算 DP / HDMI / DVI / SDI / RFC4175 各接口带宽余量 |
+| **伽马验证** | 读取 CA410 色温仪测量数据与灰阶占比表（.xlsx，浏览器本地解析，自研 ZIP / OOXML 读取器），按所选 Gamma 曲线（GammaBT1886 / 1.8 / 2.0 / 2.2 / 2.4 / 2.6）的占比映射生成参考曲线（峰值亮度 × 灰阶占比）、白点一致性（Wx / Wy）图表，并计算平均 Gamma（对数回归，与目标值偏差 ±0.05 内标绿）；可导出 PNG |
 | **学习 EDID** | 8 节速成课：EDID 是什么、基础块字节地图、四种描述符、18 字节 DTD 逐字节解释、CEA-861 与 DisplayID、CVT/GTF 原理、常见坑、参考资料 |
 | **关于** | 项目介绍、部署说明、开发说明、清除草稿 |
 
@@ -47,11 +49,14 @@ edid-x-lab/
 │   ├── edid-encoder.js     # 模型 → 字节流（含 7 套预设）
 │   ├── edid-validator.js   # 结构 / 语义校验，分级报告
 │   ├── edid-report.js      # 结构化对象 → HTML 片段（纯字符串，无 DOM 依赖）
+│   ├── zip-lite.js         # 纯 JS ZIP 读取（stored + deflate 解压，自研 inflate）
+│   ├── xlsx-lite.js        # 纯 JS .xlsx（OOXML）解析：工作表 / sharedStrings / 单元格
+│   ├── gamma.js            # 伽马验证逻辑（数据组装、平均 Gamma、SVG 折线图，无 DOM 依赖）
 │   └── app.js              # 界面接线：标签页、表单、草稿、导出
 └── README.md
 ```
 
-脚本按 `core → timing → decoder → encoder → validator → report → app` 的顺序加载，**顺序不能改**（都是普通 `<script>`，不是 ES module）。
+脚本按 `core → timing → vtc-data → video-timings → decoder → encoder → validator → report → zip-lite → xlsx-lite → gamma → app` 的顺序加载，**顺序不能改**（都是普通 `<script>`，不是 ES module）。
 
 ---
 
@@ -241,6 +246,7 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 - 音频数据块最多 10 个描述符；标准时序最多 8 组；描述符固定 4 个槽位——这些都是 EDID 规范本身的限制。
 - 校验规则以 VESA 规范与 Linux `edid-decode` 的判定为参照，但个别厂商的“非标但可用”做法可能被报为警告，请结合实际情况判断。
 - **时序对比**页中 CEA-861 / DMT 列只覆盖标准表内收录的模式；表内个别条目（如 DMT 0x0F）在参考数据源中即不完整，会显示“—”。自定义模式只约束总消隐量与像素时钟，前后沿按 CVT-RB 布局确定性地分配。隔行模式下 CVT 系列显示场有效行数（规范定义），CEA-861 / DMT 显示整帧行数。
+- **伽马验证**页只读取每个工作簿的**第一个工作表**，仅支持 `.xlsx / .xlsm`（OOXML 格式，与 Python 版工具一致）；`.xls`（老二进制格式）不支持。平均 Gamma 的对数回归算法与内部 Python 版「Gamma Curve Verification Tool」逐点一致（含边界跳过规则），基准数据实测结果为 2.157。
 
 ---
 
@@ -248,4 +254,5 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 
 本项目的代码与文案为独立实现，功能对标 edidcraft.com。「时序对比」页的功能对标 Tom Verbeure 的
 Video Timings Calculator（其 DMT/VIC 标准时序数据与 CVT 公式来自 VESA/CTA 公开规范，算法经交叉验证对齐）。
-EDID / CEA-861 / DisplayID / CVT / GTF 的具体细节请以 VESA 与 CTA 官方规范为准。
+「伽马验证」页为内部 Python 版「Gamma Curve Verification Tool」的 Web 移植，数据读取、列/行配置与
+平均 Gamma 算法与原工具保持一致。EDID / CEA-861 / DisplayID / CVT / GTF 的具体细节请以 VESA 与 CTA 官方规范为准。

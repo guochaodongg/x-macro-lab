@@ -1069,6 +1069,7 @@
     state.theme = theme;
     document.documentElement.setAttribute('data-theme', theme);
     $('#theme-icon').innerHTML = '<use href="#' + (theme === 'dark' ? 'i-sun' : 'i-moon') + '"/>';
+    gammaRerender();
     save();
   }
 
@@ -1545,6 +1546,206 @@
     vtcRender();
   }
 
+  /* ===================== 伽马验证（Gamma verification） ===================== */
+
+  var gam = { wb1: null, wb2: null, name1: '', name2: '', last: null };
+  var GAMMA_MAX_FILE = 32 * 1024 * 1024;
+
+  function initGamma() {
+    var sel = $('#gam-curve');
+    GAMMA.CURVES.forEach(function (c) {
+      var o = document.createElement('option');
+      o.value = c.name;
+      o.textContent = c.name + '（占比列 ' + c.col + '）';
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', function () {
+      $('#gam-title').value = this.value;
+    });
+    $('#gam-file1').addEventListener('change', function () { gamRead(this, 1); });
+    $('#gam-file2').addEventListener('change', function () { gamRead(this, 2); });
+    $('#gam-run').addEventListener('click', gamRun);
+    $('#gam-save').addEventListener('click', gamSave);
+  }
+
+  function gamChip() {
+    var parts = [];
+    if (gam.name1) parts.push('测量: ' + gam.name1);
+    if (gam.name2) parts.push('占比: ' + gam.name2);
+    $('#gam-chip').textContent = parts.length ? parts.join(' ｜ ') : '未选择文件';
+  }
+
+  function gamRead(input, which) {
+    var file = input.files && input.files[0];
+    if (!file) return;
+    if (file.size > GAMMA_MAX_FILE) {
+      $('#gam-status').textContent = '文件过大（上限 32MB），无法解析：' + file.name;
+      return;
+    }
+    var fr = new FileReader();
+    fr.onload = function () {
+      try {
+        var wb = window.XLSXLite.parse(new Uint8Array(fr.result));
+        if (which === 1) { gam.wb1 = wb; gam.name1 = file.name; }
+        else { gam.wb2 = wb; gam.name2 = file.name; }
+        gamChip();
+        $('#gam-status').textContent = '已加载: ' + file.name + '（工作表: ' + wb.sheetNames.join(', ') + '）';
+      } catch (ex) {
+        $('#gam-status').textContent = '解析 ' + file.name + ' 失败: ' + ex.message;
+      }
+    };
+    fr.onerror = function () {
+      $('#gam-status').textContent = '读取文件失败: ' + file.name;
+    };
+    fr.readAsArrayBuffer(file);
+  }
+
+  function gamCol(id, def) {
+    var v = $('#' + id).value.trim().toUpperCase();
+    if (!v) return def;
+    if (!/^[A-Z]{1,3}$/.test(v)) return null;
+    return v;
+  }
+
+  function gamRow(id) {
+    var v = $('#' + id).value.trim();
+    if (!v) return null;
+    var n = Number(v);
+    if (!isFinite(n) || n < 1 || Math.floor(n) !== n) return NaN;
+    return n;
+  }
+
+  function gamRun() {
+    if (!gam.wb1) {
+      $('#gam-status').textContent = '请先选择测量数据 Excel 文件。';
+      return;
+    }
+    var cfg = {
+      xCol: gamCol('gam-xcol', 'A'),
+      yCol: gamCol('gam-ycol', 'G'),
+      wxCol: gamCol('gam-wxcol', 'E'),
+      wyCol: gamCol('gam-wycol', 'F'),
+      r1s: gamRow('gam-r1s'), r1e: gamRow('gam-r1e'),
+      r2s: gamRow('gam-r2s'), r2e: gamRow('gam-r2e'),
+      curve: $('#gam-curve').value,
+      title: $('#gam-title').value.trim() || $('#gam-curve').value,
+      xlabel: $('#gam-xlabel').value.trim() || 'Input Level',
+      ylabel: $('#gam-ylabel').value.trim() || 'Luminance(nits)'
+    };
+    if (!cfg.xCol || !cfg.yCol || !cfg.wxCol || !cfg.wyCol) {
+      $('#gam-status').textContent = '列号无效：请填写 A~ZZ 范围内的列字母。';
+      return;
+    }
+    if (isNaN(cfg.r1s) || isNaN(cfg.r1e) || isNaN(cfg.r2s) || isNaN(cfg.r2e)) {
+      $('#gam-status').textContent = '行号无效：请填写正整数。';
+      return;
+    }
+    if (cfg.r1s !== null && cfg.r1e !== null && cfg.r1s > cfg.r1e) {
+      $('#gam-status').textContent = '测量数据起始行不能大于终止行。';
+      return;
+    }
+    if (cfg.r2s !== null && cfg.r2e !== null && cfg.r2s > cfg.r2e) {
+      $('#gam-status').textContent = '灰阶占比起始行不能大于终止行。';
+      return;
+    }
+    try {
+      var sheet1 = gam.wb1.sheet(0);
+      var measure = GAMMA.extractColumns(sheet1,
+        [cfg.xCol, cfg.yCol, cfg.wxCol, cfg.wyCol], cfg.r1s, cfg.r1e);
+      var duty = null;
+      if (gam.wb2) {
+        var curve = GAMMA.curveByName(cfg.curve);
+        duty = GAMMA.extractColumns(gam.wb2.sheet(0), [curve.col], cfg.r2s, cfg.r2e);
+        cfg.dutyCol = curve.col;
+      }
+      var res = GAMMA.assemble(measure, duty, cfg);
+      if (!res.xs.length) {
+        $('#gam-status').textContent = '所选行列范围内没有可绘制的数值数据，请检查列号与起止行。';
+        return;
+      }
+      gam.last = { res: res, cfg: cfg };
+      gamRender();
+      var avg = GAMMA.avgGamma(res.xs, res.ys);
+      var target = GAMMA.targetGamma(cfg.curve);
+      var el = $('#gam-gamma');
+      if (avg === null) {
+        el.textContent = 'Avg γ: N/A';
+        el.style.color = 'var(--text)';
+      } else {
+        el.textContent = 'Avg γ: ' + avg.toFixed(3) + (target !== null ? '，Ideal γ: ' + target.toFixed(1) : '');
+        var LIMIT = 0.05;
+        el.style.color = (target !== null && Math.abs(avg - target) <= LIMIT) ? 'var(--ok)' : 'var(--err)';
+      }
+      var msg = '图表已生成，显示 ' + res.xs.length + ' 条数据';
+      if (res.dropped) msg += '（' + res.dropped + ' 行因缺少数值被跳过）';
+      if (!res.refs && duty) msg += '；灰阶占比存在空值，未绘制参考曲线';
+      else if (!duty) msg += '；未选择灰阶占比文件，仅绘制实测曲线';
+      $('#gam-status').textContent = msg + '。';
+    } catch (ex) {
+      $('#gam-status').textContent = '生成图表失败: ' + ex.message;
+    }
+  }
+
+  function gamRender() {
+    var l = gam.last;
+    var out = $('#gam-out');
+    var s1 = GAMMA.renderGammaChart(l.res, {
+      title: l.cfg.title, xlabel: l.cfg.xlabel, ylabel: l.cfg.ylabel,
+      refLabel: l.cfg.curve, theme: state.theme
+    });
+    var s2 = GAMMA.renderWhitePointChart(l.res, { xlabel: l.cfg.xlabel, theme: state.theme });
+    out.innerHTML = '<div class="card"><div class="body gam-charts">' + s1 + s2 + '</div></div>';
+  }
+
+  function gammaRerender() {
+    if (gam.last && $('#gam-out').firstChild) gamRender();
+  }
+
+  function gamSave() {
+    if (!gam.last || !$('#gam-out svg')) {
+      $('#gam-status').textContent = '当前没有可保存的图表，请先生成图表。';
+      return;
+    }
+    var svgs = $$('#gam-out svg');
+    var CW = 560, CH = 420, GAP = 24, SCALE = 2;
+    var bg = GAMMA._internal.THEMES[state.theme === 'dark' ? 'dark' : 'light'].bg;
+    var canvas = document.createElement('canvas');
+    canvas.width = (CW * 2 + GAP) * SCALE;
+    canvas.height = (CH + GAP * 2) * SCALE;
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    var jobs = svgs.map(function (svg, i) {
+      return new Promise(function (resolve) {
+        var txt = new XMLSerializer().serializeToString(svg);
+        var url = URL.createObjectURL(new Blob([txt], { type: 'image/svg+xml;charset=utf-8' }));
+        var img = new Image();
+        img.onload = function () {
+          ctx.drawImage(img, (i * (CW + GAP) + (svgs.length === 1 ? (CW + GAP) / 2 : 0)) * SCALE,
+            GAP * SCALE, CW * SCALE, CH * SCALE);
+          URL.revokeObjectURL(url);
+          resolve();
+        };
+        img.onerror = function () { URL.revokeObjectURL(url); resolve(); };
+        img.src = url;
+      });
+    });
+    Promise.all(jobs).then(function () {
+      canvas.toBlob(function (blob) {
+        if (!blob) { $('#gam-status').textContent = '导出 PNG 失败。'; return; }
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'gamma-charts.png';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+        $('#gam-status').textContent = '图表已保存为 gamma-charts.png。';
+      }, 'image/png');
+    });
+  }
+
   function init() {
     var draft = load();
     if (draft) {
@@ -1573,6 +1774,7 @@
     initValidator();
     initTiming();
     initVTC();
+    initGamma();
 
     $$('nav.tabs button').forEach(function (b) {
       b.addEventListener('click', function () { switchTab(b.getAttribute('data-tab')); });

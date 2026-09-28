@@ -436,3 +436,7 @@ footer.site .wrap { display: flex; gap: 16px; flex-wrap: wrap; align-items: cent
   .card { box-shadow: none; break-inside: avoid; }
   .hex { max-height: none; }
 }
+
+/* ---- gamma charts ---- */
+.gam-charts { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start; }
+.gam-charts svg { flex: 1 1 440px; min-width: 320px; height: auto; display: block; }
