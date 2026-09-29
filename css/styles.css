@@ -122,7 +122,7 @@ header.site .wrap {
 .brand b { font-size: 1.05rem; }
 .brand span { color: var(--text-dim); font-weight: 500; font-size: .82rem; }
 
-nav.tabs { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
+nav.tabs { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; align-items: center; }
 nav.tabs button {
   font: inherit; font-size: .9rem; font-weight: 550;
   color: var(--text-soft); background: transparent;
@@ -136,6 +136,61 @@ nav.tabs button[aria-selected="true"] {
   border-color: color-mix(in srgb, var(--accent) 32%, transparent);
 }
 nav.tabs button .ic { width: 16px; height: 16px; }
+
+/* ---- 分组菜单：顶层 5 组（EDID / Gamma / DDC/CI / Timing / 关于） ------- */
+nav.tabs .tabgroup { position: relative; display: flex; }
+nav.tabs .gbtn { padding-right: 10px; }
+nav.tabs .gbtn.flat { padding: 7px 14px; }      /* 「关于」没有下拉，左右留白对称 */
+nav.tabs .gbtn .caret { width: 12px; height: 12px; opacity: .65; transition: transform .18s ease; }
+nav.tabs .tabgroup.open > .gbtn .caret { transform: rotate(180deg); }
+nav.tabs .tabgroup.open > .gbtn { background: var(--bg-soft); color: var(--text); }
+/* 当前页所在的分组整块高亮，子页面仍单独高亮 */
+nav.tabs .tabgroup.has-active > .gbtn {
+  background: var(--accent-soft); color: var(--accent-text);
+  border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+nav.tabs .tabmenu {
+  display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 70;
+  min-width: 200px; padding: 6px; margin: 0;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  flex-direction: column; gap: 2px;
+}
+nav.tabs .tabgroup.open > .tabmenu { display: flex; }
+/* 右侧两组右对齐，菜单不会溢出视口 */
+nav.tabs .tabgroup:nth-last-child(-n+2) > .tabmenu { left: auto; right: 0; }
+nav.tabs .tabmenu button {
+  width: 100%; justify-content: flex-start; scroll-margin: 12px;
+  border-radius: var(--radius-sm); padding: 8px 10px;
+}
+nav.tabs .tabmenu .hint {
+  margin-left: auto; padding-left: 16px;
+  color: var(--text-dim); font-size: .74rem; font-weight: 500; letter-spacing: .01em;
+}
+nav.tabs .tabmenu button[aria-selected="true"] .hint { color: var(--accent-text); }
+
+@media (max-width: 860px) {
+  /* 窄屏不再折叠：分组标题退化成小标签，所有子页面平铺出来 */
+  nav.tabs { margin-left: 0; }
+  nav.tabs .tabgroup { position: static; }
+  nav.tabs .tabgroup > .tabmenu,
+  nav.tabs .tabgroup.open > .tabmenu {
+    display: flex; position: static; flex-direction: row; flex-wrap: wrap;
+    min-width: 0; padding: 0; border: 0; box-shadow: none; background: transparent; gap: 4px;
+  }
+  nav.tabs .gbtn:not(.flat) {
+    pointer-events: none; gap: 0; padding: 7px 2px 7px 8px;
+    font-size: .72rem; letter-spacing: .07em; text-transform: uppercase;
+  }
+  nav.tabs .gbtn:not(.flat) .caret { display: none; }
+  nav.tabs .tabmenu .hint { display: none; }
+  nav.tabs .tabmenu button { width: auto; padding: 7px 13px; }
+  /* 窄屏下分组标题只当分组说明，选中态交给具体的子页面按钮 */
+  nav.tabs .tabgroup.has-active > .gbtn:not(.flat) {
+    background: transparent; border-color: transparent; color: var(--text-dim);
+  }
+}
 
 main { padding: 26px 0 70px; }
 

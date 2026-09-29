@@ -65,6 +65,9 @@
     <rect x="7" y="7" width="10" height="10" rx="1.5"/>
     <path d="M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4"/>
   </symbol>
+  <symbol id="i-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m6 9.5 6 5.5 6-5.5"/>
+  </symbol>
 </svg>
 
 <header class="site">
@@ -73,16 +76,38 @@
       <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="var(--accent)"/><rect x="7" y="7" width="7" height="7" fill="#fff"/><rect x="18" y="7" width="7" height="7" fill="#fff" opacity=".6"/><rect x="7" y="18" width="7" height="7" fill="#fff" opacity=".6"/><rect x="18" y="18" width="7" height="7" fill="#fff"/></svg>
       <b>EDID-X-LAB</b>
     </div>
-    <nav class="tabs" role="tablist">
-      <button role="tab" aria-selected="true" data-tab="decoder"><svg class="ic"><use href="#i-decode"/></svg>解析</button>
-      <button role="tab" aria-selected="false" data-tab="encoder"><svg class="ic"><use href="#i-encode"/></svg>生成</button>
-      <button role="tab" aria-selected="false" data-tab="validator"><svg class="ic"><use href="#i-shield"/></svg>校验</button>
-      <button role="tab" aria-selected="false" data-tab="timing"><svg class="ic"><use href="#i-clock"/></svg>时序计算</button>
-      <button role="tab" aria-selected="false" data-tab="vtc"><svg class="ic"><use href="#i-clock"/></svg>时序对比</button>
-      <button role="tab" aria-selected="false" data-tab="gamma"><svg class="ic"><use href="#i-chart"/></svg>伽马验证</button>
-      <button role="tab" aria-selected="false" data-tab="mccs"><svg class="ic"><use href="#i-monitor"/></svg>DDC/CI 控制</button>
-      <button role="tab" aria-selected="false" data-tab="learn"><svg class="ic"><use href="#i-book"/></svg>学习 EDID</button>
-      <button role="tab" aria-selected="false" data-tab="about"><svg class="ic"><use href="#i-info"/></svg>关于</button>
+    <nav class="tabs" aria-label="功能导航">
+      <div class="tabgroup" data-group="edid">
+        <button type="button" class="gbtn" aria-expanded="false">EDID<svg class="ic caret" aria-hidden="true"><use href="#i-caret"/></svg></button>
+        <div class="tabmenu" role="tablist" aria-label="EDID">
+          <button type="button" role="tab" aria-selected="true" data-tab="decoder"><svg class="ic"><use href="#i-decode"/></svg><span class="lbl">解析</span><span class="hint">Decode</span></button>
+          <button type="button" role="tab" aria-selected="false" data-tab="encoder"><svg class="ic"><use href="#i-encode"/></svg><span class="lbl">生成</span><span class="hint">Encode</span></button>
+          <button type="button" role="tab" aria-selected="false" data-tab="validator"><svg class="ic"><use href="#i-shield"/></svg><span class="lbl">校验</span><span class="hint">Validate</span></button>
+          <button type="button" role="tab" aria-selected="false" data-tab="learn"><svg class="ic"><use href="#i-book"/></svg><span class="lbl">学习 EDID</span><span class="hint">Learn</span></button>
+        </div>
+      </div>
+      <div class="tabgroup" data-group="gamma">
+        <button type="button" class="gbtn" aria-expanded="false">Gamma<svg class="ic caret" aria-hidden="true"><use href="#i-caret"/></svg></button>
+        <div class="tabmenu" role="tablist" aria-label="Gamma">
+          <button type="button" role="tab" aria-selected="false" data-tab="gamma"><svg class="ic"><use href="#i-chart"/></svg><span class="lbl">伽马验证</span><span class="hint">Gamma Curve</span></button>
+        </div>
+      </div>
+      <div class="tabgroup" data-group="ddcci">
+        <button type="button" class="gbtn" aria-expanded="false">DDC/CI<svg class="ic caret" aria-hidden="true"><use href="#i-caret"/></svg></button>
+        <div class="tabmenu" role="tablist" aria-label="DDC/CI">
+          <button type="button" role="tab" aria-selected="false" data-tab="mccs"><svg class="ic"><use href="#i-monitor"/></svg><span class="lbl">DDC/CI 控制</span><span class="hint">VCP / MCCS</span></button>
+        </div>
+      </div>
+      <div class="tabgroup" data-group="timing">
+        <button type="button" class="gbtn" aria-expanded="false">Timing<svg class="ic caret" aria-hidden="true"><use href="#i-caret"/></svg></button>
+        <div class="tabmenu" role="tablist" aria-label="Timing">
+          <button type="button" role="tab" aria-selected="false" data-tab="timing"><svg class="ic"><use href="#i-clock"/></svg><span class="lbl">时序计算</span><span class="hint">CVT / GTF</span></button>
+          <button type="button" role="tab" aria-selected="false" data-tab="vtc"><svg class="ic"><use href="#i-clock"/></svg><span class="lbl">时序对比</span><span class="hint">Video Timings</span></button>
+        </div>
+      </div>
+      <div class="tabgroup single" data-group="about" role="tablist" aria-label="关于">
+        <button type="button" class="gbtn flat" role="tab" data-tab="about" aria-selected="false">关于</button>
+      </div>
     </nav>
     <button class="icon ghost" id="theme-toggle" title="切换深色 / 浅色主题" aria-label="切换主题">
       <svg class="ic" id="theme-icon"><use href="#i-moon"/></svg>
@@ -698,14 +723,17 @@
 
       <div class="card"><div class="body">
         <h3>功能清单</h3>
+        <p class="small muted" style="margin-top:0">顶部导航按 <b>EDID</b> / <b>Gamma</b> / <b>DDC/CI</b> / <b>Timing</b> / <b>关于</b> 五组组织，点分组标题展开下拉菜单；每个页面也能用深链直达，例如 <code>?tab=mccs</code>。</p>
         <div class="kv">
-          <dt>解析</dt><dd>基础块全字段、既定 / 标准时序、四类描述符、CEA-861 数据块、DisplayID 分节、VTB、块映射</dd>
-          <dt>生成</dt><dd>厂商 / 产品 / 序列号、日期与版本、数字 / 模拟输入、色度、既定与标准时序、描述符与扩展块，自动校验和</dd>
-          <dt>校验</dt><dd>结构与校验和、日期范围、色度合法性与 sRGB 一致性、时序自洽、描述符格式、扩展块一致性，分级报告</dd>
-          <dt>时序</dt><dd>CVT 标准 / RB / RBv2 / RBv3 与 GTF（含隔行与缩边），输出参数表、Modeline、xrandr 命令与可写入 DTD 的字节</dd>
-          <dt>时序对比</dt><dd>一次计算 CVT / CVT-RB / CVT-RBv2 / CEA-861 / DMT / 自定义六种时序，核算 DP / HDMI / DVI / SDI / RFC4175 接口带宽余量</dd>
-          <dt>伽马验证</dt><dd>读取 CA410 测量数据与灰阶占比表（.xlsx 本地解析），生成实测 / 参考伽马曲线与白点一致性图表，计算平均 Gamma；内置 6 组实测数据集（默认 BT1886，切换曲线自动重绘）</dd>
-          <dt>DDC/CI 控制</dt><dd>像 MCCS 工具一样读写显示器 VCP 特性（亮度 / 对比度 / 输入源 / 电源模式…）、扫描支持码、读取并解析 capabilities 字符串；离线可用报文构建器（逐字节解释 + 校验和核对 + 等价 ddcutil / i2ctransfer / curl 命令）与 182 条 VCP 码参考表</dd>
+          <dt>EDID · 解析</dt><dd>基础块全字段、既定 / 标准时序、四类描述符、CEA-861 数据块、DisplayID 分节、VTB、块映射</dd>
+          <dt>EDID · 生成</dt><dd>厂商 / 产品 / 序列号、日期与版本、数字 / 模拟输入、色度、既定与标准时序、描述符与扩展块，自动校验和</dd>
+          <dt>EDID · 校验</dt><dd>结构与校验和、日期范围、色度合法性与 sRGB 一致性、时序自洽、描述符格式、扩展块一致性，分级报告</dd>
+          <dt>EDID · 学习 EDID</dt><dd>8 节速成课：基础块字节地图、四种描述符、18 字节 DTD 逐字节解释、CEA-861 与 DisplayID、CVT/GTF 原理、常见坑</dd>
+          <dt>Gamma · 伽马验证</dt><dd>读取 CA410 测量数据与灰阶占比表（.xlsx 本地解析），生成实测 / 参考伽马曲线与白点一致性图表，计算平均 Gamma；内置 6 组实测数据集（默认 BT1886，切换曲线自动重绘）</dd>
+          <dt>DDC/CI · 控制</dt><dd>像 MCCS 工具一样读写显示器 VCP 特性（亮度 / 对比度 / 输入源 / 电源模式…）、扫描支持码、读取并解析 capabilities 字符串；离线可用报文构建器（逐字节解释 + 校验和核对 + 等价 ddcutil / i2ctransfer / curl 命令）与 182 条 VCP 码参考表</dd>
+          <dt>Timing · 时序计算</dt><dd>CVT 标准 / RB / RBv2 / RBv3 与 GTF（含隔行与缩边），输出参数表、Modeline、xrandr 命令与可写入 DTD 的字节</dd>
+          <dt>Timing · 时序对比</dt><dd>一次计算 CVT / CVT-RB / CVT-RBv2 / CEA-861 / DMT / 自定义六种时序，核算 DP / HDMI / DVI / SDI / RFC4175 接口带宽余量</dd>
+          <dt>关于</dt><dd>项目介绍、部署说明、开发说明、清除本地草稿</dd>
         </div>
       </div></div>
 

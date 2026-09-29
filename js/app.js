@@ -1056,12 +1056,46 @@
   }
 
   /* ================================================================== init */
+  /* 导航是「5 个顶层分组 + 下拉」结构，分组关系直接读 index.html 里的 DOM：
+     每个 .tabgroup 内第一个 [data-tab] 视为该组的默认页面；没有下拉、自己带
+     data-tab 的分组（关于）就是直达项。这样加页面只需要改 HTML，不必改这里。 */
+  function navGroups() { return $$('nav.tabs .tabgroup'); }
+
+  function withinGroup(group, tab) { return !!$('[data-tab="' + tab + '"]', group); }
+
+  function closeTabMenus(except) {
+    navGroups().forEach(function (g) {
+      if (g === except) return;
+      g.classList.remove('open');
+      var b = $('.gbtn', g);
+      if (b) b.setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  function openTabMenu(group) {
+    closeTabMenus(group);
+    group.classList.add('open');
+    var b = $('.gbtn', group);
+    if (b) b.setAttribute('aria-expanded', 'true');
+  }
+
+  /* 深链 ?tab=xxx（备选 #xxx），未知值忽略。桥接脚本与 README 都用它。 */
+  function tabFromUrl() {
+    var want = null;
+    try { want = new URLSearchParams(location.search).get('tab'); } catch (err) { /* 老环境 */ }
+    if (!want && location.hash) want = location.hash.replace(/^#/, '');
+    if (!want) return null;
+    return $('nav.tabs button[data-tab="' + want + '"]') ? want : null;
+  }
+
   function switchTab(name) {
     state.tab = name;
-    $$('nav.tabs button').forEach(function (b) {
+    $$('nav.tabs button[data-tab]').forEach(function (b) {
       b.setAttribute('aria-selected', String(b.getAttribute('data-tab') === name));
     });
     $$('.panel').forEach(function (p) { p.classList.toggle('active', p.id === 'panel-' + name); });
+    navGroups().forEach(function (g) { g.classList.toggle('has-active', withinGroup(g, name)); });
+    closeTabMenus();
     save();
   }
 
@@ -2755,6 +2789,7 @@
 
   function init() {
     var draft = load();
+    var linkTab = tabFromUrl();
     if (draft) {
       state.tab = draft.tab || 'decoder';
       state.theme = draft.theme || state.theme;
@@ -2774,6 +2809,8 @@
       decSetBytes(E.encode(E.defaultModel()).bytes, '默认示例');
     }
 
+    if (linkTab) state.tab = linkTab;      /* 深链优先于本地草稿 */
+
     setTheme(state.theme);
     switchTab(state.tab);
     initDecoder();
@@ -2784,16 +2821,59 @@
     initGamma();
     initMCCS();
 
-    $$('nav.tabs button').forEach(function (b) {
+    $$('nav.tabs button[data-tab]').forEach(function (b) {
       b.addEventListener('click', function () { switchTab(b.getAttribute('data-tab')); });
     });
+
+    /* 顶层分组：展开下拉；若当前页不在该组，同时跳到该组的第一个页面。
+       菜单已经展开时再点一次就是收起。 */
+    navGroups().forEach(function (group) {
+      var btn = $('.gbtn', group);
+      var items = $$('[data-tab]', group);
+      if (!btn || btn.hasAttribute('data-tab')) return;   /* 「关于」这类直达项不折叠 */
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        var wasOpen = group.classList.contains('open');
+        var first = items[0];
+        closeTabMenus();
+        if (wasOpen) return;
+        if (first && !withinGroup(group, state.tab)) switchTab(first.getAttribute('data-tab'));
+        openTabMenu(group);
+      });
+      btn.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowDown' && items.length) {
+          e.preventDefault();
+          openTabMenu(group);
+          items[0].focus();
+        } else if (e.key === 'Escape') {
+          closeTabMenus();
+        }
+      });
+      items.forEach(function (it, i) {
+        it.addEventListener('keydown', function (e) {
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus();
+          } else if (e.key === 'Escape') {
+            btn.focus();
+            closeTabMenus();
+          }
+        });
+      });
+    });
+
+    /* 点到别处就收起菜单 */
+    document.addEventListener('click', function (e) {
+      if (!(e.target.closest && e.target.closest('nav.tabs .tabgroup'))) closeTabMenus();
+    });
+
     $('#theme-toggle').addEventListener('click', function () {
       setTheme(state.theme === 'dark' ? 'light' : 'dark');
     });
     $('#modal-close').addEventListener('click', closeModal);
     $('#modal').addEventListener('click', function (e) { if (e.target === $('#modal')) closeModal(); });
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') closeModal();
+      if (e.key === 'Escape') { closeModal(); closeTabMenus(); }
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
         if (state.tab === 'decoder') decRun();
