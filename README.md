@@ -33,7 +33,7 @@
 |  | **校验** | 结构、固定头、块长度、逐块校验和、扩展块数量一致性、日期范围、色度合法性与 sRGB 一致性、时序自洽、描述符格式（文本终止符、范围限制填充、CVT 参数）、CEA/VSDB/HDR/色度块一致性；按**错误 / 警告 / 提示**三级报告 |
 |  | **学习 EDID** | 8 节速成课：EDID 是什么、基础块字节地图、四种描述符、18 字节 DTD 逐字节解释、CEA-861 与 DisplayID、CVT/GTF 原理、常见坑、参考资料 |
 | **PQ** | **伽马验证** | 读取 CA410 色温仪测量数据与灰阶占比表（.xlsx，浏览器本地解析，自研 ZIP / OOXML 读取器），按所选 Gamma 曲线（GammaBT1886 / 1.8 / 2.0 / 2.2 / 2.4 / 2.6）的占比映射生成参考曲线（峰值亮度 × 灰阶占比）、白点一致性（Wx / Wy）图表，并计算平均 Gamma（对数回归，与目标值偏差 ±0.05 内标绿）；可导出 PNG。**内置 6 组实测数据集**（`data/` 内，默认载入 BT1886），切换曲线即自动重绘对应图表，也支持上传自己的 .xlsx |
-|  | **色彩空间** | CIE 1931 色彩空间分析与转换（对标 CIE Color Space Analyzer，纯前端）：**XYZ / xyY / CCT / 设备 RGB 与 HEX / Lab / Luv（含 LCH）六组坐标互为输入输出**，改任一组其余五组即时算出；六种参考白点（A / C / D50 / D55 / D65 / E）、六种 RGB 空间（sRGB / AdobeRGB / Display P3 / Rec.709 / Rec.2020 / ProPhoto）、四套色度适应模型（Bradford / Von Kries / XYZ Scaling / 不换算）可自由组合，含传递函数解码 / 编码与矩阵推导。右侧 **XY 色度图**（内联 SVG，无外部资源）可**点击 / 拖动取点**：背景是该色度下 sRGB 能达到的最饱和亮度（6px 网格 + 光谱轨迹裁剪），叠加当前 RGB 空间色域三角形、黑体 / 日光轨迹与波长刻度；越出色域给出提示，并同时算出 **McCamy 色温与 Duv**、设备 RGB 值与 HEX 色样 |
+|  | **色彩空间** | CIE 1931 / CIE 1976 色彩空间分析与转换（对标 CIE Color Space Analyzer，纯前端）：**XYZ / xyY / CCT / 设备 RGB 与 HEX / Lab / Luv（含 LCH）六组坐标互为输入输出**，改任一组其余五组即时算出；六种参考白点（A / C / D50 / D55 / D65 / E）、六种 RGB 空间（sRGB / AdobeRGB / Display P3 / Rec.709 / Rec.2020 / ProPhoto）、四套色度适应模型（Bradford / Von Kries / XYZ Scaling / 不换算）可自由组合，含传递函数解码 / 编码与矩阵推导。**色度图可在 CIE 1931 xy 与 CIE 1976 u′v′（均匀色度标尺，横纵严格等比）之间切换**，同一份色度数据两种投影，均可**点击 / 拖动取点**（内联 SVG，无外部资源）：背景是该色度下 sRGB 能达到的最饱和亮度（6px 网格 + 光谱轨迹裁剪），叠加当前 RGB 空间色域三角形、黑体轨迹与波长刻度；光谱轨迹用 Catmull-Rom 样条细分成密折线，边缘平滑；越出色域给出提示，并同时算出 **McCamy 色温与 Duv**、设备 RGB 值与 HEX 色样 |
 | **DDC/CI** | **DDC/CI 控制** | 像 MCCS 工具那样直接读写显示器 VCP 特性：连接本地桥接后列出物理显示器、读/写任意 VCP 码（亮度 / 对比度 / 输入源 / 电源模式…）、扫描常用码、读取并解析显示器 capabilities 字符串；离线也有**报文构建器**（逐字节字段解释 + 校验和核对 + 等价 `ddcutil` / `i2ctransfer` / PowerShell / curl 命令）和 **182 条 VCP 码参考表**（中英文名、类型 C/NC/CNC/T、读写权限、分组、枚举值含义） |
 | **串口调试** | **串口调试** | 两种**可识别的界面模式**：**普通模式**（发送区 + 接收区，接收视图可选 文本 / HEX / HEXDUMP，带时间戳与收发记录）与**终端模式**（提示符 + 命令行 + 闪烁光标，按真实终端语义解释 CR/LF/BS/TAB）。**切到本页即自动枚举已连接的 COM 口**（含友好名与 VID/PID，并自动选回上次用过的口）；波特率 300–2000000、5–8 数据位、五种校验、1 / 1.5 / 2 位停止位、三种流控、DTR/RTS、编码、行结尾、定时发送、常用指令预设（AT / SCPI / 控制字符）；普通模式会**嗅探内容**（命中 ANSI 转义、裸 CR、BEL、BS、FF 即提示切到终端模式）。两种传输方式：**本地桥接**（列全部 COM 口，`file://` 可用）与 **Web Serial**（零安装，仅 https/localhost） |
 | **Timing** | **时序计算** | VESA **CVT 1.1**（标准消隐）与 **CVT 1.2**（RB / RBv2 / RBv3）、**GTF 1.1**（含隔行与缩边）；输出完整参数表、消隐结构图、X11 `Modeline`、`xrandr --newmode` / `--addmode`，以及可直接写进 DTD 的 18 字节 |
@@ -477,7 +477,7 @@ capabilities 字符串也能解析出型号、`mccs_ver`、支持的操作码、
 | `MCCSData` | `VCP`（182 条码表）、`OPCODES`（9 条操作码）、`VALUES`（枚举值表） |
 | `SERIAL` | `bytes`、`hex`、`hex2`、`hex4`、`concat`、`textToBytes`、`decodeBytes`、`eolBytes`、`eolLabel`、`printable`、`escapeText`、`hexdump`、`describeBytes`、`termNew`、`termFeed`、`termText`、`termSize`、`termHTML`（终端缓冲与 ANSI 颜色渲染）、`sniffMode`（内容嗅探）、`stamp`、`bridgePort`、`webPort`、`mergePortLists`、`matchPort`、`transportOrder`、`transportName`、`normalizeCfg`、`toWebSerialOptions`、`toBridgeArgs`、`presetBytes`、`makeWebSerialTransport`、`makeBridgeTransport` |
 | `SERIALData` | `BAUDS`、`DATA_BITS`、`PARITY`、`STOP_BITS`、`FLOW`、`EOL`、`SEND_ENCODING`、`RECV_ENCODING`、`RX_VIEWS`、`PRESETS`（AT / SCPI / 控制字符）、`WEB_SERIAL_LIMITS` |
-| `CIE` | `matrix`（`mulMatVec` / `mulMatMat` / `invMat`）、`decode` / `encode`（传递函数）、`buildRGBMatrix`、`adaptationMatrix`、`pipeline`、`rgbToXyz` / `xyzToRgb`、`convert`（`XYZ_to_xyY` / `xyY_to_XYZ` / `xy_to_CCT` / `CCT_to_xy` / `XYZ_to_Lab` / `Lab_to_XYZ` / `ab_to_LCH` / `LCH_to_ab` / `XYZ_to_Luv` / `Luv_to_XYZ` / `xy_to_uv60`）、`outOfGamut`、`deviceRGB`、`srgb8`、`rgbHex` / `parseHex`、`compute`、`envInfo`、`locusPoints` / `pointInLocus`、`planckianPoints`、`nearestPlanck`（最近黑体点 + Duv）、`diagramBase` / `diagramOverlay` / `baseKey`、`pickXYZ` / `pickAt` / `atSvgPoint`、`readout`、`FIELD` / `SKIP` |
+| `CIE` | `matrix`（`mulMatVec` / `mulMatMat` / `invMat`）、`decode` / `encode`（传递函数）、`buildRGBMatrix`、`adaptationMatrix`、`pipeline`、`rgbToXyz` / `xyzToRgb`、`convert`（`XYZ_to_xyY` / `xyY_to_XYZ` / `xy_to_CCT` / `CCT_to_xy` / `XYZ_to_Lab` / `Lab_to_XYZ` / `ab_to_LCH` / `LCH_to_ab` / `XYZ_to_Luv` / `Luv_to_XYZ` / `xy_to_uv60` / `xy_to_uv76` / `uv76_to_xy`）、`outOfGamut`、`deviceRGB`、`srgb8`、`rgbHex` / `parseHex`、`compute`、`envInfo`、`locusPoints` / `denseLocus` / `pointInLocus`、`planckianPoints`、`nearestPlanck`（最近黑体点 + Duv）、`diagramBase` / `diagramOverlay` / `baseKey`（均可传 `space: 'xy' | 'uv'` 切换两种色度图）、`pickXYZ` / `pickAt` / `atSvgPoint`、`readout`、`FIELD` / `SKIP` |
 | `CIEData` | `ILLUMINANTS` / `ILLUMINANT_ORDER`（A / C / D50 / D55 / D65 / E）、`RGB_SPACES` / `RGB_ORDER`（sRGB / AdobeRGB / Display P3 / Rec.709 / Rec.2020 / ProPhoto）、`ADAPT` / `ADAPT_ORDER`（Bradford / Von Kries / XYZ Scaling / None）、`SPECTRAL_LOCUS` / `LOCUS_TICKS`、`DIAGRAM_THEME` |
 
 两个传输适配器（`makeBridgeTransport` / `makeWebSerialTransport`）对外是同一组方法，
@@ -607,7 +607,7 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 > 本项目的测试脚本（`_ref/test-*.js`，覆盖编解码往返、时序矩阵、报告层、时序对比、伽马、
 > DDC/CI 协议、串口协议与传输适配器、技术博客数据与渲染层、CIE 1931 色彩空间，以及 jsdom
 > 驱动的界面层）都在仓库外的 `_ref/`，不会随静态站点发布。
-> 当前基线：**108 / 356 / 2094 / 20095 / 122 / 258 / 269 / 475 / 489 + 界面 106，全部 0 失败**
+> 当前基线：**108 / 356 / 2094 / 20095 / 122 / 258 / 269 / 475 / 521 + 界面 107，全部 0 失败**
 > （依次为 `test-edid` / `test-timing` / `test-render` / `test-vtc` / `test-gamma` /
 > `test-mccs` / `test-serial` / `test-blog` / `test-cie`，最后是 `test-app-dom`）。
 
@@ -651,7 +651,7 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 
 ---
 
-## 11. 色彩空间（CIE 1931）
+## 11. 色彩空间（CIE 1931 / CIE 1976）
 
 ### 11.1 分层
 
@@ -680,8 +680,15 @@ XYZ / xyY / CCT / 设备 RGB 与 HEX / Lab / Luv（含 LCH）七类（共 21 个
 
 - **内联 SVG，不是 canvas**：这是站点「零外链、可 `file://` 直开」约定的必然结果，
   SVG presentation 属性不认 `var()`，所以配色取 `cie-data.js` 里的真色值，并随明暗主题重画。
+- **两种坐标系可切换**：**CIE 1931 xy**（450×480）与 **CIE 1976 u′v′**（450×450，
+  两轴**严格等比**——u′v′ 的意义就是视觉均匀，横纵比例不能歪）。同一份色度数据在两个空间间
+  射影变换（`xy_to_uv76` / `uv76_to_xy`），射影变换保直线，所以网格、紫线、色域三角形在
+  两个空间里都仍是直线；取点、指针读数与色域三角形都跟随当前坐标系换算。
+- **光谱轨迹是平滑的**：数据表只存 29 个 10 nm 锚点，直接连线棱角很重（最大转角 73°）；
+  引擎里用 **Catmull-Rom 样条**在段内插值出 337 点的密折线（过全部锚点，相邻段最大转角降到 12°）。
+  路径、`clipPath` 裁剪与射线法判定共用这同一份密折线——否则「线看着是圆的、背景裁剪却是尖的」。
 - **背景 = 该色度下 sRGB 能达到的最饱和颜色**：6px 网格逐格求值，同行同色合并成一条
-  `<rect>` 减少节点数，越出光谱轨迹的格子用 `clipPath` 裁掉。底层只随「主题 / 背景开关」变化，
+  `<rect>` 减少节点数，越出光谱轨迹的格子用 `clipPath` 裁掉。底层只随「主题 / 背景开关 / 图空间」变化，
   与白点、空间无关，所以 `CIE.baseKey(opts)` 给出的键可直接当缓存键。
 - **叠加层随点变**：当前 RGB 空间的色域三角形（基色已做色度适应，所以换白点 / 换适应模型时
   三角形会跟着动）、参考白点标记、黑体轨迹、取点十字。

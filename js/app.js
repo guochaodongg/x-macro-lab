@@ -3884,6 +3884,8 @@
     source: 'XYZ',
     baseKey: '',
     last: null,
+    pt: null,
+    space: 'xy',
     drag: false
   };
 
@@ -3970,14 +3972,14 @@
   }
 
   function cieDraw(res) {
-    var opts = { theme: state.theme, background: cie.background };
+    var opts = { theme: state.theme, background: cie.background, space: cie.space };
     var key = CIE.baseKey(opts);
     if (key !== cie.baseKey) {
       $('#cie-map-bg').innerHTML = CIE.diagramBase(opts);
       cie.baseKey = key;
     }
     $('#cie-map-fg').innerHTML = CIE.diagramOverlay({
-      theme: state.theme, env: cie.env, xy: res.xyY
+      theme: state.theme, env: cie.env, xy: res.xyY, space: cie.space
     });
   }
 
@@ -4074,32 +4076,61 @@
     var svg = $('#cie-map');
     function svgPoint(e) {
       var r = svg.getBoundingClientRect();
+      var geo = CIE.geoOf(cie.space);
       /* jsdom 里 rect 全是 0，也不能让缩放系数变成 NaN —— 退回 1:1 */
-      var sx = r.width ? CIE.geometry.W / r.width : 1;
-      var sy = r.height ? CIE.geometry.H / r.height : 1;
-      return CIE.atSvgPoint((e.clientX - r.left) * sx, (e.clientY - r.top) * sy);
+      var sx = r.width ? geo.W / r.width : 1;
+      var sy = r.height ? geo.H / r.height : 1;
+      return CIE.atSvgPoint((e.clientX - r.left) * sx, (e.clientY - r.top) * sy, cie.space);
     }
-    function clampXY(p) {
+    function clampPt(p) {
+      var geo = CIE.geoOf(cie.space);
+      if (cie.space === 'uv') {
+        return {
+          u: Math.min(Math.max(p.u, 0.0001), geo.XMAX),
+          v: Math.min(Math.max(p.v, 0.0001), geo.YMAX),
+          x: p.x, y: p.y
+        };
+      }
       return {
-        x: Math.min(Math.max(p.x, 0.0001), 0.8),
-        y: Math.min(Math.max(p.y, 0.0001), 0.9)
+        x: Math.min(Math.max(p.x, 0.0001), geo.XMAX),
+        y: Math.min(Math.max(p.y, 0.0001), geo.YMAX),
+        u: p.u, v: p.v
       };
     }
     function ciePick(e) {
-      var xy = clampXY(svgPoint(e));
+      var pt = clampPt(svgPoint(e));
       var raw = {};
-      raw['cie-xy-x'] = xy.x;
-      raw['cie-xy-y'] = xy.y;
+      raw['cie-xy-x'] = pt.x;
+      raw['cie-xy-y'] = pt.y;
       cie.source = 'pick';
       var res = CIE.compute('pick', raw, cie.env, cie.XYZ);
       cie.XYZ = res.XYZ;
       cie.last = res;
+      cie.pt = pt;
       ciePaint(res);
-      ciePointer(xy);
+      ciePointer(pt);
     }
-    function ciePointer(xy) {
-      $('#cie-pointer').textContent = '指针 x = ' + xy.x.toFixed(4) + '，y = ' + xy.y.toFixed(4);
+    function ciePointer(pt) {
+      $('#cie-pointer').textContent = cie.space === 'uv'
+        ? '指针 u′ = ' + pt.u.toFixed(4) + '，v′ = ' + pt.v.toFixed(4)
+        : '指针 x = ' + pt.x.toFixed(4) + '，y = ' + pt.y.toFixed(4);
     }
+    /* CIE 1931 xy ↔ CIE 1976 u′v′：同一份色度数据的两种投影，取点随空间换算 */
+    function setSpace(mode) {
+      if (mode !== 'xy' && mode !== 'uv') mode = 'xy';
+      cie.space = mode;
+      $$('#cie-mode-seg button').forEach(function (b) {
+        b.setAttribute('aria-selected', String(b.getAttribute('data-mode') === mode));
+      });
+      var geo = CIE.geoOf(mode);
+      svg.setAttribute('viewBox', '0 0 ' + geo.W + ' ' + geo.H);
+      cie.baseKey = '';
+      if (cie.last) cieDraw(cie.last);
+      if (cie.pt) ciePointer(cie.pt);
+    }
+    $$('#cie-mode-seg button').forEach(function (b) {
+      b.addEventListener('click', function () { setSpace(b.getAttribute('data-mode')); });
+    });
     svg.addEventListener('pointerdown', function (e) {
       cie.drag = true;
       if (svg.setPointerCapture && e.pointerId !== undefined) {
@@ -4108,8 +4139,8 @@
       ciePick(e);
     });
     svg.addEventListener('pointermove', function (e) {
-      var xy = clampXY(svgPoint(e));
-      ciePointer(xy);
+      var pt = clampPt(svgPoint(e));
+      ciePointer(pt);
       if (cie.drag) ciePick(e);
     });
     ['pointerup', 'pointercancel'].forEach(function (type) {

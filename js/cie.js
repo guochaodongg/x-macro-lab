@@ -294,6 +294,25 @@
       if (Math.abs(den) < 1e-12) return null;
       return [4 * x / den, 6 * y / den];
     },
+
+    /* CIE 1976 UCS：u' = 4x/(-2x+12y+3)，v' = 9y/(-2x+12y+3)。
+       与 1960 的差别只在 v（v' = 1.5·v60），u 不变。 */
+    xy_to_uv76: function (x, y) {
+      var den = -2 * x + 12 * y + 3;
+      if (!isFinite(den) || Math.abs(den) < 1e-12) return null;
+      return [4 * x / den, 9 * y / den];
+    },
+
+    /* 逆变换：设 Y = 1，由 v' 反解 D = X+15Y+3Z = 9/v'，再回 xyz。 */
+    uv76_to_xy: function (u, v) {
+      if (!isFinite(u) || !isFinite(v) || !(v > 1e-9)) return null;
+      var D = 9 / v;
+      var X = u * D / 4;
+      var Z = (D - X - 15) / 3;
+      var sum = X + 1 + Z;
+      if (!(sum > 1e-12)) return null;
+      return [X / sum, 1 / sum];
+    },
     XYZ_to_Luv: function (XYZ, WP) {
       var den = XYZ[0] + 15 * XYZ[1] + 3 * XYZ[2];
       var up = den === 0 ? 0 : (4 * XYZ[0]) / den;
@@ -566,37 +585,91 @@
 
   /* -------------------------------------------------------- 色度图几何 */
 
-  var GEO = { W: 450, H: 480, PAD: 30, XMAX: 0.8, YMAX: 0.9 };
+  /* 两种色度图共用一套绘制代码，几何只差「坐标是什么、画布多大」：
+     CIE 1931 xy（450×480）与 CIE 1976 u'v'（450×450，两轴严格等比 ——
+     u'v' 的意义就是视觉均匀，横纵比例不能歪）。 */
+  var GEO_XY = { W: 450, H: 480, PAD: 30, XMAX: 0.8, YMAX: 0.9, axisX: 'x', axisY: 'y' };
+  var GEO_UV = { W: 450, H: 450, PAD: 30, XMAX: 0.7, YMAX: 0.7, axisX: 'u′', axisY: 'v′' };
 
-  function mapX(x) { return GEO.PAD + (x / GEO.XMAX) * (GEO.W - 2 * GEO.PAD); }
-  function mapY(y) { return (GEO.H - GEO.PAD) - (y / GEO.YMAX) * (GEO.H - 2 * GEO.PAD); }
-  function unX(px) { return ((px - GEO.PAD) / (GEO.W - 2 * GEO.PAD)) * GEO.XMAX; }
-  function unY(py) { return (((GEO.H - GEO.PAD) - py) / (GEO.H - 2 * GEO.PAD)) * GEO.YMAX; }
+  function geoOf(space) { return space === 'uv' ? GEO_UV : GEO_XY; }
+
+  /* 色度坐标 → 图空间坐标；uv 图先把 xy 投影成 u'v'（射影变换保直线，
+     所以紫线、网格、三角形在两个空间里都仍是直线）。 */
+  function toSpace(space, x, y) {
+    return space === 'uv' ? (convert.xy_to_uv76(x, y) || [0, 0]) : [x, y];
+  }
+
+  function mx(g, v) { return g.PAD + (v / g.XMAX) * (g.W - 2 * g.PAD); }
+  function my(g, v) { return (g.H - g.PAD) - (v / g.YMAX) * (g.H - 2 * g.PAD); }
+  function ux(g, px) { return ((px - g.PAD) / (g.W - 2 * g.PAD)) * g.XMAX; }
+  function uy(g, py) { return (((g.H - g.PAD) - py) / (g.H - 2 * g.PAD)) * g.YMAX; }
+
+  /* 兼容旧调用：默认按 1931 xy 图换算 */
+  function mapX(x) { return mx(GEO_XY, x); }
+  function mapY(y) { return my(GEO_XY, y); }
+  function unX(px) { return ux(GEO_XY, px); }
+  function unY(py) { return uy(GEO_XY, py); }
 
   var LOCUS = D.SPECTRAL_LOCUS;
 
-  /* 光谱轨迹闭合成多边形（最后一条边就是紫线） */
-  function locusPoints() {
-    var pts = [];
-    for (var i = 0; i < LOCUS.length; i++) {
-      pts.push([mapX(LOCUS[i].x), mapY(LOCUS[i].y)]);
+  /* 光谱轨迹细分：29 个 10 nm 锚点直接连线棱角很重（460~540 nm 一段尤其明显）。
+     用 Catmull-Rom 样条在段内插值出密折线 —— 路径、clipPath、射线法共用同一份，
+     否则「线看着是圆的、背景裁剪却是尖的」。样条过锚点，nm 按段线性内插。 */
+  var DENSE = null;
+  function denseLocus() {
+    if (DENSE) return DENSE;
+    var SUB = 12, out = [];
+    function cr(p0, p1, p2, p3, t) {
+      var t2 = t * t, t3 = t2 * t;
+      return 0.5 * (2 * p1 + (-p0 + p2) * t +
+        (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+        (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
+    }
+    for (var i = 0; i < LOCUS.length - 1; i++) {
+      var a = LOCUS[Math.max(i - 1, 0)], b = LOCUS[i], c = LOCUS[i + 1];
+      var d = LOCUS[Math.min(i + 2, LOCUS.length - 1)];
+      for (var k = 0; k < SUB; k++) {
+        var t = k / SUB;
+        out.push({
+          nm: b.nm + (c.nm - b.nm) * t,
+          x: Math.min(Math.max(cr(a.x, b.x, c.x, d.x, t), 0), 1),
+          y: Math.min(Math.max(cr(a.y, b.y, c.y, d.y, t), 0), 1)
+        });
+      }
+    }
+    var last = LOCUS[LOCUS.length - 1];
+    out.push({ nm: last.nm, x: last.x, y: last.y });
+    DENSE = out;
+    return out;
+  }
+
+  /* 光谱轨迹闭合成多边形（最后一条边就是紫线），按图空间映射成像素 */
+  function locusPoints(space) {
+    var g = geoOf(space), pts = [];
+    var dense = denseLocus();
+    for (var i = 0; i < dense.length; i++) {
+      var q = toSpace(space, dense[i].x, dense[i].y);
+      pts.push([mx(g, q[0]), my(g, q[1])]);
     }
     return pts;
   }
 
-  function locusD() {
-    var s = '';
-    for (var i = 0; i < LOCUS.length; i++) {
-      s += (i ? 'L' : 'M') + n3(mapX(LOCUS[i].x)) + ' ' + n3(mapY(LOCUS[i].y));
+  function locusD(space) {
+    var g = geoOf(space), s = '';
+    var dense = denseLocus();
+    for (var i = 0; i < dense.length; i++) {
+      var q = toSpace(space, dense[i].x, dense[i].y);
+      s += (i ? 'L' : 'M') + n3(mx(g, q[0])) + ' ' + n3(my(g, q[1]));
     }
     return s + 'Z';
   }
 
-  /* 射线法：点在光谱轨迹多边形内？ */
+  /* 射线法：点在光谱轨迹多边形内？按密折线判定，与路径 / 裁剪一致；
+     u'v' 是 xy 的射影变换，内外性不变，所以统一在 xy 里判。 */
   function pointInLocus(x, y) {
-    var inside = false;
-    for (var i = 0, j = LOCUS.length - 1; i < LOCUS.length; j = i++) {
-      var xi = LOCUS[i].x, yi = LOCUS[i].y, xj = LOCUS[j].x, yj = LOCUS[j].y;
+    var dense = denseLocus(), inside = false;
+    for (var i = 0, j = dense.length - 1; i < dense.length; j = i++) {
+      var xi = dense[i].x, yi = dense[i].y, xj = dense[j].x, yj = dense[j].y;
       if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
     }
     return inside;
@@ -656,40 +729,43 @@
     return Math.round(n / 4) * 4;
   }
 
-  function bgCellColor(inv, px, py, cell) {
-    var cx = px + cell / 2, cy = py + cell / 2;
-    var corners = [
-      [px, py], [px + cell, py], [px, py + cell], [px + cell, py + cell], [cx, cy]
-    ];
-    var hit = false;
-    for (var i = 0; i < corners.length; i++) {
-      var x = unX(corners[i][0]), y = unY(corners[i][1]);
-      if (x < 0 || y < 0 || x > 1 || y > 1) continue;
-      if (pointInLocus(x, y)) { hit = true; break; }
-    }
-    if (!hit) return null;
-
-    /* 该色度下 sRGB 能达到的最饱和颜色：线性 RGB 去掉负分量（等于掺白），
-       再按最大分量归一 —— 参考实现就是这么画的。 */
-    var lin = mulMatVec(inv, [unX(cx), unY(cy), 1 - unX(cx) - unY(cy)]);
+  /* 该 xy 色度下 sRGB 能达到的最饱和颜色：线性 RGB 去掉负分量（等于掺白），
+     再按最大分量归一 —— 参考实现就是这么画的。 */
+  function bgCellColor(inv, x, y) {
+    if (!pointInLocus(x, y)) return null;
+    var lin = mulMatVec(inv, [x, y, 1 - x - y]);
     var r = lin[0], g = lin[1], b = lin[2];
     var mn = Math.min(r, g, b);
     if (mn < 0) { r -= mn; g -= mn; b -= mn; }
-    var mx = Math.max(r, g, b);
-    if (mx > 0) { r /= mx; g /= mx; b /= mx; }
+    var mv = Math.max(r, g, b);
+    if (mv > 0) { r /= mv; g /= mv; b /= mv; }
     var tf = { k: 'srgb' };
     return rgbHex([q(encode(tf, r)), q(encode(tf, g)), q(encode(tf, b))]);
   }
 
-  function bgLayer(cell) {
+  /* 背景层：6px 网格逐格求值，同行同色合并。uv 图的格子先反解回 xy
+     再判轨迹 / 求色，颜色本身只跟色度有关，与画在哪个空间无关。 */
+  function bgLayer(space, cell) {
     cell = cell > 0 ? cell : 6;
+    var g = geoOf(space);
     var inv = invMat(buildRGBMatrix(D.RGB_SPACES.sRGB));
     var out = [];
-    var y0 = GEO.PAD, y1 = GEO.H - GEO.PAD, x0 = GEO.PAD, x1 = GEO.W - GEO.PAD;
+    var y0 = g.PAD, y1 = g.H - g.PAD, x0 = g.PAD, x1 = g.W - g.PAD;
     for (var py = y0; py < y1; py += cell) {
       var run = null;
       for (var px = x0; px < x1; px += cell) {
-        var col = bgCellColor(inv, px, py, cell);
+        var cx = px + cell / 2, cy = py + cell / 2;
+        var center = toSpace(space, ux(g, cx), uy(g, cy));
+        var probes = [
+          [px, py], [px + cell, py], [px, py + cell], [px + cell, py + cell], [cx, cy]
+        ];
+        var hit = false;
+        for (var i = 0; i < probes.length && !hit; i++) {
+          var a = toSpace(space, ux(g, probes[i][0]), uy(g, probes[i][1]));
+          if (a[0] < 0 || a[1] < 0 || a[0] > 1 || a[1] > 1) continue;
+          if (pointInLocus(a[0], a[1])) hit = true;
+        }
+        var col = hit ? bgCellColor(inv, center[0], center[1]) : null;
         if (!col) {
           if (run) { out.push(run); run = null; }
           continue;
@@ -701,61 +777,78 @@
       if (run) out.push(run);
     }
     var s = ['<g clip-path="url(#cie-locus-clip)">'];
-    for (var i = 0; i < out.length; i++) {
-      s.push('<rect x="' + out[i].x + '" y="' + out[i].y + '" width="' + (out[i].n * cell) +
-        '" height="' + cell + '" fill="' + out[i].fill + '"/>');
+    for (var i2 = 0; i2 < out.length; i2++) {
+      s.push('<rect x="' + out[i2].x + '" y="' + out[i2].y + '" width="' + (out[i2].n * cell) +
+        '" height="' + cell + '" fill="' + out[i2].fill + '"/>');
     }
     s.push('</g>');
     return s.join('');
   }
 
-  function gridLayer(th) {
+  /* 网格：0.1 一步，刻度数由画布量程推出（xy 到 0.8/0.9，uv 到 0.7）；
+     右下与左上再标一个轴名（x / y 或 u′ / v′），两种图一眼可分。 */
+  function gridLayer(g, th) {
     var s = [];
-    for (var k = 1; k <= 8; k++) {
-      var v = k / 10;
-      var gx = mapX(v), gy = mapY(v);
-      s.push('<line x1="' + n3(gx) + '" y1="' + GEO.PAD + '" x2="' + n3(gx) + '" y2="' + (GEO.H - GEO.PAD) +
+    var nx = Math.min(Math.round(g.XMAX * 10), 8), ny = Math.min(Math.round(g.YMAX * 10), 8);
+    var k, v, gx, gy;
+    for (k = 1; k <= nx; k++) {
+      v = k / 10;
+      gx = mx(g, v);
+      s.push('<line x1="' + n3(gx) + '" y1="' + g.PAD + '" x2="' + n3(gx) + '" y2="' + (g.H - g.PAD) +
         '" stroke="' + th.grid + '" stroke-width="1"/>');
-      s.push('<line x1="' + GEO.PAD + '" y1="' + n3(gy) + '" x2="' + (GEO.W - GEO.PAD) + '" y2="' + n3(gy) +
-        '" stroke="' + th.grid + '" stroke-width="1"/>');
-      s.push('<text x="' + n3(gx) + '" y="' + (GEO.H - GEO.PAD + 14) + '" text-anchor="middle" font-size="10" fill="' +
-        th.soft + '">' + v.toFixed(1) + '</text>');
-      s.push('<text x="' + (GEO.PAD - 6) + '" y="' + n3(gy) + '" text-anchor="end" dominant-baseline="middle" font-size="10" fill="' +
+      s.push('<text x="' + n3(gx) + '" y="' + (g.H - g.PAD + 14) + '" text-anchor="middle" font-size="10" fill="' +
         th.soft + '">' + v.toFixed(1) + '</text>');
     }
+    for (k = 1; k <= ny; k++) {
+      v = k / 10;
+      gy = my(g, v);
+      s.push('<line x1="' + g.PAD + '" y1="' + n3(gy) + '" x2="' + (g.W - g.PAD) + '" y2="' + n3(gy) +
+        '" stroke="' + th.grid + '" stroke-width="1"/>');
+      s.push('<text x="' + (g.PAD - 6) + '" y="' + n3(gy) + '" text-anchor="end" dominant-baseline="middle" font-size="10" fill="' +
+        th.soft + '">' + v.toFixed(1) + '</text>');
+    }
+    s.push('<text x="' + (g.W - g.PAD + 10) + '" y="' + (g.H - g.PAD + 15) + '" font-size="11" font-style="italic" fill="' +
+      th.label + '">' + g.axisX + '</text>');
+    s.push('<text x="' + (g.PAD - 8) + '" y="' + (g.PAD - 10) + '" text-anchor="end" font-size="11" font-style="italic" fill="' +
+      th.label + '">' + g.axisY + '</text>');
     return s.join('');
   }
 
-  function planckLayer(th) {
+  function planckLayer(g, space, th) {
     var pts = planckianPoints(72);
     if (pts.length < 2) return '';
     var d = '';
     for (var i = 0; i < pts.length; i++) {
-      d += (i ? 'L' : 'M') + n3(mapX(pts[i].x)) + ' ' + n3(mapY(pts[i].y));
+      var q = toSpace(space, pts[i].x, pts[i].y);
+      d += (i ? 'L' : 'M') + n3(mx(g, q[0])) + ' ' + n3(my(g, q[1]));
     }
-    var a = pts[0], z = pts[pts.length - 1];
+    var a = toSpace(space, pts[0].x, pts[0].y);
+    var z = toSpace(space, pts[pts.length - 1].x, pts[pts.length - 1].y);
     var s = ['<path d="' + d + '" fill="none" stroke="' + th.planck +
       '" stroke-width="1.4" stroke-dasharray="5 3"/>'];
-    s.push('<text x="' + n3(mapX(a.x) + 5) + '" y="' + n3(mapY(a.y) + 12) + '" font-size="9" fill="' + th.planck +
+    s.push('<text x="' + n3(mx(g, a[0]) + 5) + '" y="' + n3(my(g, a[1]) + 12) + '" font-size="9" fill="' + th.planck +
       '" stroke="' + th.bg + '" stroke-width="3" paint-order="stroke">1667 K</text>');
-    s.push('<text x="' + n3(mapX(z.x) + 5) + '" y="' + n3(mapY(z.y) - 6) + '" font-size="9" fill="' + th.planck +
+    s.push('<text x="' + n3(mx(g, z[0]) + 5) + '" y="' + n3(my(g, z[1]) - 6) + '" font-size="9" fill="' + th.planck +
       '" stroke="' + th.bg + '" stroke-width="3" paint-order="stroke">25000 K</text>');
     return s.join('');
   }
 
-  /* 波长刻度：标签沿「白点 → 轨迹点」方向往外推，避免压在轨迹线上；
+  /* 波长刻度：标签沿「图中心 → 轨迹点」方向往外推，避免压在轨迹线上；
      推到画布边上的（500 nm 那种贴着左侧的）夹回绘图区，免得盖住坐标刻度。 */
-  function wavelengthLayer(th) {
+  function wavelengthLayer(g, space, th) {
     var s = [];
+    var c = toSpace(space, 0.33, 0.33);
+    var cx = mx(g, c[0]), cy = my(g, c[1]);
     D.LOCUS_TICKS.forEach(function (nm) {
       var p = null;
       for (var i = 0; i < LOCUS.length; i++) { if (LOCUS[i].nm === nm) p = LOCUS[i]; }
       if (!p) return;
-      var px = mapX(p.x), py = mapY(p.y);
-      var dx = px - mapX(0.33), dy = py - mapY(0.33);
+      var q = toSpace(space, p.x, p.y);
+      var px = mx(g, q[0]), py = my(g, q[1]);
+      var dx = px - cx, dy = py - cy;
       var len = Math.sqrt(dx * dx + dy * dy) || 1;
-      var x = clamp(px + (dx / len) * 13, GEO.PAD + 6, GEO.W - GEO.PAD - 6);
-      var y = clamp(py + (dy / len) * 11 + 3, GEO.PAD + 12, GEO.H - GEO.PAD - 2);
+      var x = clamp(px + (dx / len) * 13, g.PAD + 6, g.W - g.PAD - 6);
+      var y = clamp(py + (dy / len) * 11 + 3, g.PAD + 12, g.H - g.PAD - 2);
       var anchor = x >= px + 6 ? 'start' : (x <= px - 6 ? 'end' : 'middle');
       s.push('<circle cx="' + n3(px) + '" cy="' + n3(py) + '" r="1.6" fill="' + th.locus + '"/>');
       s.push('<text x="' + n3(x) + '" y="' + n3(y) + '" text-anchor="' + anchor +
@@ -766,27 +859,31 @@
   }
 
   /* 底层 = 坐标网格 + 最大 sRGB 亮度背景 + 黑体轨迹 + 光谱轨迹 + 紫线 + 波长
-     opts: { theme: 'light'|'dark', background: bool, cell: number } */
+     opts: { theme: 'light'|'dark', background: bool, cell: number, space: 'xy'|'uv' } */
   function diagramBase(opts) {
     opts = opts || {};
+    var space = opts.space === 'uv' ? 'uv' : 'xy';
+    var g = geoOf(space);
     var th = D.DIAGRAM_THEME[opts.theme === 'dark' ? 'dark' : 'light'];
-    var d = locusD();
+    var d = locusD(space);
     var s = ['<defs><clipPath id="cie-locus-clip"><path d="' + d + '"/></clipPath></defs>'];
-    if (opts.background !== false) s.push(bgLayer(opts.cell));
-    s.push(gridLayer(th));
-    s.push(planckLayer(th));
+    if (opts.background !== false) s.push(bgLayer(space, opts.cell));
+    s.push(gridLayer(g, th));
+    s.push(planckLayer(g, space, th));
     s.push('<path d="' + d + '" fill="none" stroke="' + th.locus + '" stroke-width="2" stroke-linejoin="round"/>');
     var first = LOCUS[0], last = LOCUS[LOCUS.length - 1];
-    s.push('<line x1="' + n3(mapX(last.x)) + '" y1="' + n3(mapY(last.y)) + '" x2="' + n3(mapX(first.x)) +
-      '" y2="' + n3(mapY(first.y)) + '" stroke="' + th.purple + '" stroke-width="2"/>');
-    s.push(wavelengthLayer(th));
+    var fp = toSpace(space, first.x, first.y), lp = toSpace(space, last.x, last.y);
+    s.push('<line x1="' + n3(mx(g, lp[0])) + '" y1="' + n3(my(g, lp[1])) + '" x2="' + n3(mx(g, fp[0])) +
+      '" y2="' + n3(my(g, fp[1])) + '" stroke="' + th.purple + '" stroke-width="2"/>');
+    s.push(wavelengthLayer(g, space, th));
     return s.join('');
   }
 
-  /* 底层只跟主题与背景开关有关，跟环境参数无关 —— app.js 按这个键做缓存 */
+  /* 底层只跟主题、背景开关与图空间有关，跟环境参数无关 —— app.js 按这个键做缓存 */
   function baseKey(opts) {
     opts = opts || {};
     return (opts.theme === 'dark' ? 'dark' : 'light') + '|' + (opts.background === false ? '0' : '1') +
+      '|' + (opts.space === 'uv' ? 'uv' : 'xy') +
       '|' + (opts.cell > 0 ? opts.cell : 6);
   }
 
@@ -796,28 +893,37 @@
      三角形会跟着动 —— 这正是要看的东西。 */
   function diagramOverlay(o) {
     o = o || {};
+    var space = o.space === 'uv' ? 'uv' : 'xy';
+    var g = geoOf(space);
     var p = pipeline(o.env);
     var th = D.DIAGRAM_THEME[o.theme === 'dark' ? 'dark' : 'light'];
     var e = p.env;
     var s = [];
 
+    function at(x, y) {
+      var q = toSpace(space, x, y);
+      return [mx(g, q[0]), my(g, q[1])];
+    }
+
     var tri = [];
     [[1, 0, 0], [0, 1, 0], [0, 0, 1]].forEach(function (lin) {
       var xy = convert.XYZ_to_xyY(rgbToXyz(p, lin));
-      tri.push([mapX(xy[0]), mapY(xy[1])]);
+      tri.push(at(xy[0], xy[1]));
     });
     var pts = tri.map(function (q2) { return n3(q2[0]) + ',' + n3(q2[1]); }).join(' ');
     s.push('<polygon points="' + pts + '" fill="none" stroke="' + th.tri + '" stroke-width="2"/>');
     s.push('<polygon points="' + pts + '" fill="none" stroke="' + th.triInner + '" stroke-width="1"/>');
 
     var ill = D.ILLUMINANTS[e.wp];
-    s.push('<circle cx="' + n3(mapX(ill.x)) + '" cy="' + n3(mapY(ill.y)) + '" r="4.5" fill="' + th.wpFill +
+    var wpp = at(ill.x, ill.y);
+    s.push('<circle cx="' + n3(wpp[0]) + '" cy="' + n3(wpp[1]) + '" r="4.5" fill="' + th.wpFill +
       '" stroke="' + th.wpStroke + '" stroke-width="1.5"/>');
-    s.push('<text x="' + n3(mapX(ill.x) + 8) + '" y="' + n3(mapY(ill.y) + 14) + '" font-size="10" fill="' + th.text +
+    s.push('<text x="' + n3(wpp[0] + 8) + '" y="' + n3(wpp[1] + 14) + '" font-size="10" fill="' + th.text +
       '" stroke="' + th.bg + '" stroke-width="3" paint-order="stroke">' + esc(ill.name) + '</text>');
 
     if (o.xy && isFinite(o.xy[0]) && isFinite(o.xy[1])) {
-      var px = mapX(o.xy[0]), py = mapY(o.xy[1]);
+      var pp = at(o.xy[0], o.xy[1]);
+      var px = pp[0], py = pp[1];
       s.push('<g data-cie-point="1">');
       s.push('<line x1="' + n3(px - 11) + '" y1="' + n3(py) + '" x2="' + n3(px + 11) + '" y2="' + n3(py) +
         '" stroke="' + th.cross + '" stroke-width="3"/>');
@@ -831,24 +937,44 @@
   }
 
   /* 在色度图上取点：亮度取「该色度下刚好不超色域」的最大值，这样预览
-     出来永远是最饱和的样子，而不是被切掉一截的灰。 */
-  function pickAt(env, x, y) {
+     出来永远是最饱和的样子，而不是被切掉一截的灰。uv 图先把 u'v' 反解回 xy。
+     返回值同时带上 xy 与 u'v'，调用方按当前图空间挑着显示。 */
+  function pickAt(env, x, y, space) {
     var p = pipeline(env);
+    if (space === 'uv') {
+      var bxy = convert.uv76_to_xy(num(x), num(y));
+      if (!bxy) bxy = [0.0001, 0.0001];
+      x = bxy[0]; y = bxy[1];
+    }
     var xv = clamp(num(x), 0.0001, 0.8);
     var yv = clamp(num(y), 0.0001, 0.9);
     var lin = xyzToRgb(p, [xv / yv * 100, 100, (1 - xv - yv) / yv * 100]);
-    var mx = Math.max(lin[0], lin[1], lin[2]);
-    var Y = mx > 0 ? clamp(100 / mx, 0, 100) : 100;
-    return { x: xv, y: yv, Y: Y, XYZ: convert.xyY_to_XYZ([xv, yv, Y]) };
+    var mv = Math.max(lin[0], lin[1], lin[2]);
+    var Y = mv > 0 ? clamp(100 / mv, 0, 100) : 100;
+    var uv = convert.xy_to_uv76(xv, yv) || [0, 0];
+    return { x: xv, y: yv, u: uv[0], v: uv[1], Y: Y, XYZ: convert.xyY_to_XYZ([xv, yv, Y]) };
   }
 
-  /* 指针位置（SVG 用户坐标）→ 色度坐标，供界面上的悬停读数用 */
-  function atSvgPoint(px, py) {
-    return { x: unX(num(px)), y: unY(num(py)) };
+  /* 指针位置（SVG 用户坐标）→ 色度坐标，供界面上的悬停读数用。
+     xy 图返回 {x,y,u,v}；uv 图以 u'v' 为准，同时反解出 xy（解不出就贴原点）。 */
+  function atSvgPoint(px, py, space) {
+    var g = geoOf(space);
+    var a = ux(g, num(px)), b = uy(g, num(py));
+    if (space === 'uv') {
+      var xy = convert.uv76_to_xy(a, b);
+      return {
+        u: a, v: b,
+        x: xy ? clamp(xy[0], 0, 1) : 0.0001,
+        y: xy ? clamp(xy[1], 0, 1) : 0.0001
+      };
+    }
+    var uv = convert.xy_to_uv76(a, b) || [0, 0];
+    return { x: a, y: b, u: uv[0], v: uv[1] };
   }
 
   global.CIE = {
-    geometry: GEO,
+    geometry: { xy: GEO_XY, uv: GEO_UV },
+    geoOf: geoOf,
     mapX: mapX,
     mapY: mapY,
     unX: unX,
@@ -875,6 +1001,7 @@
     compute: compute,
     envInfo: envInfo,
     locusPoints: locusPoints,
+    denseLocus: denseLocus,
     locusD: locusD,
     pointInLocus: pointInLocus,
     planckianPoints: planckianPoints,

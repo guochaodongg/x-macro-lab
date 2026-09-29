@@ -460,9 +460,10 @@
   <!-- ================================================ 色彩空间 CIE 1931 ==== -->
   <section class="panel" id="panel-cie">
     <p class="muted" style="margin-top:0">
-      CIE 1931 色彩空间分析与转换（功能移植自 <b>CIE Color Space Analyzer</b>）。任意一组坐标都能当输入 ——
+      CIE 1931 / CIE 1976 色彩空间分析与转换（功能移植自 <b>CIE Color Space Analyzer</b>）。任意一组坐标都能当输入 ——
       <b>XYZ</b> 三刺激值、<b>xyY</b> 色度、<b>CCT</b> 色温、<b>设备 RGB / HEX</b>、<b>Lab</b> 与 <b>Luv</b>（含 LCH 极坐标），
-      转换全程走「基色矩阵 + 色度适应」算到所选参考白点。右侧色度图可<b>点击 / 拖动取点</b>，
+      转换全程走「基色矩阵 + 色度适应」算到所选参考白点。右侧色度图可在 <b>CIE 1931 xy</b> 与
+      <b>CIE 1976 u′v′</b>（均匀色度标尺）之间切换，并可<b>点击 / 拖动取点</b>，
       亮度自动取该色度下不超色域的最大值；背景是该色度下 sRGB 能达到的最饱和颜色，
       虚线是黑体轨迹（1667–25000 K）。数学模型与常数取自 Bruce Lindbloom 的公开参考模型，
       <b>全浏览器本地计算，无任何数据外发。</b>
@@ -562,8 +563,12 @@
 
         <div class="card">
           <header>
-            <h3>CIE 1931 xy 色度图</h3>
+            <h3>色度图</h3>
             <span class="spacer"></span>
+            <div class="seg" id="cie-mode-seg" role="tablist" aria-label="色度图坐标系">
+              <button type="button" role="tab" data-mode="xy" aria-selected="true">CIE 1931 xy</button>
+              <button type="button" role="tab" data-mode="uv" aria-selected="false">CIE 1976 u′v′</button>
+            </div>
             <label class="check" style="margin:0"><input type="checkbox" id="cie-bg" checked><span>亮度背景</span></label>
           </header>
           <div class="body">
@@ -573,7 +578,7 @@
             </div>
             <div class="cie-oog hide" id="cie-oog">⚠️ 超出所选 RGB 色域（Out of Gamut）</div>
             <div class="cie-diagram">
-              <svg id="cie-map" viewBox="0 0 450 480" role="img" aria-label="CIE 1931 xy 色度图，可点击或拖动取点">
+              <svg id="cie-map" viewBox="0 0 450 480" role="img" aria-label="色度图（CIE 1931 xy / CIE 1976 u′v′），可点击或拖动取点">
                 <g id="cie-map-bg"></g>
                 <g id="cie-map-fg"></g>
               </svg>
@@ -582,6 +587,7 @@
             <p class="small dim" style="margin:0">
               点击或拖动色度图取点；背景为该色度下 sRGB 能达到的最饱和颜色；
               实线是所选 RGB 空间的色域三角形（换白点 / 换适应模型时会跟着动），虚线是黑体轨迹。
+              CIE 1976 u′v′ 图按同一份色度数据投影绘制，横纵等比，三角形 / 白点 / 取点会随之换算。
             </p>
           </div>
         </div>
@@ -1130,7 +1136,7 @@
           <dt>EDID · 校验</dt><dd>结构与校验和、日期范围、色度合法性与 sRGB 一致性、时序自洽、描述符格式、扩展块一致性，分级报告</dd>
           <dt>EDID · 学习 EDID</dt><dd>8 节速成课：基础块字节地图、四种描述符、18 字节 DTD 逐字节解释、CEA-861 与 DisplayID、CVT/GTF 原理、常见坑</dd>
           <dt>PQ · 伽马验证</dt><dd>读取 CA410 测量数据与灰阶占比表（.xlsx 本地解析），生成实测 / 参考伽马曲线与白点一致性图表，计算平均 Gamma；内置 6 组实测数据集（默认 BT1886，切换曲线自动重绘）</dd>
-          <dt>PQ · 色彩空间</dt><dd>CIE 1931 色彩空间分析与转换（移植自 CIE Color Space Analyzer）：XYZ / xyY / CCT / 设备 RGB 与 HEX / Lab / Luv（含 LCH）六组坐标互为输入输出，六种参考白点、六种 RGB 空间、四套色度适应模型可换；xy 色度图可点击拖动取点，背景是该色度下 sRGB 能达到的最饱和颜色，另有色域三角形与黑体轨迹，超出色域会给出提示，并顺带算出 McCamy 色温与 Duv</dd>
+          <dt>PQ · 色彩空间</dt><dd>CIE 1931 / CIE 1976 色彩空间分析与转换（移植自 CIE Color Space Analyzer）：XYZ / xyY / CCT / 设备 RGB 与 HEX / Lab / Luv（含 LCH）六组坐标互为输入输出，六种参考白点、六种 RGB 空间、四套色度适应模型可换；色度图可在 CIE 1931 xy 与 CIE 1976 u′v′（均匀色度标尺）之间切换，均可点击拖动取点，背景是该色度下 sRGB 能达到的最饱和颜色，另有色域三角形与黑体轨迹，光谱轨迹经样条细分边缘平滑，超出色域会给出提示，并顺带算出 McCamy 色温与 Duv</dd>
           <dt>DDC/CI · 控制</dt><dd>像 MCCS 工具一样读写显示器 VCP 特性（亮度 / 对比度 / 输入源 / 电源模式…）、扫描支持码、读取并解析 capabilities 字符串；离线可用报文构建器（逐字节解释 + 校验和核对 + 等价 ddcutil / i2ctransfer / curl 命令）与 182 条 VCP 码参考表</dd>
           <dt>串口调试</dt><dd>普通模式（发送 / 接收分区，接收视图可选文本 / HEX / HEXDUMP，带时间戳与收发记录）与终端模式（提示符 + 命令行 + 闪烁光标，按 CR / LF / BS / TAB 的真实终端语义解释）双界面；切到本页自动枚举已连接的 COM 口（友好名 + VID/PID，并自动选回上次用过的口），支持 300–2000000 波特率、五种校验、1 / 1.5 / 2 位停止位、三种流控、定时发送与常用指令预设，普通模式还会嗅探内容并提示切换到终端模式</dd>
           <dt>Timing · 时序计算</dt><dd>CVT 标准 / RB / RBv2 / RBv3 与 GTF（含隔行与缩边），输出参数表、Modeline、xrandr 命令与可写入 DTD 的字节</dd>
