@@ -15,7 +15,7 @@
 | 在线地址 | <https://guochaodongg.github.io/x-macro-lab/> |
 | GitHub 仓库（主） | <https://github.com/guochaodongg/x-macro-lab> |
 | 本地目录名 | `x-macro-lab` |
-| 旧地址（仓库改名前） | `https://guochaodongg.github.io/edid-x-lab/`（GitHub 会自动重定向到新地址） |
+| 旧地址（改名后的站点） | <https://guochaodongg.github.io/edid-x-lab/> —— GitHub **只会重定向 Git / 仓库页访问，不会重定向 Pages 站点路径**，所以另外建了一个同名仓库放跳转页，打开即自动跳到新地址 |
 
 > 项目名、仓库名与本地目录名统一为 **x-macro-lab**（页面品牌名写作 **X-MACRO-LAB**）；本文所有命令示例都以目录名 `x-macro-lab` 为准。
 > Gitee 上的国内镜像仓库建在 [gitee.com/guochaodong_admin](https://gitee.com/guochaodong_admin)，如需与 GitHub 侧一致，请在 Gitee 后台把仓库改名为 `x-macro-lab`（**Gitee Pages 已停服**，与部署无关）。
@@ -132,6 +132,23 @@ git push -u origin master
 - 仓库里加一个空的 `.nojekyll` 文件可以跳过 Jekyll 处理（本项目的资源目录不以 `_` 开头，其实不加也没问题）。
 - 想绑定自定义域名：同一页面的 **Custom domain** 填域名，然后在域名解析里加一条 `CNAME` 记录指向 `<用户名>.github.io`。
 - 更新内容只需 `git push`，Pages 会自动重新构建。
+
+### 3.5 仓库改名 / 迁移时，旧地址怎么办
+
+本项目从 `edid-x-lab` 改名为 `x-macro-lab` 时的实测结论：
+
+1. **改名本身**：`PATCH https://api.github.com/repos/<owner>/<repo>` 带上 `{"name":"新名"}` 即可（等价于网页端 Settings → Repository name）。Pages 的源分支与目录**保持不变**，改名后会立刻自动重建，新地址 `<owner>.github.io/<新名>/` 几分钟内可用。
+2. **Git 侧无痛**：旧仓库地址会被 GitHub 重定向，但**本地 `origin` 建议显式改掉**，免得以后出错：
+   ```bash
+   git remote set-url origin https://github.com/<owner>/<新名>.git
+   ```
+3. **⚠️ Pages 站点路径不会重定向**：`<owner>.github.io/<旧名>/` 改名后直接 **404**。要让旧链接继续可用，得**另建一个同名仓库**放一个极小的跳转页（`<meta http-equiv="refresh">` + `location.replace`，零依赖），再给它开启 Pages。本项目的旧地址就是这么保活的：
+   ```bash
+   node _ref/_redirect-repo.js <owner> <旧仓库名> <新站点地址>
+   # 例：node _ref/_redirect-repo.js guochaodongg edid-x-lab https://guochaodongg.github.io/x-macro-lab/
+   ```
+   这个脚本会：建仓库（已存在则复用）→ 在临时目录里造一个最小提交推上去（**不碰主仓库历史**）→ 开启 Pages → 轮询到 `built`。
+4. 旧仓库里那份跳转页**不包含本工具的任何代码**，工具本体只在新仓库；如果哪天想彻底放弃旧地址，直接删掉那个仓库即可。
 
 ---
 
