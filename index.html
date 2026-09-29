@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>X-MACRO-LAB — EDID / 时序 / 伽马 / DDC-CI / 串口工具箱</title>
-<meta name="description" content="X-MACRO-LAB：纯前端实现的显示工程师工具箱 —— EDID 解析（Decoder）、生成（Encoder）、校验（Validator）、VESA CVT/GTF 时序计算与对比、伽马曲线验证、DDC/CI 显示器控制、串口调试。纯静态页面，可直接部署到 GitHub Pages 或任意静态托管。">
+<title>X-MACRO-LAB — EDID / 时序 / 伽马 / DDC-CI / 串口 / 显示技术博客</title>
+<meta name="description" content="X-MACRO-LAB：纯前端实现的显示工程师工具箱 —— EDID 解析（Decoder）、生成（Encoder）、校验（Validator）、VESA CVT/GTF 时序计算与对比、伽马曲线验证、DDC/CI 显示器控制、串口调试，以及显示技术长文博客。纯静态页面，可直接部署到 GitHub Pages 或任意静态托管。">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Crect x='7' y='7' width='7' height='7' fill='%23fff'/%3E%3Crect x='18' y='7' width='7' height='7' fill='%23fff' opacity='.65'/%3E%3Crect x='7' y='18' width='7' height='7' fill='%23fff' opacity='.65'/%3E%3Crect x='18' y='18' width='7' height='7' fill='%23fff'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="css/styles.css">
@@ -117,6 +117,12 @@
         <div class="tabmenu" role="tablist" aria-label="Timing">
           <button type="button" role="tab" aria-selected="false" data-tab="timing"><svg class="ic"><use href="#i-clock"/></svg><span class="lbl">时序计算</span><span class="hint">CVT / GTF</span></button>
           <button type="button" role="tab" aria-selected="false" data-tab="vtc"><svg class="ic"><use href="#i-clock"/></svg><span class="lbl">时序对比</span><span class="hint">Video Timings</span></button>
+        </div>
+      </div>
+      <div class="tabgroup" data-group="blog">
+        <button type="button" class="gbtn" aria-expanded="false">Technology Blog<svg class="ic caret" aria-hidden="true"><use href="#i-caret"/></svg></button>
+        <div class="tabmenu" role="tablist" aria-label="Technology Blog">
+          <button type="button" role="tab" aria-selected="false" data-tab="blog"><svg class="ic"><use href="#i-book"/></svg><span class="lbl">显示器进阶技术</span><span class="hint">RTC / BFI / DCR</span></button>
         </div>
       </div>
       <div class="tabgroup single" data-group="about" role="tablist" aria-label="关于">
@@ -913,12 +919,29 @@
     </div>
   </section>
 
+  <!-- =============================================== Technology Blog ===== -->
+  <!-- 文章本体由 js/blog-data.js（数据）+ js/blog.js（渲染）+ app.js（挂载）生成，
+       这里只放骨架：左侧目录、右侧正文，外加一条阅读进度条。 -->
+  <section class="panel" id="panel-blog">
+    <div class="bl-shell">
+      <aside class="bl-side">
+        <div class="card"><div class="body" id="bl-side-slot"></div></div>
+      </aside>
+      <div class="bl-main">
+        <div id="bl-hero-slot"></div>
+        <div class="bl-progress" aria-hidden="true"><span id="bl-progress"></span></div>
+        <div id="bl-post-slot"></div>
+        <div id="bl-extra-slot"></div>
+      </div>
+    </div>
+  </section>
+
   <!-- ================================================= 关于 About ======== -->
   <section class="panel" id="panel-about">
     <div class="grid cols-2">
       <div class="card"><div class="body">
         <h3>关于本工具</h3>
-        <p><b>X-MACRO-LAB</b> 是一个 <b>纯静态、纯前端</b> 的显示工程工具箱，EDID 部分完整覆盖 edidcraft.com 的解析、生成、校验与时序计算，并加入时序对比、伽马曲线验证、DDC/CI 显示器控制与串口调试，所有运算都由浏览器端 JavaScript 实现：</p>
+        <p><b>X-MACRO-LAB</b> 是一个 <b>纯静态、纯前端</b> 的显示工程工具箱，EDID 部分完整覆盖 edidcraft.com 的解析、生成、校验与时序计算，并加入时序对比、伽马曲线验证、DDC/CI 显示器控制、串口调试与技术博客，所有运算都由浏览器端 JavaScript 实现：</p>
         <ul class="small muted">
           <li>没有后端、不请求任何远程接口，页面逻辑全部在本地运行；</li>
           <li>不加载任何 CDN 资源（图标为内联 SVG、字体为系统字体）；</li>
@@ -955,7 +978,7 @@
 
       <div class="card"><div class="body">
         <h3>功能清单</h3>
-        <p class="small muted" style="margin-top:0">顶部导航按 <b>EDID</b> / <b>Gamma</b> / <b>DDC/CI</b> / <b>串口调试</b> / <b>Timing</b> / <b>关于</b> 六组组织，点分组标题展开下拉菜单；每个页面也能用深链直达，例如 <code>?tab=mccs</code>。</p>
+        <p class="small muted" style="margin-top:0">顶部导航按 <b>EDID</b> / <b>Gamma</b> / <b>DDC/CI</b> / <b>串口调试</b> / <b>Timing</b> / <b>Technology Blog</b> / <b>关于</b> 七组组织，点分组标题展开下拉菜单；每个页面也能用深链直达，例如 <code>?tab=mccs</code>、<code>?tab=blog</code>。</p>
         <div class="kv">
           <dt>EDID · 解析</dt><dd>基础块全字段、既定 / 标准时序、四类描述符、CEA-861 数据块、DisplayID 分节、VTB、块映射</dd>
           <dt>EDID · 生成</dt><dd>厂商 / 产品 / 序列号、日期与版本、数字 / 模拟输入、色度、既定与标准时序、描述符与扩展块，自动校验和</dd>
@@ -966,6 +989,7 @@
           <dt>串口调试</dt><dd>普通模式（发送 / 接收分区，接收视图可选文本 / HEX / HEXDUMP，带时间戳与收发记录）与终端模式（提示符 + 命令行 + 闪烁光标，按 CR / LF / BS / TAB 的真实终端语义解释）双界面；切到本页自动枚举已连接的 COM 口（友好名 + VID/PID，并自动选回上次用过的口），支持 300–2000000 波特率、五种校验、1 / 1.5 / 2 位停止位、三种流控、定时发送与常用指令预设，普通模式还会嗅探内容并提示切换到终端模式</dd>
           <dt>Timing · 时序计算</dt><dd>CVT 标准 / RB / RBv2 / RBv3 与 GTF（含隔行与缩边），输出参数表、Modeline、xrandr 命令与可写入 DTD 的字节</dd>
           <dt>Timing · 时序对比</dt><dd>一次计算 CVT / CVT-RB / CVT-RBv2 / CEA-861 / DMT / 自定义六种时序，核算 DP / HDMI / DVI / SDI / RFC4175 接口带宽余量</dd>
+          <dt>Technology Blog</dt><dd>显示技术长文专栏：左侧分章目录（滚动自动高亮并展开当前章）+ 右侧正文，带阅读进度条、行内示意图（纯内联 SVG）与术语对照表。首篇《显示器进阶技术全解》完整翻译并重排 TFTCentral 显示器进阶技术专题（过驱 RTC / 黑帧插入 / 扫描背光 / MEMC / 真 120 Hz / 面板涂层 / 均匀性校正 / 动态对比度），四个章节 41 节、5 张示意图、19 条术语</dd>
           <dt>关于</dt><dd>项目介绍、部署说明、开发说明、清除本地草稿</dd>
         </div>
       </div></div>
@@ -989,10 +1013,10 @@
           <dt>自测</dt><dd>用 Node 或浏览器控制台加载引擎即可跑通预设与校验，详见 README</dd>
           <dt>目录</dt><dd><code>index.html</code> · <code>css/styles.css</code> · <code>js/*.js</code> · <code>tools/</code>（DDC/CI 与串口的本地桥接）</dd>
           <dt>引擎</dt><dd><code>edid-core.js</code>（常量与工具）· <code>timing.js</code>（CVT/GTF）· <code>edid-decoder.js</code> · <code>edid-encoder.js</code> · <code>edid-validator.js</code></dd>
-          <dt>扩展</dt><dd><code>zip-lite.js</code> / <code>xlsx-lite.js</code>（纯 JS 读取 .xlsx）· <code>gamma.js</code>（伽马验证与 SVG 图表）· <code>mccs.js</code> / <code>mccs-data.js</code>（DDC/CI 协议与 VCP 码表）· <code>serial.js</code> / <code>serial-data.js</code>（串口编解码、终端缓冲、内容嗅探与两种传输适配器）</dd>
+          <dt>扩展</dt><dd><code>zip-lite.js</code> / <code>xlsx-lite.js</code>（纯 JS 读取 .xlsx）· <code>gamma.js</code>（伽马验证与 SVG 图表）· <code>mccs.js</code> / <code>mccs-data.js</code>（DDC/CI 协议与 VCP 码表）· <code>serial.js</code> / <code>serial-data.js</code>（串口编解码、终端缓冲、内容嗅探与两种传输适配器）· <code>blog.js</code> / <code>blog-data.js</code>（技术博客：文章数据与渲染层，新增文章只需往数据里加一条）</dd>
           <dt>校验</dt><dd>引擎自带 Node 测试脚本，可与在线服务结果逐项比对</dd>
         </div>
-        <p class="small muted" style="margin-top:10px">想做二次开发？引擎文件都是普通脚本，暴露 <code>window.EDIDCore / EDIDTiming / EDIDDecoder / EDIDEncoder / EDIDValidator / MCCS / MCCSData / SERIAL / SERIALData</code>，可以单独取用。</p>
+        <p class="small muted" style="margin-top:10px">想做二次开发？引擎文件都是普通脚本，暴露 <code>window.EDIDCore / EDIDTiming / EDIDDecoder / EDIDEncoder / EDIDValidator / MCCS / MCCSData / SERIAL / SERIALData / BLOG / BLOGData</code>，可以单独取用。</p>
         <div class="btn-row" style="margin-top:10px">
           <button class="sm" id="about-reset">清除本地草稿</button>
           <button class="sm" id="about-print">打印本页</button>
@@ -1037,6 +1061,8 @@
   <script src="js/mccs.js"></script>
   <script src="js/serial-data.js"></script>
   <script src="js/serial.js"></script>
+  <script src="js/blog-data.js"></script>
+  <script src="js/blog.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

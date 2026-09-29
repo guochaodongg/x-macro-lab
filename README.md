@@ -3,9 +3,9 @@
 作者：**guochaodongg**（GitHub [@guochaodongg](https://github.com/guochaodongg)）· Display Driver Firmware Engineer —— 显示驱动固件工程师。
 本工具服务于显示工程日常：EDID 核对、时序核算、伽马校准、DDC/CI 调机与设备串口调试。
 
-对 [edidcraft.com](https://edidcraft.com/) 全部功能的**完整复刻**：解析（Decoder）、生成（Encoder）、校验（Validator）、时序计算（Timing Calculator），外加一页 EDID 速成课；在此之上又扩了四件工具：**时序对比**（多标准时序与接口带宽核算）、**伽马验证**（CA410 测量数据）、**DDC/CI 控制**（直连显示器读写 VCP）与 **串口调试**（普通 / 终端双模式的 COM 口调试台）。
+对 [edidcraft.com](https://edidcraft.com/) 全部功能的**完整复刻**：解析（Decoder）、生成（Encoder）、校验（Validator）、时序计算（Timing Calculator），外加一页 EDID 速成课；在此之上又扩了五块内容：**时序对比**（多标准时序与接口带宽核算）、**伽马验证**（CA410 测量数据）、**DDC/CI 控制**（直连显示器读写 VCP）、**串口调试**（普通 / 终端双模式的 COM 口调试台）与 **Technology Blog**（显示技术长文专栏）。
 
-导航按功能域分成六组：**EDID**（解析 / 生成 / 校验 / 学习 EDID）、**Gamma**（伽马验证）、**DDC/CI**（DDC/CI 控制）、**串口调试**、**Timing**（时序计算 / 时序对比）、**关于**。
+导航按功能域分成七组：**EDID**（解析 / 生成 / 校验 / 学习 EDID）、**Gamma**（伽马验证）、**DDC/CI**（DDC/CI 控制）、**串口调试**、**Timing**（时序计算 / 时序对比）、**Technology Blog**（显示器进阶技术）、**关于**。
 
 - **纯静态**：`index.html` + `css/` + `js/`，可直接放到 GitHub Pages / Cloudflare Pages / 任意静态服务器。
 - **前端实现**：解析、生成、校验与时序计算全部由浏览器端 JavaScript 完成。
@@ -24,7 +24,7 @@
 
 ## 1. 功能清单
 
-顶部导航按 **6 个分组**组织（**EDID** / **Gamma** / **DDC/CI** / **串口调试** / **Timing** / **关于**），点分组标题展开下拉菜单；每个页面也支持深链直达，例如 `index.html?tab=mccs`。
+顶部导航按 **7 个分组**组织（**EDID** / **Gamma** / **DDC/CI** / **串口调试** / **Timing** / **Technology Blog** / **关于**），点分组标题展开下拉菜单；每个页面也支持深链直达，例如 `index.html?tab=mccs`、`index.html?tab=blog`。
 
 | 分组 | 页面 | 能力 |
 | --- | --- | --- |
@@ -37,6 +37,7 @@
 | **串口调试** | **串口调试** | 两种**可识别的界面模式**：**普通模式**（发送区 + 接收区，接收视图可选 文本 / HEX / HEXDUMP，带时间戳与收发记录）与**终端模式**（提示符 + 命令行 + 闪烁光标，按真实终端语义解释 CR/LF/BS/TAB）。**切到本页即自动枚举已连接的 COM 口**（含友好名与 VID/PID，并自动选回上次用过的口）；波特率 300–2000000、5–8 数据位、五种校验、1 / 1.5 / 2 位停止位、三种流控、DTR/RTS、编码、行结尾、定时发送、常用指令预设（AT / SCPI / 控制字符）；普通模式会**嗅探内容**（命中 ANSI 转义、裸 CR、BEL、BS、FF 即提示切到终端模式）。两种传输方式：**本地桥接**（列全部 COM 口，`file://` 可用）与 **Web Serial**（零安装，仅 https/localhost） |
 | **Timing** | **时序计算** | VESA **CVT 1.1**（标准消隐）与 **CVT 1.2**（RB / RBv2 / RBv3）、**GTF 1.1**（含隔行与缩边）；输出完整参数表、消隐结构图、X11 `Modeline`、`xrandr --newmode` / `--addmode`，以及可直接写进 DTD 的 18 字节 |
 |  | **时序对比** | 多标准时序对比计算器（对标 Tom Verbeure 的 Video Timings Calculator）：一次计算 CVT / CVT-RB / CVT-RBv2 / CEA-861 / DMT / 自定义六种时序，并核算 DP / HDMI / DVI / SDI / RFC4175 各接口带宽余量 |
+| **Technology Blog** | **显示器进阶技术** | 长文专栏页：左侧**分章目录**（滚动自动高亮当前节并只展开所在章）+ 右侧正文 + 顶部阅读进度条。首篇《显示器进阶技术全解》是 TFTCentral 显示器进阶技术专题（`tftcentral.co.uk/advanced`）的**完整中文翻译与结构化重排**：4 章 41 节，覆盖过驱 RTC（FFD / 双重过驱 / 过冲与光晕 / G2G 口径 / 六家厂商命名）、运动与响应增强（BFI / 扫描背光 / ASPD / MPA / MP Mode / MEMC 插帧 / 真 120 Hz）、面板涂层（X-Black / CrystalBrite / 保护玻璃 / OptiClear）、画面增强与预设（Senseye / 三星 Magic 系列 / eColor / f-Engine / 环境光 / 均匀性校正 / 动态对比度），附 **5 张内联 SVG 原理图**与 **19 条中英术语对照表** |
 | **关于** | — | 项目介绍、部署说明、开发说明、清除草稿 |
 
 附加能力：拖放 `.bin` / `.hex` / `.txt` / `.dat` / `.edid` 文件、粘贴任意十六进制文本（空格/换行/逗号/`0x` 前缀自动忽略）、`.bin/.hex` 导出、复制到剪贴板、打印 / 存 PDF、深色/浅色主题、自动保存草稿到 `localStorage`、**解析结果一键送进生成器**。
@@ -71,6 +72,8 @@ x-macro-lab/
 │   ├── mccs.js             # DDC/CI 协议逻辑：报文构建、应答解析、能力字符串解析、命令导出（无 DOM 依赖）
 │   ├── serial-data.js      # 串口调试的纯数据表（波特率 / 校验 / 停止位 / 流控 / 编码 / 视图 / 指令预设）
 │   ├── serial.js           # 串口协议逻辑：编解码、HEX 视图、终端缓冲、内容嗅探、两种传输适配器（无 DOM 依赖）
+│   ├── blog-data.js        # 技术博客文章数据（章节/小节/段落块/内联 SVG 示意图/术语表，纯数据）
+│   ├── blog.js             # 技术博客渲染层：行内标记、目录、正文、术语表 → HTML 字符串（无 DOM 依赖）
 │   └── app.js              # 界面接线：标签页、表单、草稿、导出
 ├── tools/                  # 本地桥接（非页面依赖，用到时才需要）
 │   ├── ddc-windows.ps1     # DDC/CI 后端：dxva2.dll（P/Invoke），支持一次性与常驻两种模式
@@ -563,15 +566,53 @@ NODE_PATH=/tmp/edid-domtest/node_modules node your-dom-test.js
 Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 
 > 本项目的测试脚本（`_ref/test-*.js`，覆盖编解码往返、时序矩阵、报告层、时序对比、伽马、
-> DDC/CI 协议、串口协议与传输适配器、以及 jsdom 驱动的界面层）都在仓库外的 `_ref/`，
-> 不会随静态站点发布。
-> 当前基线：**108 / 356 / 2094 / 20095 / 122 / 258 / 269 + 界面 83，全部 0 失败**
+> DDC/CI 协议、串口协议与传输适配器、技术博客数据与渲染层，以及 jsdom 驱动的界面层）都在
+> 仓库外的 `_ref/`，不会随静态站点发布。
+> 当前基线：**108 / 356 / 2094 / 20095 / 122 / 258 / 269 / 475 + 界面 92，全部 0 失败**
 > （依次为 `test-edid` / `test-timing` / `test-render` / `test-vtc` / `test-gamma` /
-> `test-mccs` / `test-serial`，最后是 `test-app-dom`）。
+> `test-mccs` / `test-serial` / `test-blog`，最后是 `test-app-dom`）。
 
 ---
 
-## 10. 已知边界
+## 10. 技术博客（Technology Blog）
+
+### 10.1 分层
+
+和其余页面一样是「数据 → 纯渲染 → DOM 接线」三层，因此绝大部分逻辑可以在 Node 里直接测：
+
+- `js/blog-data.js` —— 纯数据。一篇 `post` 由 `chapters → sections → subs` 三级组成，
+  每个节点下是 `blocks` 数组。block 有 7 种类型：`p`（段落）、`list`（列表）、`dl`（定义表）、
+  `table`（表格）、`callout`（提示框，`info/warn/ok/key` 四种）、`fig`（插入示意图）、`quote`（引文）。
+  段落文本支持四种行内标记：`**粗体**`、`` `代码` ``、`[文字](链接)`、`==高亮==`。
+  示意图以 `figures` 字典形式存放在同一文件里，全部是**内联 SVG**，颜色取 `var(--*)`，
+  因此跟随明暗主题变化，且不产生任何外部请求。
+- `js/blog.js` —— 只把数据渲染成 HTML 字符串（`renderArticle` / `renderToc` / `renderGlossary` /
+  `renderSource` / `renderPicker`），**不碰 DOM**。所有可见文本先转义再套行内标记，
+  所以 `[x](javascript:...)` 之类不会变成可点链接。
+- `js/app.js` 里的 `initBlog()` —— 只负责填槽位、接管目录锚点的平滑滚动、以及滚动侦测
+  （当前节高亮 + 所在章展开 + 阅读进度条）。
+
+### 10.2 新增一篇文章
+
+往 `BLOGData.posts` 里加一个对象即可：页面会自动出现文章切换条（只有一篇时不显示），
+目录、阅读时长、术语表、正文全部自动生成。
+
+### 10.3 内容来源与版权
+
+首篇《显示器进阶技术全解》译自 **TFTCentral** 的 *Technologies*（进阶技术）专题：
+<https://tftcentral.co.uk/advanced>。原文版权归 TFTCentral 所有。
+
+- 译文按原文四大章节的顺序完整翻译并重新分节，术语按国内显示行业惯例处理（过驱 / 过冲、
+  黑帧插入、扫描背光、动态对比度…），页面末尾附中英术语对照表。
+- **原文插图没有随文转载**：站内 5 张示意图由本项目按原文所述原理自行绘制为内联 SVG，
+  这也是「站点不引用任何远程资源」这条约定的必然结果（`_ref/test-blog.js` 里有断言兜底）。
+- 译文定位是**技术资料整理**，不替代原文；涉及厂商宣传口径的段落均按原文语气保留了质疑视角。
+- 原文成文于 2010 年前后，提到的具体型号（FP241WZ、245T、LCD24WMGX3、2233RZ、XL2410T…）
+  多为当年产品，原理部分仍然适用，选购请以当前在售机型为准。
+
+---
+
+## 11. 已知边界
 
 - **DisplayID** 只解析到“分节”层级（标签/版本/长度/偏移），不做逐节内容解释；生成器也按分节字节原样写入。
 - **VTB** 与**块映射表**同样只做结构与标签层面的处理。
@@ -597,10 +638,14 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 
 ---
 
-## 11. 说明
+## 12. 说明
 
 本项目的代码与文案为独立实现，功能对标 edidcraft.com。「时序对比」页的功能对标 Tom Verbeure 的
 Video Timings Calculator（其 DMT/VIC 标准时序数据与 CVT 公式来自 VESA/CTA 公开规范，算法经交叉验证对齐）。
 「伽马验证」页为内部 Python 版「Gamma Curve Verification Tool」的 Web 移植，数据读取、列/行配置与
 平均 Gamma 算法与原工具保持一致；内置数据集即该工具配套的 CA410 实测样本（`data/` 目录，可下载）。
 EDID / CEA-861 / DisplayID / CVT / GTF 的具体细节请以 VESA 与 CTA 官方规范为准。
+
+「Technology Blog」页首篇为 **TFTCentral** 专题 *Technologies*（<https://tftcentral.co.uk/advanced>）
+的中文翻译整理，原文及其中厂商资料、商标、型号名称的权利均归各自所有者；版权声明见
+[§10.3](#103-内容来源与版权)。

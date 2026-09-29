@@ -1099,6 +1099,10 @@
     save();
     /* 串口页要「一切到就显示设备已连接的 COM 口」，所以进入时自动枚举一次 */
     if (name === 'serial' && ser.ready) serEnter();
+    /* 博客页要在切进来之后才知道剩余高度，所以进入时重算一次目录高亮与进度。
+       这里同步算，而不是排队到下一帧 —— 面板的 display 已经切好，布局是同步可读的，
+       排队反而会让第一次进入时进度条空着（jsdom 下 rAF 未必及时跑）。 */
+    if (name === 'blog') blogSpy();
   }
 
   function setTheme(theme) {
@@ -3754,6 +3758,120 @@
     }).join('\n');
   }
 
+  /* ======================================================= Technology Blog */
+  /* 文章本体来自 js/blog-data.js（纯数据）+ js/blog.js（纯渲染），这里只负责：
+     ① 把渲染结果填进骨架的三个槽位；② 目录点击的平滑滚动；③ 滚动侦测（目录高亮 +
+     当前章展开 + 阅读进度条）。新增文章只需往 BLOGData.posts 里加一条。 */
+  var blog = { ready: false, post: null, data: null, activeId: '', queued: false };
+
+  function blogHero(post) {
+    var D = blog.data || {};
+    var chips = [
+      post.chapters ? post.chapters.length + ' 章' : '',
+      BLOG.sectionCount(post) + ' 节',
+      '约 ' + BLOG.readingMinutes(post) + ' 分钟',
+      (D.glossary && D.glossary.length ? D.glossary.length + ' 条术语' : '')
+    ].map(function (s) {
+      return s ? '<span class="chip">' + esc(s) + '</span>' : '';
+    }).join('');
+
+    return '<div class="bl-hero">' +
+      '<span class="bl-cat">' + esc(post.category || 'Technology Blog') + '</span>' +
+      '<h1>' + esc(post.title) + (post.titleEn ? '<span class="bl-en">' + esc(post.titleEn) + '</span>' : '') + '</h1>' +
+      (post.subtitle ? '<p class="bl-sub">' + esc(post.subtitle) + '</p>' : '') +
+      '<div class="bl-meta">' + chips + '</div>' +
+      '<div class="pill-list">' + (post.tags || []).map(function (t) {
+        return '<span class="chip accent">' + esc(t) + '</span>';
+      }).join('') + '</div>' +
+      '<p class="bl-src-line">来源：<a href="' + esc(post.source ? post.source.url : '#') +
+      '" target="_blank" rel="noopener">' + esc(post.source ? post.source.name + ' · ' + post.source.label : '') +
+      '</a> · 中文翻译整理 · 更新于 ' + esc((D.meta && D.meta.updated) || '') +
+      (post.source && post.source.note ? '<br>' + esc(post.source.note) : '') + '</p>' +
+      '</div>';
+  }
+
+  function blogPick(postId) {
+    var D = blog.data;
+    if (!D || !D.posts || !D.posts.length) return;
+    var post = null;
+    D.posts.forEach(function (p) { if (p.id === postId) post = p; });
+    if (!post) post = D.posts[0];
+    blog.post = post;
+
+    $('#bl-side-slot').innerHTML = BLOG.renderPicker(D.posts, post.id) + BLOG.renderToc(post);
+    $('#bl-hero-slot').innerHTML = blogHero(post);
+    $('#bl-post-slot').innerHTML = BLOG.renderArticle(post, D.figures);
+    $('#bl-extra-slot').innerHTML = BLOG.renderGlossary(D.glossary) + BLOG.renderSource(D);
+    blog.activeId = '';
+    blogSpy();
+  }
+
+  /* 滚动侦测：找出当前位于视口上方最近的标题，同步目录高亮、展开所在章、更新进度条 */
+  function blogSpy() {
+    if (!blog.ready || state.tab !== 'blog') return;
+    var slot = $('#bl-post-slot');
+    var heads = $$('.bl-chap, .bl-sec, .bl-subsec', slot);
+    if (!heads.length) return;
+
+    var cur = heads[0];
+    heads.forEach(function (el) { if (el.getBoundingClientRect().top <= 112) cur = el; });
+    var id = cur ? cur.id : '';
+
+    var r = slot.getBoundingClientRect();
+    var span = r.height - window.innerHeight * 0.55;
+    var done = span > 0 ? (112 - r.top) / span : 0;
+    done = Math.max(0, Math.min(1, done));
+    var bar = $('#bl-progress');
+    if (bar) bar.style.width = (done * 100).toFixed(1) + '%';
+
+    if (id === blog.activeId) return;
+    blog.activeId = id;
+    $$('#bl-side-slot a[data-bl-goto]').forEach(function (a) {
+      a.classList.toggle('active', a.getAttribute('data-bl-goto') === id);
+    });
+    var chap = cur && cur.closest ? cur.closest('.bl-chap') : null;
+    if (!chap) return;
+    $$('#bl-side-slot li.bl-toc-chap').forEach(function (li) {
+      li.classList.toggle('open', li.getAttribute('data-bl-chap') === chap.id);
+    });
+  }
+
+  function blogQueueSpy() {
+    if (blog.queued) return;
+    blog.queued = true;
+    window.requestAnimationFrame(function () { blog.queued = false; blogSpy(); });
+  }
+
+  function initBlog() {
+    var panel = $('#panel-blog');
+    if (!panel) return;
+    blog.data = window.BLOGData;
+    if (!blog.data || !blog.data.posts || !blog.data.posts.length || !window.BLOG) {
+      $('#bl-post-slot').innerHTML = window.BLOG ? BLOG.renderEmpty() : '';
+      return;
+    }
+    blog.ready = true;
+    blogPick(blog.data.posts[0].id);
+
+    /* 目录里的锚点：接管默认跳转，避免它把 URL 的 ?tab= 冲掉，同时做平滑滚动 */
+    panel.addEventListener('click', function (e) {
+      var post = e.target.closest('[data-bl-post]');
+      if (post) { blogPick(post.getAttribute('data-bl-post')); return; }
+      var link = e.target.closest('a[data-bl-goto]');
+      if (!link) return;
+      e.preventDefault();
+      var target = document.getElementById(link.getAttribute('data-bl-goto'));
+      if (!target) return;
+      var top = target.getBoundingClientRect().top + (window.scrollY || 0) - 96;
+      if (typeof window.scrollTo === 'function') window.scrollTo({ top: top, behavior: 'smooth' });
+      blog.activeId = '';
+      blogQueueSpy();
+    });
+
+    window.addEventListener('scroll', blogQueueSpy, { passive: true });
+    window.addEventListener('resize', blogQueueSpy);
+  }
+
   function init() {
     var draft = load();
     var linkTab = tabFromUrl();
@@ -3788,6 +3906,7 @@
     initGamma();
     initMCCS();
     initSerial();
+    initBlog();
 
     $$('nav.tabs button[data-tab]').forEach(function (b) {
       b.addEventListener('click', function () { switchTab(b.getAttribute('data-tab')); });
