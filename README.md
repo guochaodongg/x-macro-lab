@@ -330,7 +330,20 @@ capabilities 字符串也能解析出型号、`mccs_ver`、支持的操作码、
 
 这正是 PuTTY / minicom 的行为，也是设备刷新进度条（`Progress: 10%\rProgress: 20%`）
 能被正确显示而不是刷出一堆重复行的原因。此外 `LF` 换行、`BS` 删除上一个字符、`TAB` 对齐到
-8 列、`BEL` / `ESC` / `FF` 不显示。
+8 列、`BEL` / `FF` 不显示。
+
+**ANSI 颜色会真正渲染出来**（不是把 `[1;32m` 当文本打出来）：终端内部是「带样式的单元格」
+模型，`termFeed` 内置一个跨分包安全的转义状态机——
+
+- **SGR（`ESC[…m`）**：前景 30–37 / 90–97、背景 40–47 / 100–107、256 色（`38;5;n`）、
+  真彩（`38;2;r;g;b`）、加粗 / 变暗 / 斜体 / 下划线 / 反显及其复位，`0` 全复位；
+- **擦除与光标**：`ED(J)` 清屏、`EL(K)` 清行、光标上下左右（`A B C D E F G d`）、
+  绝对定位（`H f`，缺行自动补）、保存 / 恢复光标（`ESC 7/8`、`CSI s/u`）；
+- **被吞掉**：OSC（窗口标题等，`ESC ] … BEL/ST`）、字符集指示（`ESC ( B` 等）、其它 CSI。
+
+相同样式的相邻字符在渲染时合并成一个 `<span>`（内联 CSS，深色终端底专用调色板），
+转义序列被串口分包截断时（`ESC` 在上一帧、参数在这一帧）由 `st.esc` 状态续上。
+`SERIAL.termHTML()` 返回已转义可直接 `innerHTML` 的 HTML，`termText()` 仍是纯文本。
 
 **普通模式会自动嗅探**：一段数据里若出现 ANSI 转义序列、**裸 CR**（后面不跟 LF）、`BEL`、
 `BS`、`FF`，页面就在接收区上方提示「这段像终端输出，建议切到终端模式」，并给出命中的理由。
@@ -435,7 +448,7 @@ capabilities 字符串也能解析出型号、`mccs_ver`、支持的操作码、
 | `EDIDReport` | `decodeReport`、`validationReport`、`timingReport`、`hexViewer`、`chromaPlot`、`kv`、`card`、`chip`、`tableHtml`、`esc` |
 | `MCCS` | `buildGetVCP`、`buildSetVCP`、`buildSaveSettings`、`buildVcpReset`、`buildGetCapabilities`、`buildRaw`、`build(kind, opts)`、`parseReply`、`verifyChecksum`、`describe`、`parseCapabilities`、`vcp`、`vcpName`、`vcpText`、`formatValue`、`toDdcutil`、`toI2cTransfer`、`toCurl`、`toBridgeScript` |
 | `MCCSData` | `VCP`（182 条码表）、`OPCODES`（9 条操作码）、`VALUES`（枚举值表） |
-| `SERIAL` | `bytes`、`hex`、`hex2`、`hex4`、`concat`、`textToBytes`、`decodeBytes`、`eolBytes`、`eolLabel`、`printable`、`escapeText`、`hexdump`、`describeBytes`、`termNew`、`termFeed`、`termText`、`termSize`（终端缓冲）、`sniffMode`（内容嗅探）、`stamp`、`bridgePort`、`webPort`、`mergePortLists`、`matchPort`、`transportOrder`、`transportName`、`normalizeCfg`、`toWebSerialOptions`、`toBridgeArgs`、`presetBytes`、`makeWebSerialTransport`、`makeBridgeTransport` |
+| `SERIAL` | `bytes`、`hex`、`hex2`、`hex4`、`concat`、`textToBytes`、`decodeBytes`、`eolBytes`、`eolLabel`、`printable`、`escapeText`、`hexdump`、`describeBytes`、`termNew`、`termFeed`、`termText`、`termSize`、`termHTML`（终端缓冲与 ANSI 颜色渲染）、`sniffMode`（内容嗅探）、`stamp`、`bridgePort`、`webPort`、`mergePortLists`、`matchPort`、`transportOrder`、`transportName`、`normalizeCfg`、`toWebSerialOptions`、`toBridgeArgs`、`presetBytes`、`makeWebSerialTransport`、`makeBridgeTransport` |
 | `SERIALData` | `BAUDS`、`DATA_BITS`、`PARITY`、`STOP_BITS`、`FLOW`、`EOL`、`SEND_ENCODING`、`RECV_ENCODING`、`RX_VIEWS`、`PRESETS`（AT / SCPI / 控制字符）、`WEB_SERIAL_LIMITS` |
 
 两个传输适配器（`makeBridgeTransport` / `makeWebSerialTransport`）对外是同一组方法，
@@ -531,7 +544,7 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 > 本项目的测试脚本（`_ref/test-*.js`，覆盖编解码往返、时序矩阵、报告层、时序对比、伽马、
 > DDC/CI 协议、串口协议与传输适配器、以及 jsdom 驱动的界面层）都在仓库外的 `_ref/`，
 > 不会随静态站点发布。
-> 当前基线：**108 / 356 / 2094 / 20095 / 122 / 258 / 241 + 界面 82，全部 0 失败**
+> 当前基线：**108 / 356 / 2094 / 20095 / 122 / 258 / 269 + 界面 83，全部 0 失败**
 > （依次为 `test-edid` / `test-timing` / `test-render` / `test-vtc` / `test-gamma` /
 > `test-mccs` / `test-serial`，最后是 `test-app-dom`）。
 

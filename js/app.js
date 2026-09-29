@@ -3008,9 +3008,9 @@
   function serRenderTerm() {
     var box = $('#ser-term-out');
     if (!box) return;
-    var text = SERIAL.termText(ser.term, 800);
-    if (!text) { box.textContent = '（终端为空，打开串口后收到的数据会显示在这里）'; return; }
-    box.innerHTML = esc(text) + '<span class="ser-caret"></span>';
+    var html = SERIAL.termHTML(ser.term, 800);   /* ANSI 颜色已解析成带样式的 <span> */
+    if (!html) { box.textContent = '（终端为空，打开串口后收到的数据会显示在这里）'; return; }
+    box.innerHTML = html + '<span class="ser-caret"></span>';
     if (ser.autoscroll) box.scrollTop = box.scrollHeight;
   }
 

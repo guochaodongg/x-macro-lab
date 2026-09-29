@@ -185,67 +185,315 @@
     return d;
   }
 
-  /* ----------------------------- 终端行缓冲 ----------------------------- */
+  /* ------------------------ 终端屏幕模型（带 ANSI 颜色） ------------------------
+     每个可见字符是一个 cell {ch, s}，s 指向写入时的 SGR 样式对象。样式对象是
+     copy-on-write 的：SGR 改样式时先克隆再改，同一样式的连续单元格共享一个对象，
+     渲染时把相同样式的相邻字符合并成一个 <span>，颜色直接来自 ANSI 调色板。
+     转义序列可能被分包截断（ESC 在上一帧、参数在这一帧），状态放在 st.esc 里跨帧续。 */
+
+  var TERM_FG = ['#8a919c', '#ff7b72', '#3fd35f', '#e3b341', '#5c9dff', '#d2a8ff', '#39c5cf', '#e8eaed'];
+  var TERM_BG = ['#3a3f46', '#57201d', '#1c4426', '#4b3a10', '#1d3a5f', '#3a2560', '#164a52', '#464c54'];
+  var TERM_FG_BRIGHT = ['#9aa4ae', '#ff8f8f', '#5af08a', '#f5c95e', '#79b8ff', '#e0b8ff', '#5ad8e6', '#ffffff'];
+  var TERM_BG_BRIGHT = ['#4a5058', '#6b2b27', '#245633', '#5c4815', '#254a76', '#4a3078', '#1c5c66', '#585f68'];
+
+  /* xterm 256 色表：0-15 基本色、16-231 6×6×6 立方、232-255 灰阶 */
+  function ansi256(n) {
+    if (!(n >= 0)) n = 0;
+    if (n < 16) return n < 8 ? TERM_FG[n] : TERM_FG_BRIGHT[n - 8];
+    if (n < 232) {
+      var c = [0, 95, 135, 175, 215, 255];
+      n -= 16;
+      var b = n % 6, g = (n / 6 | 0) % 6, r = (n / 36 | 0) % 6;
+      return 'rgb(' + c[r] + ',' + c[g] + ',' + c[b] + ')';
+    }
+    var v = 8 + (n - 232) * 10;
+    return 'rgb(' + v + ',' + v + ',' + v + ')';
+  }
+
+  function termStyleNew() {
+    return { fg: null, bg: null, bold: false, dim: false, italic: false, underline: false, invert: false };
+  }
+  function termStyleClone(s) {
+    return { fg: s.fg, bg: s.bg, bold: s.bold, dim: s.dim, italic: s.italic, underline: s.underline, invert: s.invert };
+  }
+  function termStyleKey(s) {
+    return (s.fg || '') + '|' + (s.bg || '') + '|' + (s.bold ? 1 : 0) + (s.dim ? 1 : 0) +
+      (s.italic ? 1 : 0) + (s.underline ? 1 : 0) + (s.invert ? 1 : 0);
+  }
+  function termStylePlain(s) {
+    return !s.fg && !s.bg && !s.bold && !s.dim && !s.italic && !s.underline && !s.invert;
+  }
 
   function termNew(opts) {
     opts = opts || {};
-    return { rows: [''], c: 0, maxRows: opts.maxRows || 4000, maxCols: opts.maxCols || 2048 };
+    return {
+      rows: [[]], c: 0, r: 0, maxRows: opts.maxRows || 4000, maxCols: opts.maxCols || 2048,
+      style: termStyleNew(), saved: null, esc: ''
+    };
   }
 
-  function termRow(st) { return st.rows[st.rows.length - 1]; }
+  function termClamp(st) {
+    if (st.r < 0) st.r = 0;
+    if (st.r >= st.rows.length) st.r = st.rows.length - 1;
+    if (st.c < 0) st.c = 0;
+    if (st.c >= st.maxCols) st.c = st.maxCols - 1;
+  }
 
   function termPut(st, ch) {
     if (st.c >= st.maxCols) return;
-    var row = termRow(st);
-    st.rows[st.rows.length - 1] = row.substring(0, st.c) + ch + row.substring(st.c + 1);
+    var row = st.rows[st.r] || (st.rows[st.r] = []);
+    row[st.c] = { ch: ch, s: st.style };
     st.c++;
+  }
+
+  /* 退格：删掉光标处字符（和旧字符串模型一致，后续字符左移） */
+  function termDelCell(st) {
+    var row = st.rows[st.r];
+    if (row && st.c < row.length) row.splice(st.c, 1);
+  }
+
+  function termLF(st) {
+    if (st.r >= st.rows.length - 1) {
+      st.rows.push([]);
+      if (st.rows.length > st.maxRows) st.rows.shift();
+      st.r = st.rows.length - 1;
+    } else st.r++;
+    st.c = 0;
+  }
+
+  function termUp(st) { if (st.r > 0) st.r--; }
+
+  /* ED — 擦除显示。n=0 光标到屏末、1 屏首到光标、2 整屏 */
+  function termED(st, n) {
+    if (n === 2 || n === 3) {
+      st.rows = [[]];
+      st.r = 0;
+      return;
+    }
+    var row = st.rows[st.r] || [];
+    if (n === 1) {
+      for (var j = 0; j < row.length && j < st.c; j++) row[j] = null;
+    } else {
+      if (st.c < row.length) row.length = st.c;
+      st.rows.length = st.r + 1;
+    }
+  }
+
+  /* EL — 擦除行。n=0 光标到行尾、1 行首到光标、2 整行 */
+  function termEL(st, n) {
+    var row = st.rows[st.r] || (st.rows[st.r] = []);
+    if (n === 2) { row.length = 0; return; }
+    if (n === 1) { for (var j = 0; j < row.length && j < st.c; j++) row[j] = null; return; }
+    if (st.c < row.length) row.length = st.c;
+  }
+
+  /* SGR — 字符属性（颜色 / 加粗 / 下划线…）。先克隆再改，避免改到已落地的单元格 */
+  function termSGR(st, parts) {
+    var s = termStyleClone(st.style);
+    for (var i = 0; i < parts.length; i++) {
+      var v = parseInt(parts[i], 10);
+      if (isNaN(v)) v = 0;
+      if (v === 0) s = termStyleNew();
+      else if (v === 1) s.bold = true;
+      else if (v === 2) s.dim = true;
+      else if (v === 3) s.italic = true;
+      else if (v === 4) s.underline = true;
+      else if (v === 7) s.invert = true;
+      else if (v === 21 || v === 22) { s.bold = false; s.dim = false; }
+      else if (v === 23) s.italic = false;
+      else if (v === 24) s.underline = false;
+      else if (v === 27) s.invert = false;
+      else if (v >= 30 && v <= 37) s.fg = TERM_FG[v - 30];
+      else if (v === 39) s.fg = null;
+      else if (v >= 40 && v <= 47) s.bg = TERM_BG[v - 40];
+      else if (v === 49) s.bg = null;
+      else if (v >= 90 && v <= 97) s.fg = TERM_FG_BRIGHT[v - 90];
+      else if (v >= 100 && v <= 107) s.bg = TERM_BG_BRIGHT[v - 100];
+      else if (v === 38 || v === 48) {
+        var color = null;
+        if (parts[i + 1] === '5') { color = ansi256(parseInt(parts[i + 2], 10)); i += 2; }
+        else if (parts[i + 1] === '2') {
+          color = 'rgb(' + (parseInt(parts[i + 2], 10) || 0) + ',' + (parseInt(parts[i + 3], 10) || 0) + ',' +
+            (parseInt(parts[i + 4], 10) || 0) + ')';
+          i += 4;
+        }
+        if (v === 38) s.fg = color; else s.bg = color;
+      }
+    }
+    st.style = s;
+  }
+
+  /* CSI — ESC [ 参数 终止字节 */
+  function termCSI(st, seq) {
+    var fin = seq.charAt(seq.length - 1);
+    var body = seq.substring(0, seq.length - 1);
+    while (body && '<=>?'.indexOf(body.charAt(0)) >= 0) body = body.substring(1);
+    var parts = body.split(';');
+    function p(k, d) { var v = parseInt(parts[k], 10); return isNaN(v) ? d : v; }
+    switch (fin) {
+      case 'm': termSGR(st, parts); break;
+      case 'J': termED(st, p(0, 0)); break;
+      case 'K': termEL(st, p(0, 0)); break;
+      case 'A': st.r -= p(0, 1); termClamp(st); break;
+      case 'B': st.r += p(0, 1); termClamp(st); break;
+      case 'C': st.c = Math.min(st.maxCols - 1, st.c + p(0, 1)); break;
+      case 'D': st.c = Math.max(0, st.c - p(0, 1)); break;
+      case 'E': st.r += p(0, 1); termClamp(st); st.c = 0; break;
+      case 'F': st.r -= p(0, 1); termClamp(st); st.c = 0; break;
+      case 'G': case '`': st.c = Math.max(0, p(0, 1) - 1); break;
+      case 'd': termAbsRow(st, p(0, 1) - 1); break;
+      case 'H': case 'f':
+        termAbsRow(st, p(0, 1) - 1);
+        st.c = p(1, 1) - 1;
+        termClamp(st);
+        break;
+      case 's': st.saved = { c: st.c, r: st.r }; break;
+      case 'u': if (st.saved) { st.c = st.saved.c; st.r = st.saved.r; termClamp(st); } break;
+      /* 其它（DEC 私有序列、窗口操作等）：吞掉不显示 */
+    }
+  }
+
+  function termRestore(st) {
+    if (!st.saved) return;
+    st.c = st.saved.c; st.r = st.saved.r; termClamp(st);
+  }
+  /* 绝对行定位：目标行不存在就补空行（真终端的屏幕本来就是整屏的） */
+  function termAbsRow(st, r) {
+    if (!(r >= 0)) r = 0;
+    while (st.rows.length <= r) st.rows.push([]);
+    st.r = r;
+  }
+  function termRIS(st) {
+    st.rows = [[]]; st.c = 0; st.r = 0;
+    st.style = termStyleNew(); st.saved = null; st.esc = '';
+  }
+
+  /* 单步转义状态机：e === '\x1b' 待定；'\x1b[' CSI 收参中；'\x1b]' OSC 收参中；
+     '\x1bX'（X 为 ( ) * + # % 等）表示还要再吞一个中间字符 */
+  function termEsc(st, ch) {
+    var e = st.esc;
+    if (e === '\x1b') {
+      st.esc = '';
+      if (ch === '[') { st.esc = '\x1b['; return; }
+      if (ch === ']') { st.esc = '\x1b]'; return; }
+      if (ch === '7') st.saved = { c: st.c, r: st.r };
+      else if (ch === '8') termRestore(st);
+      else if (ch === 'D') termLF(st);
+      else if (ch === 'M') termUp(st);
+      else if (ch === 'E') { st.c = 0; termLF(st); }
+      else if (ch === 'c') termRIS(st);
+      else if ('()*+#%'.indexOf(ch) >= 0) st.esc = '\x1b' + ch + ' ';
+      return;
+    }
+    if (e.charAt(1) === '[') {
+      var last = ch.charCodeAt(0);
+      if (last >= 0x40 && last <= 0x7E) { st.esc = ''; termCSI(st, e.substring(2) + ch); }
+      else if (e.length < 64) st.esc = e + ch;
+      else st.esc = '';
+      return;
+    }
+    if (e.charAt(1) === ']') {
+      if (e.length === 2) { st.esc = e + ch; return; }
+      if (ch === '\x07' || (e.charAt(e.length - 1) === '\x1b' && ch === '\\')) st.esc = '';
+      else if (e.length < 512) st.esc = e + ch;
+      else st.esc = '';
+      return;
+    }
+    st.esc = '';
   }
 
   function termFeed(st, text) {
     if (!st || !text) return st;
+    text = String(text);
     for (var i = 0; i < text.length; i++) {
       var ch = text.charAt(i), code = text.charCodeAt(i);
-      if (code === 10) {                                       /* LF 换行 */
-        st.rows.push('');
-        st.c = 0;
-        if (st.rows.length > st.maxRows) st.rows.shift();
+      if (st.esc) { termEsc(st, ch); continue; }
+      if (code === 27) { st.esc = '\x1b'; continue; }         /* ESC 进转义状态机 */
+      if (code === 10) { termLF(st); continue; }               /* LF 换行 */
+      if (code === 13) { st.c = 0; continue; }                 /* CR 回到行首：后续覆盖 */
+      if (code === 8) {                                        /* 退格 */
+        if (st.c > 0) { st.c--; termDelCell(st); }
         continue;
       }
-      if (code === 13) { st.c = 0; continue; }                  /* CR 回到行首：后续覆盖 */
-      if (code === 8) {                                         /* 退格 */
-        if (st.c > 0) {
-          st.c--;
-          var r = termRow(st);
-          st.rows[st.rows.length - 1] = r.substring(0, st.c) + r.substring(st.c + 1);
-        }
-        continue;
-      }
-      if (code === 9) {                                         /* 制表符按 8 列对齐 */
+      if (code === 9) {                                        /* 制表符按 8 列对齐 */
         var n = 8 - (st.c % 8);
         for (var k = 0; k < n; k++) termPut(st, ' ');
         continue;
       }
-      if (code < 32 || code === 127) continue;                  /* BEL / ESC 等不显示 */
+      if (code < 32 || code === 127) continue;                 /* BEL / FF 等不显示 */
       termPut(st, ch);
     }
     return st;
+  }
+
+  function termRowText(row) {
+    var s = '';
+    for (var j = 0; j < row.length; j++) s += row[j] ? row[j].ch : ' ';
+    return s.replace(/\s+$/, '');
   }
 
   function termText(st, maxRows) {
     if (!st) return '';
     var rows = st.rows;
     if (maxRows && rows.length > maxRows) rows = rows.slice(rows.length - maxRows);
-    return rows.join('\n');
+    var out = [];
+    for (var i = 0; i < rows.length; i++) out.push(termRowText(rows[i]));
+    return out.join('\n');
   }
 
   function termSize(st) {
     if (!st) return { rows: 0, cols: 0 };
     var cols = 0;
-    for (var i = 0; i < st.rows.length; i++) cols = Math.max(cols, st.rows[i].length);
+    for (var i = 0; i < st.rows.length; i++) cols = Math.max(cols, termRowText(st.rows[i]).length);
     return { rows: st.rows.length, cols: cols };
   }
 
-  /* --------------------------- 内容嗅探（识别） --------------------------- */
+  /* 渲染成 HTML：相同样式的相邻单元格合并成一个 <span>，颜色用内联样式。
+     返回的 HTML 已对 &, <, > 转义，可直接 innerHTML。 */
+  function termSpan(text, style) {
+    if (!style || termStylePlain(style)) return text;
+    var fg = style.fg, bg = style.bg;
+    if (style.invert) {
+      var t = fg; fg = bg; bg = t;
+      if (!fg && !bg) { fg = '#0e1116'; bg = '#c9ced4'; }
+    }
+    var css = '';
+    if (fg) css += 'color:' + fg + ';';
+    if (bg) css += 'background:' + bg + ';';
+    if (style.bold) css += 'font-weight:700;';
+    if (style.dim) css += 'opacity:.62;';
+    if (style.italic) css += 'font-style:italic;';
+    if (style.underline) css += 'text-decoration:underline;';
+    return css ? '<span style="' + css + '">' + text + '</span>' : text;
+  }
+
+  function termHTML(st, maxRows) {
+    if (!st) return '';
+    var rows = st.rows;
+    if (maxRows && rows.length > maxRows) rows = rows.slice(rows.length - maxRows);
+    var out = '', run = '', runKey = null, runStyle = null;
+    function esc1(c) { return c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c; }
+    function flush() {
+      if (!run) return;
+      out += termSpan(run, runStyle);
+      run = '';
+    }
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      for (var j = 0; j < row.length; j++) {
+        var cell = row[j];
+        var k = cell ? termStyleKey(cell.s) : '';
+        if (k !== runKey) { flush(); runKey = k; runStyle = cell ? cell.s : null; }
+        run += esc1(cell ? cell.ch : ' ');
+      }
+      flush();
+      if (i < rows.length - 1) out += '\n';
+    }
+    flush();
+    return out;
+  }
+
+/* --------------------------- 内容嗅探（识别） --------------------------- */
 
   /* 判断这段数据「像终端输出」还是「像普通文本/二进制」。
      命中 ESC / 裸 CR（回车刷新）/ BEL / BS / FF 任意一条即判为终端。 */
@@ -707,7 +955,7 @@
     textToBytes: textToBytes, decodeBytes: decodeBytes,
     eolBytes: eolBytes, eolLabel: eolLabel,
     printable: printable, escapeText: escapeText, hexdump: hexdump, describeBytes: describeBytes,
-    termNew: termNew, termFeed: termFeed, termText: termText, termSize: termSize,
+    termNew: termNew, termFeed: termFeed, termText: termText, termSize: termSize, termHTML: termHTML,
     sniffMode: sniffMode,
     stamp: stamp,
     bridgePort: bridgePort, webPort: webPort, mergePortLists: mergePortLists,
