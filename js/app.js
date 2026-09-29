@@ -1097,6 +1097,8 @@
     navGroups().forEach(function (g) { g.classList.toggle('has-active', withinGroup(g, name)); });
     closeTabMenus();
     save();
+    /* 串口页要「一切到就显示设备已连接的 COM 口」，所以进入时自动枚举一次 */
+    if (name === 'serial' && ser.ready) serEnter();
   }
 
   function setTheme(theme) {
@@ -2787,6 +2789,971 @@
     }).join('\n');
   }
 
+  /* ===================== 串口调试（Serial / COM） ===================== */
+
+  var SER_LS = 'edidcraft-local:serial';
+  var SER_MAX_BYTES = 512 * 1024;      /* 界面与导出里保留的接收字节上限 */
+  var SER_VIEW_BYTES = 8192;           /* HEX / DUMP 视图最多渲染的字节数 */
+  var SER_VIEW_TEXT = 64 * 1024;       /* 文本视图最多渲染的字符数 */
+  var SER_MAX_LOG = 500;
+  var SER_LOG_ROWS = 200;
+
+  var ser = {
+    /* 传输 */
+    source: 'auto', kind: '', transport: null, bridgeOk: false, bridgeBase: '',
+    ports: [], selected: -1, remember: null, open: false, openName: '',
+    cfg: { baud: 115200, dataBits: 8, parity: 'none', stopBits: 1, flow: 'none', dtr: true, rts: true },
+    /* 普通模式 */
+    sendMode: 'text', sendEnc: 'utf-8', sendEol: 'crlf',
+    view: 'text', recvEnc: 'utf-8', stamp: true, autoscroll: true,
+    presetDirect: true, loop: false, loopMs: 1000, loopTimer: null,
+    /* 终端模式 */
+    mode: 'normal', termEcho: true, termEol: 'crlf', term: null,
+    hist: [], histIdx: 0,
+    /* 数据 */
+    rxChunks: [], rxLen: 0, rxTotal: 0, txTotal: 0,
+    log: [], seen: '', renderTimer: null, ready: false
+  };
+
+  /* ------------------------------------------------------------ 小工具 */
+
+  function serFmtBytes(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (Math.round(n / 102.4) / 10) + ' kB';
+    return (Math.round(n / 104857.6) / 10) + ' MB';
+  }
+
+  function serOnLocalhost() {
+    return location.protocol.indexOf('http') === 0 &&
+      (location.hostname === '127.0.0.1' || location.hostname === 'localhost');
+  }
+
+  /* 桥接地址的候选顺序：页面本身就是桥接托管的 → 同源优先 */
+  function serBridgeBases() {
+    var list = [];
+    var manual = $('#ser-base') ? String($('#ser-base').value || '').trim().replace(/\/+$/, '') : '';
+    if (serOnLocalhost()) list.push('');
+    if (manual && list.indexOf(manual) < 0) list.push(manual);
+    if (location.protocol === 'file:' && list.indexOf('http://127.0.0.1:8760') < 0) {
+      list.push('http://127.0.0.1:8760');
+    }
+    if (!list.length) list.push('http://127.0.0.1:8760');
+    return list;
+  }
+
+  function serBridgeTransport(base) {
+    return SERIAL.makeBridgeTransport({
+      base: base,
+      fetch: (typeof fetch === 'function') ? fetch : null,
+      interval: 40
+    });
+  }
+
+  function serWebTransport() {
+    var nav = (typeof navigator !== 'undefined' && navigator.serial) ? navigator.serial : null;
+    return SERIAL.makeWebSerialTransport(nav);
+  }
+
+  function serAttach(t) {
+    t.on('data', serOnData);
+    t.on('disconnect', serOnDisconnect);
+    return t;
+  }
+
+  function serCurrentPort() {
+    return (ser.selected >= 0 && ser.selected < ser.ports.length) ? ser.ports[ser.selected] : null;
+  }
+
+  function serParityShort(p) {
+    return ({ none: 'N', even: 'E', odd: 'O', mark: 'M', space: 'S' })[p] || 'N';
+  }
+
+  function serCfgShort() {
+    var c = ser.cfg;
+    return c.baud + ' ' + c.dataBits + serParityShort(c.parity) + c.stopBits;
+  }
+
+  function serFlowLabel(v) {
+    var hit = (window.SERIALData.FLOW || []).filter(function (f) { return f.v === v; })[0];
+    return hit ? hit.zh : v;
+  }
+
+  /* -------------------------------------------------------- 状态与呈现 */
+
+  function serUpdateConnInfo() {
+    var chip = $('#ser-chip'), info = $('#ser-conninfo');
+    if (chip) {
+      chip.className = 'chip ' + (ser.open ? 'ok' : '');
+      chip.textContent = ser.open ? ('已连接 ' + ser.openName) : '未连接';
+    }
+    if (info) {
+      if (ser.open) {
+        var c = ser.cfg;
+        info.className = 'small';
+        info.innerHTML = '经 <b>' + esc(SERIAL.transportName(ser.kind)) + '</b> 打开 <code>' +
+          esc(ser.openName) + '</code>：' + serCfgShort() + '，' + esc(serFlowLabel(c.flow)) +
+          (c.dtr ? '，DTR' : '') + (c.rts ? '，RTS' : '') + '。';
+      } else {
+        info.className = 'small muted';
+        info.textContent = '串口未打开。';
+      }
+    }
+    if ($('#ser-open')) $('#ser-open').disabled = ser.open;
+    if ($('#ser-close')) $('#ser-close').disabled = !ser.open;
+    if ($('#ser-term-meta')) $('#ser-term-meta').textContent = ser.open ? (ser.openName + '  ' + serCfgShort()) : '—';
+    if ($('#ser-prompt')) $('#ser-prompt').textContent = ser.open ? (ser.openName + '>') : '>';
+  }
+
+  function serUpdateStats() {
+    if ($('#ser-tx-stat')) $('#ser-tx-stat').textContent = 'TX ' + serFmtBytes(ser.txTotal);
+    if ($('#ser-rx-stat')) $('#ser-rx-stat').textContent = 'RX ' + serFmtBytes(ser.rxTotal);
+    if ($('#ser-log-stat')) $('#ser-log-stat').textContent = 'RX ' + serFmtBytes(ser.rxTotal) + ' / TX ' + serFmtBytes(ser.txTotal);
+    if ($('#ser-log-chip')) {
+      $('#ser-log-chip').className = 'chip ' + (ser.log.length ? '' : '');
+      $('#ser-log-chip').textContent = ser.log.length + ' 条';
+    }
+  }
+
+  /* 预览串口信息（VID/PID、是否上次用过） */
+  function serPortInfo() {
+    var el = $('#ser-portinfo');
+    if (!el) return;
+    var p = serCurrentPort();
+    if (!p) { el.textContent = ''; return; }
+    var bits = [];
+    if (p.vid) bits.push('USB VID ' + p.vid + ' / PID ' + p.pid);
+    if (p.source === 'webserial') bits.push('浏览器不提供 COM 号，只认 VID/PID');
+    if (p.source === 'bridge' && p.webRaw) bits.push('该设备也已获浏览器授权');
+    if (ser.remember && SERIAL.portKey(ser.remember) === SERIAL.portKey(p)) bits.push('上次使用的串口');
+    el.textContent = bits.join(' · ');
+  }
+
+  function serFillPortSelect() {
+    var sel = $('#ser-port');
+    if (!sel) return;
+    var keep = ser.selected;
+    sel.innerHTML = '';
+    if (!ser.ports.length) {
+      var o = document.createElement('option');
+      o.value = '';
+      o.textContent = '（未发现串口）';
+      sel.appendChild(o);
+      ser.selected = -1;
+      serPortInfo();
+      return;
+    }
+    ser.ports.forEach(function (p, i) {
+      var op = document.createElement('option');
+      op.value = String(i);
+      op.textContent = p.label;
+      sel.appendChild(op);
+    });
+    var pick = SERIAL.matchPort(ser.ports, ser.remember);
+    var idx = pick ? ser.ports.indexOf(pick) : -1;
+    if (idx < 0 && keep >= 0 && keep < ser.ports.length) idx = keep;
+    if (idx < 0) idx = 0;
+    ser.selected = idx;
+    sel.value = String(idx);
+    serPortInfo();
+  }
+
+  /* 拼接接收缓冲（有上限，因此最多复制 512 kB） */
+  function serRxConcat() {
+    var out = new Uint8Array(ser.rxLen), off = 0;
+    for (var i = 0; i < ser.rxChunks.length; i++) {
+      out.set(ser.rxChunks[i].data, off);
+      off += ser.rxChunks[i].data.length;
+    }
+    return out;
+  }
+
+  function serRxTail(max) {
+    var all = serRxConcat();
+    return all.length > max ? all.slice(all.length - max) : all;
+  }
+
+  /* 接收视图的文本（导出与显示共用同一份生成逻辑） */
+  function serRxViewText() {
+    if (!ser.rxChunks.length) return '';
+    if (ser.view === 'hex') {
+      var tail = serRxTail(SER_VIEW_BYTES);
+      var head = tail.length < ser.rxLen ? '（只显示最后 ' + serFmtBytes(tail.length) + '，共 ' + serFmtBytes(ser.rxLen) + '）\n' : '';
+      return head + SERIAL.hex(tail);
+    }
+    if (ser.view === 'dump') {
+      var t2 = serRxTail(SER_VIEW_BYTES);
+      var head2 = t2.length < ser.rxLen ? '（只显示最后 ' + serFmtBytes(t2.length) + '，共 ' + serFmtBytes(ser.rxLen) + '）\n' : '';
+      return head2 + SERIAL.hexdump(t2).map(function (r) {
+        return ('000000' + r.off.toString(16).toUpperCase()).slice(-6) + '  ' + r.hex + '  |' + r.ascii + '|';
+      }).join('\n');
+    }
+    if (ser.stamp) {
+      var text = ser.rxChunks.map(function (c) {
+        return '[' + SERIAL.stamp(c.t, 'ms') + '] ' + SERIAL.escapeText(SERIAL.decodeBytes(c.data, ser.recvEnc));
+      }).join('\n');
+      return text.length > SER_VIEW_TEXT ? '（只显示末尾）\n' + text.slice(text.length - SER_VIEW_TEXT) : text;
+    }
+    var plain = SERIAL.escapeText(SERIAL.decodeBytes(serRxConcat(), ser.recvEnc));
+    return plain.length > SER_VIEW_TEXT ? '（只显示末尾）\n' + plain.slice(plain.length - SER_VIEW_TEXT) : plain;
+  }
+
+  function serRenderRx() {
+    var box = $('#ser-rx');
+    if (!box) return;
+    var text = serRxViewText();
+    box.textContent = text || '（还没有收到数据）';
+    if (ser.autoscroll) box.scrollTop = box.scrollHeight;
+  }
+
+  function serRenderTerm() {
+    var box = $('#ser-term-out');
+    if (!box) return;
+    var text = SERIAL.termText(ser.term, 800);
+    if (!text) { box.textContent = '（终端为空，打开串口后收到的数据会显示在这里）'; return; }
+    box.innerHTML = esc(text) + '<span class="ser-caret"></span>';
+    if (ser.autoscroll) box.scrollTop = box.scrollHeight;
+  }
+
+  function serRenderLog() {
+    var box = $('#ser-log');
+    if (!box) return;
+    if (!ser.log.length) { box.innerHTML = '<div class="empty">还没有收发记录</div>'; return; }
+    var rows = ser.log.slice(-SER_LOG_ROWS).reverse();
+    var cls = { TX: 'info', RX: 'ok', ERR: 'err', INFO: '' };
+    box.innerHTML = '<div class="table-scroll"><table><tbody>' + rows.map(function (e) {
+      return '<tr><td class="mono nowrap">' + SERIAL.stamp(e.t, 'ms') + '</td>' +
+        '<td class="nowrap"><span class="chip ' + (cls[e.kind] || '') + '">' + esc(e.kind) + '</span></td>' +
+        '<td class="mono">' + esc(e.text) + '</td></tr>';
+    }).join('') + '</tbody></table></div>' +
+      (ser.log.length > rows.length ? '<p class="hint" style="margin:8px 0 0">仅显示最近 ' + rows.length +
+        ' 条，导出 .txt 包含全部 ' + ser.log.length + ' 条。</p>' : '');
+  }
+
+  function serRenderAll() {
+    if (ser.mode === 'terminal') serRenderTerm(); else serRenderRx();
+    serRenderLog();
+    serUpdateStats();
+    serUpdateConnInfo();
+  }
+
+  /* 高频接收时不要每个字节都重绘：合并到一帧里 */
+  function serScheduleRender() {
+    if (ser.renderTimer) return;
+    ser.renderTimer = setTimeout(function () {
+      ser.renderTimer = null;
+      serRenderAll();
+    }, 90);
+  }
+
+  function serPushLog(kind, text) {
+    var entry = { t: new Date(), kind: kind, text: String(text === undefined || text === null ? '' : text).slice(0, 300) };
+    ser.log.push(entry);
+    if (ser.log.length > SER_MAX_LOG) ser.log.shift();
+    return entry;                       /* 调用方可能要在失败时把它撤回来 */
+  }
+
+  function serPushRx(bytes) {
+    ser.rxChunks.push({ t: new Date(), data: bytes });
+    ser.rxLen += bytes.length;
+    while (ser.rxLen > SER_MAX_BYTES && ser.rxChunks.length > 1) {
+      ser.rxLen -= ser.rxChunks[0].data.length;
+      ser.rxChunks.shift();
+    }
+  }
+
+  /* 收发记录里怎么描述一帧数据：能当文本读就按文本，否则给 HEX */
+  function serByteLabel(text, bytes) {
+    if (text) return text;
+    return SERIAL.hex(bytes).slice(0, 240);
+  }
+
+  /* -------------------------------------------------------- 传输层接线 */
+
+  function serOnData(bytes) {
+    if (!bytes || !bytes.length) return;
+    ser.rxTotal += bytes.length;
+    serPushRx(bytes);
+    serPushLog('RX', SERIAL.escapeText(SERIAL.decodeBytes(bytes, ser.recvEnc), { keepNewline: false }).slice(0, 240));
+    SERIAL.termFeed(ser.term, SERIAL.decodeBytes(bytes, ser.recvEnc));
+    serSniffBytes(bytes);
+    serScheduleRender();
+  }
+
+  function serOnDisconnect(ev) {
+    if (!ser.open) return;
+    ser.open = false;
+    ser.transport = null;
+    serStopLoop();
+    var why = (ev && ev.reason) || '连接已中断';
+    serPushLog('ERR', why);
+    serUpdateConnInfo();
+    serScheduleRender();
+    toast('串口连接已中断', why, 'err');
+  }
+
+  function serMarkOpened(t, kind, p) {
+    ser.transport = t;
+    ser.kind = kind;
+    ser.open = true;
+    ser.openName = (p && p.id && p.source === 'bridge') ? p.id
+      : (p && p.label ? p.label : '串口');
+    ser.remember = {
+      id: (p && p.source === 'bridge') ? p.id : (p && p.id) || '',
+      vid: p ? p.vid : '', pid: p ? p.pid : '', label: p ? p.label : ''
+    };
+    serUpdateConnInfo();
+    serPrefsSave();
+  }
+
+  /* 发出去的东西要「立刻」在界面上看得见：串口写本质是把字节交给系统缓冲，
+     成功与否要等回调，所以这里先记账 + 同步重绘，失败再回滚那一条。 */
+  function serWrite(bytes, label) {
+    if (!ser.open || !ser.transport) {
+      toast('串口未打开', '先点「打开串口」', 'err');
+      return false;
+    }
+    if (!bytes || !bytes.length) {
+      toast('没有内容可发', '编辑区是空的', 'warn');
+      return false;
+    }
+    var t = ser.transport;
+    ser.txTotal += bytes.length;
+    var entry = serPushLog('TX', serByteLabel(label, bytes));
+    serRenderAll();
+
+    function failed(r) {
+      ser.txTotal -= bytes.length;
+      if (ser.txTotal < 0) ser.txTotal = 0;
+      var i = ser.log.indexOf(entry);
+      if (i >= 0) ser.log.splice(i, 1);
+      serPushLog('ERR', (r && r.error) || '发送失败');
+      serRenderAll();
+      toast('发送失败', (r && r.error) || '', 'err');
+    }
+    t.write(bytes).then(function (r) {
+      if (!r || !r.ok) failed(r);
+    }, function (e) {
+      failed({ error: String(e && e.message || e) });
+    });
+    return true;
+  }
+
+  /* 发送 + 终端模式下的本地回显（终端要看到自己敲了什么） */
+  function serSendSomething(bytes, label, echoText) {
+    if (!serWrite(bytes, label)) return false;
+    if (ser.mode === 'terminal' && ser.termEcho && echoText) {
+      SERIAL.termFeed(ser.term, echoText);
+      serRenderAll();                   /* 按了回车就立刻把回显画出来，不等下一帧 */
+    }
+    return true;
+  }
+
+  /* ------------------------------------------------------------ 枚举 */
+
+  /* 依次试各个桥接地址，找到一个活着的就用 */
+  function serTryBridge() {
+    var bases = serBridgeBases();
+    var i = 0;
+    function next() {
+      if (i >= bases.length) {
+        return Promise.resolve({
+          ok: false, base: '',
+          note: '本地桥接未运行（' + bases[bases.length - 1] + '）——在该目录执行 node ddc-bridge.js 即可'
+        });
+      }
+      var base = bases[i++];
+      var t = serBridgeTransport(base);
+      return t.probe().then(function (p) {
+        if (p && p.ok) {
+          if (p.serial !== 'windows') {
+            return Promise.resolve({
+              ok: false, base: base,
+              note: '桥接在运行（' + base + '），但它的串口后端只支持 Windows'
+            });
+          }
+          return t.list().then(function (r) {
+            r.base = base;
+            return r;
+          });
+        }
+        return next();
+      }, next);
+    }
+    return next();
+  }
+
+  function serRefreshPorts() {
+    var note = $('#ser-ports-note');
+    if (note) note.textContent = '正在枚举串口…';
+    var want = SERIAL.transportOrder(ser.source);
+    var got = { bridge: null, webserial: null };
+    var notes = [];
+    var jobs = [];
+
+    if (want.indexOf('bridge') >= 0) {
+      jobs.push(serTryBridge().then(function (r) {
+        got.bridge = r;
+        if (!r.ok && r.note) notes.push(r.note);
+        return r;
+      }));
+    } else {
+      jobs.push(Promise.resolve(null));
+    }
+
+    var wt = null;
+    if (want.indexOf('webserial') >= 0) {
+      wt = serWebTransport();
+      jobs.push(wt.list().then(function (r) {
+        got.webserial = r;
+        if (!r.ok) notes.push(r.error);
+        else if (r.note) notes.push(r.note);
+        return r;
+      }, function (e) {
+        got.webserial = { ok: false, error: String(e && e.message || e) };
+        return null;
+      }));
+    } else {
+      jobs.push(Promise.resolve(null));
+    }
+
+    return Promise.all(jobs).then(function () {
+      var bp = (got.bridge && got.bridge.ok) ? got.bridge.ports : [];
+      var wp = (got.webserial && got.webserial.ok) ? got.webserial.ports : [];
+      ser.bridgeOk = !!(got.bridge && got.bridge.ok);
+      ser.bridgeBase = (got.bridge && got.bridge.base) || '';
+      ser.ports = SERIAL.mergePortLists(bp, wp);
+      serFillPortSelect();
+      var line = [];
+      if (ser.bridgeOk) line.push('本地桥接已就绪（' + (ser.bridgeBase || '同源') + '，' + bp.length + ' 个 COM 口）');
+      if (got.webserial && got.webserial.ok) {
+        line.push('浏览器直连：' + (wp.length ? wp.length + ' 个已授权设备' : '尚未授权任何设备'));
+      }
+      if (!ser.ports.length) line.push('没有发现可用串口');
+      if (note) note.textContent = line.concat(notes).join(' · ');
+      serUpdateConnInfo();
+    }, function () {
+      if (note) note.textContent = '枚举串口失败';
+    });
+  }
+
+  /* 用户手势里申请一个 Web Serial 设备（浏览器要求直接来自点击） */
+  function serPickDevice() {
+    var t = serWebTransport();
+    if (!t.available()) {
+      toast('浏览器直连不可用', 'Web Serial 需要 Chrome / Edge，且页面必须是 https 或 localhost；' +
+        '当前页面请改用本地桥接', 'err');
+      return;
+    }
+    t.request().then(function (r) {
+      if (!r || !r.ok) {
+        toast('没有选择设备', (r && r.error) || '', 'warn');
+        return;
+      }
+      var p = SERIAL.webPort(r.port);
+      var bridgeOnly = ser.ports.filter(function (x) { return x.source === 'bridge'; });
+      ser.ports = SERIAL.mergePortLists(bridgeOnly, [p]);
+      ser.remember = { id: p.id, vid: p.vid, pid: p.pid, label: p.label };
+      ser.source = 'webserial';
+      if ($('#ser-source')) $('#ser-source').value = 'webserial';
+      serFillPortSelect();
+      serPrefsSave();
+      toast('已授权该串口', '浏览器只提供 VID/PID，看不到 COM 号', 'ok');
+    });
+  }
+
+  /* ------------------------------------------------------------ 开关 */
+
+  function serReadCfg() {
+    return SERIAL.normalizeCfg({
+      baud: parseFloat($('#ser-baud').value),
+      dataBits: parseInt($('#ser-bits').value, 10),
+      parity: $('#ser-parity').value,
+      stopBits: parseFloat($('#ser-stop').value),
+      flow: $('#ser-flow').value,
+      dtr: $('#ser-dtr').checked,
+      rts: $('#ser-rts').checked
+    });
+  }
+
+  function serOpenPort() {
+    if (ser.open) { toast('串口已经打开了', ser.openName, 'warn'); return; }
+    var p = serCurrentPort();
+    if (!p) {
+      toast('没有可用的串口', '先点「刷新串口列表」；若是首次用浏览器直连，点「选择设备…」', 'err');
+      return;
+    }
+    var cfg = serReadCfg();
+    ser.cfg = cfg;
+    serPrefsSave();
+    var order = SERIAL.transportOrder(ser.source);
+    var i = 0;
+
+    function attempt(kind) {
+      if (kind === 'bridge') {
+        if (!ser.bridgeOk) return Promise.resolve({ ok: false, error: '本地桥接没有连上' });
+        if (p.source !== 'bridge') {
+          return Promise.resolve({ ok: false, error: '这个设备只有浏览器授权，桥接拿不到它的 COM 号' });
+        }
+        var bt = serAttach(serBridgeTransport(ser.bridgeBase || serBridgeBases()[0]));
+        return bt.open(SERIAL.toBridgeArgs(Object.assign({}, cfg, { port: p.id }))).then(function (r) {
+          if (r && r.ok) serMarkOpened(bt, 'bridge', p);
+          return r;
+        });
+      }
+      var wt = serAttach(serWebTransport());
+      var usePort = p.webRaw;
+      var warnings = [];
+      function reallyOpen(port, info) {
+        var mapped = SERIAL.toWebSerialOptions(cfg);
+        warnings = mapped.warnings;
+        return wt.open(port, cfg).then(function (r) {
+          if (r && r.ok) serMarkOpened(wt, 'webserial', info || p);
+          return r;
+        });
+      }
+      if (!usePort) {
+        return wt.request().then(function (r) {
+          if (!r || !r.ok) return r || { ok: false, error: '没有选择设备' };
+          return reallyOpen(r.port, r.info);
+        });
+      }
+      return reallyOpen(usePort, p).then(function (r) {
+        if (r && r.ok) r.warnings = warnings;
+        return r;
+      });
+    }
+
+    function tryNext() {
+      if (i >= order.length) return Promise.resolve({ ok: false, error: '所有传输方式都不可用' });
+      var kind = order[i++];
+      return attempt(kind).then(function (r) {
+        if (r && r.ok) return r;
+        var err = String((r && r.error) || '');
+        /* 桥接不可用就自动退到浏览器直连；参数类错误则直接报出来 */
+        var fallback = /桥接|Web Serial|不可用|没有连上|拿不到|不支持 fetch/.test(err);
+        if (i < order.length && fallback) return tryNext();
+        return r || { ok: false, error: '打开失败' };
+      });
+    }
+
+    $('#ser-chip').className = 'chip warn';
+    $('#ser-chip').textContent = '打开中…';
+    tryNext().then(function (r) {
+      if (r && r.ok) {
+        toast('串口已打开', ser.openName + ' · ' + serCfgShort(), 'ok');
+        if (r.warnings && r.warnings.length) toast('参数已调整', r.warnings.join('；'), 'warn');
+        serPushLog('INFO', '打开 ' + ser.openName + ' ' + serCfgShort() + '（' + SERIAL.transportName(ser.kind) + '）');
+        serScheduleRender();
+      } else {
+        toast('打开串口失败', (r && r.error) || '', 'err');
+        serPushLog('ERR', (r && r.error) || '打开失败');
+        serUpdateConnInfo();
+        serScheduleRender();
+      }
+    });
+  }
+
+  function serClosePort() {
+    var t = ser.transport;
+    var name = ser.openName;
+    serStopLoop();
+    ser.transport = null;
+    ser.open = false;
+    serUpdateConnInfo();
+    if (!t) return;
+    var finish = function (r) {
+      if (r && !r.ok) toast('关闭时出错', r.error || '', 'warn');
+      else toast('串口已关闭', name, 'ok');
+      serPushLog('INFO', '关闭 ' + name);
+      serScheduleRender();
+    };
+    try {
+      var p = t.close();
+      if (p && p.then) p.then(finish, function (e) { finish({ ok: false, error: String(e && e.message || e) }); });
+      else finish(p);
+    } catch (e) { finish({ ok: false, error: String(e && e.message || e) }); }
+  }
+
+  /* -------------------------------------------------------- 模式切换 */
+
+  function serSetMode(mode, quiet) {
+    ser.mode = (mode === 'terminal') ? 'terminal' : 'normal';
+    var panel = $('#panel-serial');
+    if (panel) panel.setAttribute('data-mode', ser.mode);
+    $$('#ser-mode-seg button').forEach(function (b) {
+      b.setAttribute('aria-selected', String(b.getAttribute('data-mode') === ser.mode));
+    });
+    var sniff = $('#ser-sniff');
+    if (sniff) { sniff.className = 'hint'; sniff.textContent = ''; }
+    ser.seen = '';
+    serPrefsSave();
+    if (ser.mode === 'terminal') {
+      serRenderTerm();
+      if (!quiet) toast('已切到终端模式', '回车即发，控制字符按终端语义处理', 'ok');
+    } else {
+      serRenderRx();
+      if (!quiet) toast('已切到普通模式', '结构化收发，控制字符显示为转义', 'ok');
+    }
+    serUpdateStats();
+  }
+
+  function serSniffBytes(bytes) {
+    if (ser.mode !== 'normal') return;
+    var s = SERIAL.sniffMode(bytes);
+    if (s.mode !== 'terminal' || !s.reasons.length) return;
+    var key = s.reasons.join(',');
+    if (ser.seen === key) return;
+    ser.seen = key;
+    var el = $('#ser-sniff');
+    if (!el) return;
+    el.className = 'notice';
+    el.innerHTML = '这段数据看起来是<b>终端输出</b>（' + esc(s.reasons.join('、')) +
+      '）。普通模式会把它按原样逐行记下来；终端模式才会按 CR / 退格语义还原出设备真正想显示的样子。' +
+      '<button class="sm" data-ser-mode="terminal" style="margin-left:auto">切到终端模式</button>';
+  }
+
+  /* ------------------------------------------------------------ 发送 */
+
+  function serSendFromEditor() {
+    var mode = $('#ser-send-mode').value;
+    var raw = $('#ser-send-text').value;
+    if (!raw.length) { toast('没有内容可发', '编辑区是空的', 'warn'); return false; }
+    if (mode === 'hex') {
+      var hb = SERIAL.bytes(raw);
+      if (!hb.length) { toast('HEX 解析为空', '只接受 0-9 A-F 与分隔符', 'err'); return false; }
+      return serSendSomething(hb, null, null);
+    }
+    var eol = $('#ser-send-eol').value;
+    var tb = SERIAL.concat(SERIAL.textToBytes(raw, ser.sendEnc), SERIAL.eolBytes(eol));
+    var label = raw + (eol === 'none' ? '' : ' [' + SERIAL.eolLabel(eol) + ']');
+    var echo = ser.mode === 'terminal' ? (raw + (eol === 'crlf' ? '\r\n' : eol === 'lf' ? '\n' : eol === 'cr' ? '\r' : '')) : null;
+    return serSendSomething(tb, label, echo);
+  }
+
+  function serTermSend() {
+    var input = $('#ser-term-in');
+    if (!input) return;
+    var text = input.value;
+    var eol = $('#ser-term-eol').value;
+    var bytes = SERIAL.concat(SERIAL.textToBytes(text, ser.sendEnc), SERIAL.eolBytes(eol));
+    var nl = eol === 'crlf' ? '\r\n' : eol === 'lf' ? '\n' : eol === 'cr' ? '\r' : '\n';
+    if (!serSendSomething(bytes, text, text + nl)) return;
+    if (text) serPushHistory(text);
+    input.value = '';
+  }
+
+  function serPushHistory(text) {
+    if (!text) return;
+    if (ser.hist[ser.hist.length - 1] !== text) ser.hist.push(text);
+    if (ser.hist.length > 50) ser.hist.shift();
+    ser.histIdx = ser.hist.length;
+  }
+
+  function serHistMove(delta) {
+    if (!ser.hist.length) return;
+    ser.histIdx = clamp(ser.histIdx + delta, 0, ser.hist.length);
+    var input = $('#ser-term-in');
+    if (input) input.value = ser.histIdx >= ser.hist.length ? '' : ser.hist[ser.histIdx];
+  }
+
+  function serStopLoop() {
+    if (ser.loopTimer) { clearInterval(ser.loopTimer); ser.loopTimer = null; }
+  }
+
+  function serLoopSync() {
+    serStopLoop();
+    if (!ser.loop) return;
+    var ms = clamp(parseInt($('#ser-loop-ms').value, 10) || 1000, 20, 600000);
+    ser.loopMs = ms;
+    ser.loopTimer = setInterval(function () { serSendFromEditor(); }, ms);
+  }
+
+  /* ------------------------------------------------------- 预设 / 清空 */
+
+  function serRenderPresets() {
+    var box = $('#ser-presets');
+    if (!box) return;
+    var groups = (window.SERIALData && window.SERIALData.PRESETS) || [];
+    box.innerHTML = groups.map(function (g, gi) {
+      return '<div class="ser-preset-group"><div class="cap">' + esc(g.g) + '</div>' +
+        '<div class="ser-presets">' + g.items.map(function (it, ii) {
+          return '<button type="button" class="sm" data-ser-preset="' + gi + ':' + ii + '" title="' +
+            esc(it.title || it.text || it.hex || '') + '">' + esc(it.name) + '</button>';
+        }).join('') + '</div></div>';
+    }).join('');
+  }
+
+  function serPresetClick(key) {
+    var parts = String(key).split(':');
+    var groups = (window.SERIALData && window.SERIALData.PRESETS) || [];
+    var g = groups[parseInt(parts[0], 10)];
+    var it = g && g.items[parseInt(parts[1], 10)];
+    if (!it) return;
+    if (!ser.presetDirect) {
+      if (it.hex && !it.text) {
+        $('#ser-send-mode').value = 'hex';
+        $('#ser-send-text').value = it.hex;
+      } else {
+        $('#ser-send-mode').value = 'text';
+        $('#ser-send-text').value = it.text || '';
+      }
+      ser.sendMode = $('#ser-send-mode').value;
+      if ($('#ser-send-text').focus) $('#ser-send-text').focus();
+      return;
+    }
+    var bytes = SERIAL.presetBytes(it, { encoding: ser.sendEnc, eol: ser.sendEol });
+    var echo = (it.text && ser.mode === 'terminal') ? (it.text + (it.eol === 'lf' ? '\n' : it.eol === 'cr' ? '\r' : '\r\n')) : null;
+    serSendSomething(bytes, it.name + (it.text ? '' : ' [' + SERIAL.hex(bytes) + ']'), echo);
+  }
+
+  function serClearRx() {
+    ser.rxChunks = [];
+    ser.rxLen = 0;
+    ser.term = SERIAL.termNew();
+    ser.seen = '';
+    var sniff = $('#ser-sniff');
+    if (sniff) { sniff.className = 'hint'; sniff.textContent = ''; }
+    serScheduleRender();
+  }
+
+  /* -------------------------------------------------------- 偏好持久化 */
+
+  function serPrefsSave() {
+    try {
+      localStorage.setItem(SER_LS, JSON.stringify({
+        mode: ser.mode, source: ser.source, cfg: ser.cfg, remember: ser.remember,
+        view: ser.view, sendMode: ser.sendMode, sendEnc: ser.sendEnc, sendEol: ser.sendEol,
+        recvEnc: ser.recvEnc, stamp: ser.stamp, autoscroll: ser.autoscroll,
+        presetDirect: ser.presetDirect, termEcho: ser.termEcho, termEol: ser.termEol,
+        loopMs: ser.loopMs, base: $('#ser-base') ? $('#ser-base').value : ''
+      }));
+    } catch (e) { /* 存储满或被禁用：偏好只是锦上添花 */ }
+  }
+
+  function serPrefsLoad() {
+    try {
+      var raw = localStorage.getItem(SER_LS);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+
+  /* ------------------------------------------------------------- 初始化 */
+
+  function serFillOptions(id, list, valOf, labOf) {
+    var sel = $('#' + id);
+    if (!sel) return;
+    sel.innerHTML = list.map(function (x) {
+      return '<option value="' + esc(String(valOf(x))) + '">' + esc(labOf(x)) + '</option>';
+    }).join('');
+  }
+
+  function serSetSelect(id, value) {
+    var sel = $('#' + id);
+    if (!sel) return;
+    var want = String(value);
+    var hit = false;
+    for (var i = 0; i < sel.options.length; i++) if (sel.options[i].value === want) hit = true;
+    if (!hit) {
+      var o = document.createElement('option');
+      o.value = want;
+      o.textContent = want + '（自定义）';
+      sel.appendChild(o);
+    }
+    sel.value = want;
+  }
+
+  function serEnter() {
+    if (ser.open) { serScheduleRender(); return; }
+    serRefreshPorts();
+  }
+
+  function initSerial() {
+    var D = window.SERIALData || {};
+    if (!$('#panel-serial')) return;
+    ser.term = SERIAL.termNew();
+
+    /* 下拉选项 */
+    serFillOptions('ser-baud', D.BAUDS || [], function (b) { return b; }, function (b) {
+      return b + (b === 115200 ? '（最常用）' : '');
+    });
+    serFillOptions('ser-bits', D.DATA_BITS || [], function (b) { return b; }, function (b) { return b + ' 位'; });
+    serFillOptions('ser-parity', D.PARITY || [], function (p) { return p.v; }, function (p) { return p.zh; });
+    serFillOptions('ser-stop', D.STOP_BITS || [], function (s) { return s.v; }, function (s) { return s.zh; });
+    serFillOptions('ser-flow', D.FLOW || [], function (f) { return f.v; }, function (f) { return f.zh; });
+    serFillOptions('ser-send-enc', D.SEND_ENCODING || [], function (e) { return e.v; }, function (e) { return e.zh; });
+    serFillOptions('ser-recv-enc', D.RECV_ENCODING || [], function (e) { return e.v; }, function (e) { return e.zh; });
+    serFillOptions('ser-view', D.RX_VIEWS || [], function (v) { return v.v; }, function (v) { return v.zh; });
+    serFillOptions('ser-send-eol', D.EOL || [], function (e) { return e.v; }, function (e) { return e.zh; });
+    serFillOptions('ser-term-eol', D.EOL || [], function (e) { return e.v; }, function (e) { return e.zh; });
+
+    /* 恢复偏好 */
+    var prefs = serPrefsLoad();
+    if (prefs) {
+      if (prefs.mode) ser.mode = prefs.mode;
+      if (prefs.source) ser.source = prefs.source;
+      if (prefs.cfg) ser.cfg = SERIAL.normalizeCfg(prefs.cfg);
+      if (prefs.remember) ser.remember = prefs.remember;
+      if (prefs.view) ser.view = prefs.view;
+      if (prefs.sendMode) ser.sendMode = prefs.sendMode;
+      if (prefs.sendEnc) ser.sendEnc = prefs.sendEnc;
+      if (prefs.sendEol) ser.sendEol = prefs.sendEol;
+      if (prefs.recvEnc) ser.recvEnc = prefs.recvEnc;
+      if (typeof prefs.stamp === 'boolean') ser.stamp = prefs.stamp;
+      if (typeof prefs.autoscroll === 'boolean') ser.autoscroll = prefs.autoscroll;
+      if (typeof prefs.presetDirect === 'boolean') ser.presetDirect = prefs.presetDirect;
+      if (typeof prefs.termEcho === 'boolean') ser.termEcho = prefs.termEcho;
+      if (prefs.termEol) ser.termEol = prefs.termEol;
+      if (prefs.loopMs) ser.loopMs = prefs.loopMs;
+      if (prefs.base && $('#ser-base')) $('#ser-base').value = prefs.base;
+      if (prefs.mode === 'terminal') ser.mode = 'terminal';
+    }
+    $('#ser-source').value = ser.source;
+    serSetSelect('ser-baud', ser.cfg.baud);
+    serSetSelect('ser-bits', ser.cfg.dataBits);
+    serSetSelect('ser-parity', ser.cfg.parity);
+    serSetSelect('ser-stop', ser.cfg.stopBits);
+    serSetSelect('ser-flow', ser.cfg.flow);
+    serSetSelect('ser-send-enc', ser.sendEnc);
+    serSetSelect('ser-send-eol', ser.sendEol);
+    serSetSelect('ser-recv-enc', ser.recvEnc);
+    serSetSelect('ser-view', ser.view);
+    serSetSelect('ser-term-eol', ser.termEol);
+    $('#ser-send-mode').value = ser.sendMode;
+    $('#ser-dtr').checked = ser.cfg.dtr !== false;
+    $('#ser-rts').checked = ser.cfg.rts !== false;
+    $('#ser-rec-stamp').checked = ser.stamp;
+    $('#ser-autoscroll').checked = ser.autoscroll;
+    $('#ser-preset-direct').checked = ser.presetDirect;
+    $('#ser-term-echo').checked = ser.termEcho;
+    $('#ser-loop-ms').value = String(ser.loopMs);
+
+    serRenderPresets();
+    serSetMode(ser.mode, true);
+    serFillPortSelect();
+    serRenderAll();
+
+    /* 模式开关：普通模式 / 终端模式 */
+    $$('#ser-mode-seg button').forEach(function (b) {
+      b.addEventListener('click', function () { serSetMode(b.getAttribute('data-mode')); });
+    });
+
+    /* 事件 */
+    $('#ser-refresh').addEventListener('click', function () { serRefreshPorts(); });
+    $('#ser-pick').addEventListener('click', serPickDevice);
+    $('#ser-base').addEventListener('change', function () { serPrefsSave(); serRefreshPorts(); });
+    $('#ser-source').addEventListener('change', function () {
+      ser.source = this.value;
+      serPrefsSave();
+      serRefreshPorts();
+    });
+    $('#ser-port').addEventListener('change', function () {
+      ser.selected = parseInt(this.value, 10);
+      if (isNaN(ser.selected)) ser.selected = -1;
+      serPortInfo();
+      serPrefsSave();
+    });
+    ['ser-baud', 'ser-bits', 'ser-parity', 'ser-stop', 'ser-flow'].forEach(function (id) {
+      $('#' + id).addEventListener('change', function () {
+        ser.cfg = serReadCfg();
+        serPrefsSave();
+        serUpdateConnInfo();
+      });
+    });
+    $('#ser-dtr').addEventListener('change', function () { ser.cfg = serReadCfg(); serPrefsSave(); });
+    $('#ser-rts').addEventListener('change', function () { ser.cfg = serReadCfg(); serPrefsSave(); });
+    $('#ser-open').addEventListener('click', serOpenPort);
+    $('#ser-close').addEventListener('click', serClosePort);
+    $('#ser-copycmd').addEventListener('click', function () { copyText('node ddc-bridge.js'); });
+
+    $('#ser-term-send').addEventListener('click', serTermSend);
+    $('#ser-term-in').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); serTermSend(); return; }
+      if (e.key === 'ArrowUp') { e.preventDefault(); serHistMove(-1); return; }
+      if (e.key === 'ArrowDown') { e.preventDefault(); serHistMove(1); return; }
+    });
+    $('#ser-term-clear').addEventListener('click', function () {
+      ser.term = SERIAL.termNew();
+      serRenderTerm();
+    });
+    $('#ser-term-save').addEventListener('click', function () {
+      download('serial-terminal.txt', SERIAL.termText(ser.term));
+    });
+    $('#ser-term-echo').addEventListener('change', function () { ser.termEcho = this.checked; serPrefsSave(); });
+    $('#ser-term-eol').addEventListener('change', function () { ser.termEol = this.value; serPrefsSave(); });
+
+    $('#ser-send').addEventListener('click', serSendFromEditor);
+    $('#ser-send-clear').addEventListener('click', function () { $('#ser-send-text').value = ''; });
+    $('#ser-send-mode').addEventListener('change', function () {
+      ser.sendMode = this.value;
+      serPrefsSave();
+      serSendNote();
+    });
+    $('#ser-send-enc').addEventListener('change', function () { ser.sendEnc = this.value; serPrefsSave(); serSendNote(); });
+    $('#ser-send-eol').addEventListener('change', function () { ser.sendEol = this.value; serPrefsSave(); serSendNote(); });
+    $('#ser-loop').addEventListener('change', function () { ser.loop = this.checked; serPrefsSave(); serLoopSync(); });
+    $('#ser-loop-ms').addEventListener('change', function () { serPrefsSave(); serLoopSync(); });
+
+    $('#ser-view').addEventListener('change', function () { ser.view = this.value; serPrefsSave(); serRenderRx(); });
+    $('#ser-recv-enc').addEventListener('change', function () {
+      ser.recvEnc = this.value;
+      serPrefsSave();
+      /* 换解码要重放整个缓冲，否则终端里已经落地的字符换不回来 */
+      ser.term = SERIAL.termNew();
+      ser.rxChunks.forEach(function (c) { SERIAL.termFeed(ser.term, SERIAL.decodeBytes(c.data, ser.recvEnc)); });
+      serRenderAll();
+    });
+    $('#ser-rec-stamp').addEventListener('change', function () { ser.stamp = this.checked; serPrefsSave(); serRenderRx(); });
+    $('#ser-autoscroll').addEventListener('change', function () { ser.autoscroll = this.checked; serPrefsSave(); });
+    $('#ser-rx-clear').addEventListener('click', function () { serClearRx(); toast('已清空接收区', '', 'ok'); });
+    $('#ser-rx-save').addEventListener('click', function () {
+      download('serial-rx.txt', serRxViewText());
+    });
+    $('#ser-rx-raw').addEventListener('click', function () {
+      if (!ser.rxLen) { toast('没有数据', '接收区是空的', 'warn'); return; }
+      download('serial-rx.bin', serRxConcat(), 'application/octet-stream');
+    });
+    $('#ser-preset-direct').addEventListener('change', function () { ser.presetDirect = this.checked; serPrefsSave(); });
+
+    $('#ser-log-copy').addEventListener('click', function () { copyText(serLogText()); });
+    $('#ser-log-save').addEventListener('click', function () { download('serial-log.txt', serLogText()); });
+    $('#ser-log-clear').addEventListener('click', function () {
+      ser.log = [];
+      serRenderLog();
+      serUpdateStats();
+    });
+
+    /* 预设按钮与「切到终端模式」按钮走事件委托（内容是渲染出来的） */
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest) return;
+      var preset = e.target.closest('[data-ser-preset]');
+      if (preset) { serPresetClick(preset.getAttribute('data-ser-preset')); return; }
+      var modeBtn = e.target.closest('[data-ser-mode]');
+      if (modeBtn) { serSetMode(modeBtn.getAttribute('data-ser-mode')); return; }
+    });
+
+    serSendNote();
+    ser.ready = true;
+    if (state.tab === 'serial') serEnter();
+  }
+
+  function serSendNote() {
+    var el = $('#ser-send-note');
+    if (!el) return;
+    if ($('#ser-send-mode').value === 'hex') {
+      el.textContent = 'HEX 模式直接发送字节，不会追加行结尾；分隔符可以是空格、逗号或 0x 前缀。';
+    } else {
+      var sel = $('#ser-send-enc');
+      var lbl = (sel.selectedOptions && sel.selectedOptions[0]) ? sel.selectedOptions[0].textContent : sel.value;
+      el.textContent = '文本模式按「' + lbl + '」编码，并在末尾追加 ' + SERIAL.eolLabel($('#ser-send-eol').value) + '。';
+    }
+  }
+
+  function serLogText() {
+    return ser.log.map(function (e) {
+      return SERIAL.stamp(e.t) + '  [' + e.kind + '] ' + e.text;
+    }).join('\n');
+  }
+
   function init() {
     var draft = load();
     var linkTab = tabFromUrl();
@@ -2820,6 +3787,7 @@
     initVTC();
     initGamma();
     initMCCS();
+    initSerial();
 
     $$('nav.tabs button[data-tab]').forEach(function (b) {
       b.addEventListener('click', function () { switchTab(b.getAttribute('data-tab')); });
@@ -2879,6 +3847,7 @@
         if (state.tab === 'decoder') decRun();
         else if (state.tab === 'validator') valRun();
         else if (state.tab === 'timing') tmRender();
+        else if (state.tab === 'serial') { if (ser.mode === 'terminal') serTermSend(); else serSendFromEditor(); }
       }
     });
 

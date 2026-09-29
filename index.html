@@ -68,6 +68,14 @@
   <symbol id="i-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
     <path d="m6 9.5 6 5.5 6-5.5"/>
   </symbol>
+  <symbol id="i-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="4.5" width="18" height="15" rx="2.5"/>
+    <path d="m7 9.5 3 2.8-3 2.8"/>
+    <path d="M12.5 15.5h4.5"/>
+  </symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 3.5v5M15 3.5v5"/><path d="M6.5 8.5h11v3.5a5.5 5.5 0 0 1-11 0z"/><path d="M12 17.5v3"/>
+  </symbol>
 </svg>
 
 <header class="site">
@@ -96,6 +104,12 @@
         <button type="button" class="gbtn" aria-expanded="false">DDC/CI<svg class="ic caret" aria-hidden="true"><use href="#i-caret"/></svg></button>
         <div class="tabmenu" role="tablist" aria-label="DDC/CI">
           <button type="button" role="tab" aria-selected="false" data-tab="mccs"><svg class="ic"><use href="#i-monitor"/></svg><span class="lbl">DDC/CI 控制</span><span class="hint">VCP / MCCS</span></button>
+        </div>
+      </div>
+      <div class="tabgroup menu-right" data-group="serial">
+        <button type="button" class="gbtn" aria-expanded="false">串口<svg class="ic caret" aria-hidden="true"><use href="#i-caret"/></svg></button>
+        <div class="tabmenu" role="tablist" aria-label="串口">
+          <button type="button" role="tab" aria-selected="false" data-tab="serial"><svg class="ic"><use href="#i-terminal"/></svg><span class="lbl">串口调试</span><span class="hint">COM / UART</span></button>
         </div>
       </div>
       <div class="tabgroup" data-group="timing">
@@ -583,6 +597,200 @@
     </div>
   </section>
 
+  <!-- ============================================== 串口 Serial ======== -->
+  <section class="panel" id="panel-serial" data-mode="normal">
+    <p class="muted" style="margin-top:0">
+      用 <b>串口（COM / UART）</b> 连接设备、收发数据、看日志。页面有两种风格，切换后界面与
+      数据处理方式都会变：<b>普通模式</b>是「发送区 + 接收区」的结构化工具，适合发命令、
+      看粘贴回来的数据；<b>终端模式</b>是行式终端，回车即发、逐行显示，并会按真实终端语义
+      处理 <code>\r</code> 回车刷新、退格等控制字符（设备刷进度条就靠这个，普通模式会把它记成
+      一行行独立记录）。浏览器本身访问不到串口，真实收发需要下面两种方式之一。
+    </p>
+
+    <div class="card" style="margin-bottom:18px">
+      <header>
+        <h3>连接</h3>
+        <span class="chip" id="ser-chip">未连接</span>
+        <span class="spacer"></span>
+        <div class="seg" id="ser-mode-seg" role="tablist" aria-label="界面模式">
+          <button type="button" role="tab" data-mode="normal" aria-selected="true"><svg class="ic"><use href="#i-plug"/></svg>普通模式</button>
+          <button type="button" role="tab" data-mode="terminal" aria-selected="false"><svg class="ic"><use href="#i-terminal"/></svg>终端模式</button>
+        </div>
+      </header>
+      <div class="body">
+        <div class="field-row">
+          <div class="field"><label for="ser-source">传输方式</label>
+            <select id="ser-source">
+              <option value="auto">自动（优先本地桥接）</option>
+              <option value="bridge">本地桥接（可列出全部 COM 口）</option>
+              <option value="webserial">浏览器直连 Web Serial（仅 https / localhost）</option>
+            </select></div>
+          <div class="field" style="grid-column:span 2"><label for="ser-port">串口设备</label>
+            <select id="ser-port"><option value="">（进入本页会自动枚举）</option></select></div>
+        </div>
+        <div class="btn-row" style="margin:-6px 0 10px">
+          <button class="sm" id="ser-refresh"><svg class="ic"><use href="#i-refresh"/></svg>刷新串口列表</button>
+          <button class="sm" id="ser-pick">选择设备…</button>
+          <span class="small dim" id="ser-ports-note"></span>
+        </div>
+        <p class="hint" id="ser-portinfo" style="margin:-4px 0 12px"></p>
+
+        <div class="field-row">
+          <div class="field"><label for="ser-baud">波特率</label>
+            <select id="ser-baud"></select></div>
+          <div class="field"><label for="ser-bits">数据位</label>
+            <select id="ser-bits"></select></div>
+          <div class="field"><label for="ser-parity">校验</label>
+            <select id="ser-parity"></select></div>
+          <div class="field"><label for="ser-stop">停止位</label>
+            <select id="ser-stop"></select></div>
+          <div class="field"><label for="ser-flow">流控</label>
+            <select id="ser-flow"></select></div>
+        </div>
+        <div class="btn-row" style="margin-bottom:10px">
+          <button class="primary" id="ser-open"><svg class="ic"><use href="#i-plug"/></svg>打开串口</button>
+          <button id="ser-close" disabled>关闭串口</button>
+          <label class="check" title="多数 USB 转串口需要 DTR，但部分开发板会因 DTR 触发复位"><input type="checkbox" id="ser-dtr" checked>DTR</label>
+          <label class="check" title="硬件流控开启时 RTS 由驱动接管"><input type="checkbox" id="ser-rts" checked>RTS</label>
+        </div>
+        <p class="small" id="ser-conninfo" style="margin:0"></p>
+
+        <details class="small" style="margin-top:12px">
+          <summary>两种传输方式怎么选？（桥接怎么启动）</summary>
+          <div style="padding-top:8px">
+            <ul style="margin:0 0 10px 18px; padding:0">
+              <li><b>本地桥接</b>：能列出本机<b>全部 COM 口</b>（带友好名与 VID/PID），
+                <code>file://</code> 打开也能用，支持 1.5 位停止位与 XON/XOFF；需要在本机跑一个
+                Node 进程（就是 DDC/CI 那个桥接，已含串口后端）。</li>
+              <li><b>浏览器直连（Web Serial）</b>：零安装，但仅 <b>https / localhost</b> 页面可用，
+                只能列出「已授权过」的串口、<b>拿不到 COM 号</b>，且不支持 mark/space 校验、
+                1.5 位停止位与 XON/XOFF。</li>
+            </ul>
+            <ol style="margin:0 0 8px 18px; padding:0">
+              <li>下载 <a href="tools/ddc-bridge.js" download>ddc-bridge.js</a> 与
+                  <a href="tools/serial-windows.ps1" download>serial-windows.ps1</a>，放在同一个文件夹</li>
+              <li>在该文件夹执行下面的命令（需要 Node.js），Windows 自带 .NET 串口驱动，无需装包</li>
+              <li>浏览器打开 <code>http://127.0.0.1:8760/?tab=serial</code>，回到本页会自动连上</li>
+            </ol>
+            <div class="field" style="max-width:340px"><label for="ser-base">桥接地址</label>
+              <input type="text" id="ser-base" value="http://127.0.0.1:8760" spellcheck="false"></div>
+            <div class="btn-row">
+              <pre class="mono" style="margin:0;padding:8px 10px;background:var(--code-bg);border:1px solid var(--border);border-radius:var(--radius-sm)">node ddc-bridge.js</pre>
+              <button class="sm ghost" id="ser-copycmd">复制命令</button>
+            </div>
+            <p class="hint">串口是独占资源：同一个 COM 口同时只能被一个程序打开。若提示被占用，
+              先关掉串口助手 / 烧录工具 / IDE 的串口监视器。</p>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <!-- ---------------------------- 终端模式 ---------------------------- -->
+    <div class="card ser-block" id="ser-term-card" style="margin-bottom:18px">
+      <header>
+        <h3>终端</h3>
+        <span class="chip accent">终端模式</span>
+        <span class="spacer"></span>
+        <span class="small dim mono" id="ser-term-meta">—</span>
+      </header>
+      <div class="body tight">
+        <pre class="ser-term" id="ser-term-out" aria-live="polite"></pre>
+        <div class="ser-term-bar">
+          <span class="mono dim" id="ser-prompt">&gt;</span>
+          <input type="text" id="ser-term-in" spellcheck="false" autocomplete="off" placeholder="输入命令后回车发送">
+          <button class="sm primary" id="ser-term-send">发送</button>
+        </div>
+      </div>
+      <div class="foot">
+        <label class="check"><input type="checkbox" id="ser-term-echo" checked>本地回显</label>
+        <label for="ser-term-eol" class="small" style="margin:0">行结尾</label>
+        <select id="ser-term-eol" style="width:auto;min-width:170px"></select>
+        <span class="spacer"></span>
+        <button class="sm ghost" id="ser-term-clear">清屏</button>
+        <button class="sm ghost" id="ser-term-save">保存终端文本</button>
+      </div>
+    </div>
+
+    <!-- ---------------------------- 普通模式 ---------------------------- -->
+    <div id="ser-normal">
+      <div class="card" style="margin-bottom:18px">
+        <header><h3>发送</h3>
+          <span class="chip">普通模式</span>
+          <span class="spacer"></span>
+          <span class="small dim mono" id="ser-tx-stat">TX 0 B</span>
+        </header>
+        <div class="body">
+          <div class="field-row">
+            <div class="field"><label for="ser-send-mode">发送内容</label>
+              <select id="ser-send-mode">
+                <option value="text">文本（按编码发送）</option>
+                <option value="hex">HEX（空格可省略，如 41 54 0D 0A）</option>
+              </select></div>
+            <div class="field"><label for="ser-send-enc">发送编码</label>
+              <select id="ser-send-enc"></select></div>
+            <div class="field"><label for="ser-send-eol">行结尾</label>
+              <select id="ser-send-eol"></select></div>
+          </div>
+          <div class="field"><label for="ser-send-text">内容（Ctrl + Enter 直接发送）</label>
+            <textarea id="ser-send-text" rows="3" spellcheck="false" placeholder="例如：AT&#10;或：41 54 0D 0A"></textarea></div>
+          <div class="btn-row">
+            <button class="primary" id="ser-send">发送</button>
+            <button class="sm ghost" id="ser-send-clear">清空</button>
+            <label class="check"><input type="checkbox" id="ser-loop">循环发送</label>
+            <label for="ser-loop-ms" class="small" style="margin:0">间隔 ms</label>
+            <input type="number" id="ser-loop-ms" value="1000" min="20" max="600000" style="width:110px">
+          </div>
+          <p class="hint" id="ser-send-note" style="margin:8px 0 0"></p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:18px">
+        <header><h3>接收</h3>
+          <span class="spacer"></span>
+          <span class="small dim mono" id="ser-rx-stat">RX 0 B</span>
+        </header>
+        <div class="body">
+          <div class="btn-row" style="margin-bottom:10px">
+            <label for="ser-view" class="small" style="margin:0">视图</label>
+            <select id="ser-view" style="width:auto;min-width:180px"></select>
+            <label class="check"><input type="checkbox" id="ser-rec-stamp" checked>时间戳</label>
+            <label class="check"><input type="checkbox" id="ser-autoscroll" checked>自动滚动</label>
+            <label for="ser-recv-enc" class="small" style="margin:0">解码</label>
+            <select id="ser-recv-enc" style="width:auto;min-width:190px"></select>
+            <span class="spacer"></span>
+            <button class="sm ghost" id="ser-rx-clear">清空</button>
+            <button class="sm ghost" id="ser-rx-save">保存接收内容</button>
+            <button class="sm ghost" id="ser-rx-raw">导出原始 .bin</button>
+          </div>
+          <pre class="ser-rx" id="ser-rx"></pre>
+          <p class="hint" id="ser-sniff" style="margin:8px 0 0"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:18px">
+      <header><h3>常用指令（点击即发）</h3><span class="spacer"></span>
+        <label class="check"><input type="checkbox" id="ser-preset-direct" checked>直接发送（不勾选则填入编辑区）</label>
+      </header>
+      <div class="body" id="ser-presets"></div>
+    </div>
+
+    <div class="card">
+      <header><h3>收发记录</h3><span class="spacer"></span>
+        <span class="chip" id="ser-log-chip">0 条</span></header>
+      <div class="body">
+        <div class="btn-row" style="margin-bottom:10px">
+          <button class="sm ghost" id="ser-log-copy">复制全部</button>
+          <button class="sm ghost" id="ser-log-save">导出 .txt</button>
+          <button class="sm ghost" id="ser-log-clear">清空</button>
+          <span class="spacer"></span>
+          <span class="small dim" id="ser-log-stat">RX 0 B / TX 0 B</span>
+        </div>
+        <div id="ser-log"></div>
+      </div>
+    </div>
+  </section>
+
   <!-- ================================================ 学习 Learn ========= -->
   <section class="panel" id="panel-learn">
     <div class="card" style="margin-bottom:18px"><div class="body">
@@ -710,20 +918,20 @@
     <div class="grid cols-2">
       <div class="card"><div class="body">
         <h3>关于本工具</h3>
-        <p>这是一个 <b>纯静态、纯前端</b> 的 EDID 工具箱，功能覆盖 edidcraft.com 的解析、生成、校验与时序计算四大部分，另加入时序对比、伽马曲线验证与 DDC/CI 显示器控制扩展工具，所有运算都由浏览器端 JavaScript 实现：</p>
+        <p>这是一个 <b>纯静态、纯前端</b> 的 EDID 工具箱，功能覆盖 edidcraft.com 的解析、生成、校验与时序计算四大部分，另加入时序对比、伽马曲线验证、DDC/CI 显示器控制与串口调试扩展工具，所有运算都由浏览器端 JavaScript 实现：</p>
         <ul class="small muted">
           <li>没有后端、不请求任何远程接口，页面逻辑全部在本地运行；</li>
           <li>不加载任何 CDN 资源（图标为内联 SVG、字体为系统字体）；</li>
           <li>只有 <code>index.html</code> + <code>css/</code> + <code>js/</code>，外带可选的 <code>tools/</code> 本地桥接，没有任何构建步骤；</li>
           <li>因此可以直接放到 GitHub Pages / Cloudflare Pages / 任意静态托管。</li>
-          <li>唯一会发起请求的地方是「DDC/CI 控制」页连接本机 <code>127.0.0.1:8760</code> 的桥接程序（浏览器无法直接访问显示器的 I²C 总线）；不装桥接时该页只做离线报文分析与码表查询。</li>
+          <li>唯一会发起请求的地方是「DDC/CI 控制」与「串口调试」两页连接本机 <code>127.0.0.1:8760</code> 的桥接程序（浏览器既不能访问显示器的 I²C 总线，也不能枚举 COM 口）；不装桥接时 DDC/CI 页仍可做离线报文分析与码表查询，串口页也可以改用浏览器自带的 Web Serial。</li>
         </ul>
         <p class="small muted">你的 EDID 数据只存在于当前页面，刷新即消失（仅在浏览器本地保存主题与表单草稿）。</p>
       </div></div>
 
       <div class="card"><div class="body">
         <h3>功能清单</h3>
-        <p class="small muted" style="margin-top:0">顶部导航按 <b>EDID</b> / <b>Gamma</b> / <b>DDC/CI</b> / <b>Timing</b> / <b>关于</b> 五组组织，点分组标题展开下拉菜单；每个页面也能用深链直达，例如 <code>?tab=mccs</code>。</p>
+        <p class="small muted" style="margin-top:0">顶部导航按 <b>EDID</b> / <b>Gamma</b> / <b>DDC/CI</b> / <b>串口调试</b> / <b>Timing</b> / <b>关于</b> 六组组织，点分组标题展开下拉菜单；每个页面也能用深链直达，例如 <code>?tab=mccs</code>。</p>
         <div class="kv">
           <dt>EDID · 解析</dt><dd>基础块全字段、既定 / 标准时序、四类描述符、CEA-861 数据块、DisplayID 分节、VTB、块映射</dd>
           <dt>EDID · 生成</dt><dd>厂商 / 产品 / 序列号、日期与版本、数字 / 模拟输入、色度、既定与标准时序、描述符与扩展块，自动校验和</dd>
@@ -731,6 +939,7 @@
           <dt>EDID · 学习 EDID</dt><dd>8 节速成课：基础块字节地图、四种描述符、18 字节 DTD 逐字节解释、CEA-861 与 DisplayID、CVT/GTF 原理、常见坑</dd>
           <dt>Gamma · 伽马验证</dt><dd>读取 CA410 测量数据与灰阶占比表（.xlsx 本地解析），生成实测 / 参考伽马曲线与白点一致性图表，计算平均 Gamma；内置 6 组实测数据集（默认 BT1886，切换曲线自动重绘）</dd>
           <dt>DDC/CI · 控制</dt><dd>像 MCCS 工具一样读写显示器 VCP 特性（亮度 / 对比度 / 输入源 / 电源模式…）、扫描支持码、读取并解析 capabilities 字符串；离线可用报文构建器（逐字节解释 + 校验和核对 + 等价 ddcutil / i2ctransfer / curl 命令）与 182 条 VCP 码参考表</dd>
+          <dt>串口调试</dt><dd>普通模式（发送 / 接收分区，接收视图可选文本 / HEX / HEXDUMP，带时间戳与收发记录）与终端模式（提示符 + 命令行 + 闪烁光标，按 CR / LF / BS / TAB 的真实终端语义解释）双界面；切到本页自动枚举已连接的 COM 口（友好名 + VID/PID，并自动选回上次用过的口），支持 300–2000000 波特率、五种校验、1 / 1.5 / 2 位停止位、三种流控、定时发送与常用指令预设，普通模式还会嗅探内容并提示切换到终端模式</dd>
           <dt>Timing · 时序计算</dt><dd>CVT 标准 / RB / RBv2 / RBv3 与 GTF（含隔行与缩边），输出参数表、Modeline、xrandr 命令与可写入 DTD 的字节</dd>
           <dt>Timing · 时序对比</dt><dd>一次计算 CVT / CVT-RB / CVT-RBv2 / CEA-861 / DMT / 自定义六种时序，核算 DP / HDMI / DVI / SDI / RFC4175 接口带宽余量</dd>
           <dt>关于</dt><dd>项目介绍、部署说明、开发说明、清除本地草稿</dd>
@@ -753,12 +962,12 @@
         <h3>使用与开发</h3>
         <div class="kv">
           <dt>自测</dt><dd>用 Node 或浏览器控制台加载引擎即可跑通预设与校验，详见 README</dd>
-          <dt>目录</dt><dd><code>index.html</code> · <code>css/styles.css</code> · <code>js/*.js</code> · <code>tools/</code>（DDC/CI 本地桥接）</dd>
+          <dt>目录</dt><dd><code>index.html</code> · <code>css/styles.css</code> · <code>js/*.js</code> · <code>tools/</code>（DDC/CI 与串口的本地桥接）</dd>
           <dt>引擎</dt><dd><code>edid-core.js</code>（常量与工具）· <code>timing.js</code>（CVT/GTF）· <code>edid-decoder.js</code> · <code>edid-encoder.js</code> · <code>edid-validator.js</code></dd>
-          <dt>扩展</dt><dd><code>zip-lite.js</code> / <code>xlsx-lite.js</code>（纯 JS 读取 .xlsx）· <code>gamma.js</code>（伽马验证与 SVG 图表）· <code>mccs.js</code> / <code>mccs-data.js</code>（DDC/CI 协议与 VCP 码表）</dd>
+          <dt>扩展</dt><dd><code>zip-lite.js</code> / <code>xlsx-lite.js</code>（纯 JS 读取 .xlsx）· <code>gamma.js</code>（伽马验证与 SVG 图表）· <code>mccs.js</code> / <code>mccs-data.js</code>（DDC/CI 协议与 VCP 码表）· <code>serial.js</code> / <code>serial-data.js</code>（串口编解码、终端缓冲、内容嗅探与两种传输适配器）</dd>
           <dt>校验</dt><dd>引擎自带 Node 测试脚本，可与在线服务结果逐项比对</dd>
         </div>
-        <p class="small muted" style="margin-top:10px">想做二次开发？引擎文件都是普通脚本，暴露 <code>window.EDIDCore / EDIDTiming / EDIDDecoder / EDIDEncoder / EDIDValidator / MCCS / MCCSData</code>，可以单独取用。</p>
+        <p class="small muted" style="margin-top:10px">想做二次开发？引擎文件都是普通脚本，暴露 <code>window.EDIDCore / EDIDTiming / EDIDDecoder / EDIDEncoder / EDIDValidator / MCCS / MCCSData / SERIAL / SERIALData</code>，可以单独取用。</p>
         <div class="btn-row" style="margin-top:10px">
           <button class="sm" id="about-reset">清除本地草稿</button>
           <button class="sm" id="about-print">打印本页</button>
@@ -799,8 +1008,10 @@
 <script src="js/xlsx-lite.js"></script>
 <script src="js/gamma.js"></script>
 <script src="js/gamma-data.js"></script>
-<script src="js/mccs-data.js"></script>
-<script src="js/mccs.js"></script>
-<script src="js/app.js"></script>
+  <script src="js/mccs-data.js"></script>
+  <script src="js/mccs.js"></script>
+  <script src="js/serial-data.js"></script>
+  <script src="js/serial.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>

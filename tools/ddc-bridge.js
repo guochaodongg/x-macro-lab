@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 /* =============================================================================
- * ddc-bridge.js — DDC/CI（MCCS）本地桥接服务
+ * ddc-bridge.js — DDC/CI（MCCS）与串口调试的本地桥接服务
  *
- * 浏览器无法直接访问显示器的 I²C 总线，所以「DDC/CI 控制」页面需要一个跑在本机的
- * 小程序替它把命令发出去。本文件就是那个桥接：
+ * 浏览器既不能直接访问显示器的 I²C 总线，也不能列出本机的 COM 口，所以
+ * 「DDC/CI 控制」和「串口调试」两页都需要一个跑在本机的小程序替它们干活。
+ * 本文件就是那个桥接：
  *
- *   · Windows：调用同目录的 ddc-windows.ps1（PowerShell 直接 P/Invoke dxva2.dll）
- *   · Linux / macOS：调用 ddcutil（需已安装，且用户有权限访问 /dev/i2c-*）
+ *   · Windows DDC/CI：调用同目录的 ddc-windows.ps1（PowerShell P/Invoke dxva2.dll）
+ *   · Windows 串口  ：调用同目录的 serial-windows.ps1（System.IO.Ports，无需安装）
+ *   · Linux / macOS ：DDC/CI 走 ddcutil；串口没有本地后端，请用浏览器直连
+ *                     （Web Serial，在 https / localhost 页面上可用）
  *   · 顺带把站点目录静态托管出来，直接访问 http://127.0.0.1:8760 即同源使用，
  *     不必操心跨域；从 GitHub Pages 打开时也能用（已带 CORS 与 Private
  *     Network Access 预检响应头）
@@ -16,13 +19,19 @@
  *   node ddc-bridge.js --port 9000 --root <站点目录> --backend dxva2|ddcutil
  *
  * HTTP 接口（均为 JSON）：
- *   GET  /api/ping                     探活，返回后端类型与平台
+ *   GET  /api/ping                     探活，返回后端类型、平台与串口后端可用性
  *   GET  /api/monitors                 列出可控制的物理显示器
  *   GET  /api/vcp?monitor=0&code=0x10  读一个 VCP 值
  *   POST /api/vcp                      { monitor, code, value } 写一个 VCP 值
  *   GET  /api/scan?monitor=0[&codes=10,12,...]  依次读一批 VCP（默认常用码集）
  *   GET  /api/capabilities?monitor=0   读能力字符串
  *   POST /api/save                     { monitor } 保存当前设置到显示器 NVRAM（MCCS 0x0C）
+ *   GET  /api/serial/ports             列出本机全部 COM 口（含友好名与 VID/PID）
+ *   POST /api/serial/open              { port, baud, dataBits, parity, stopBits, flow, dtr, rts }
+ *   POST /api/serial/close             关闭当前串口
+ *   POST /api/serial/write             { hex } 发送字节
+ *   GET  /api/serial/read?since=N      取回绝对序号 N 之后收到的字节（since=-1 取尾部）
+ *   GET  /api/serial/status            串口状态与 RX/TX 计数
  *
  * 依赖：无。仅使用 Node 内置模块。
  * ========================================================================== */
@@ -45,7 +54,8 @@ const PORT = parseInt(arg('port', '8760'), 10);
 const HOST = arg('host', '127.0.0.1');
 const ROOT = path.resolve(arg('root', path.join(__dirname, '..')));
 const PS1 = path.join(__dirname, 'ddc-windows.ps1');
-const VERSION = '1.0.0';
+const SERIAL_PS1 = path.join(__dirname, 'serial-windows.ps1');
+const VERSION = '1.1.0';
 
 /* 默认扫描的常用 VCP 码（界面上的「扫描常用码」按钮用） */
 const COMMON_CODES = [
@@ -74,88 +84,98 @@ function hasDdcutil() {
 
 const BACKEND = detectBackend();
 
-/* --------------------------- dxva2 后端（常驻助理进程） --------------------------- */
+/* --------------------- 常驻助手进程（DDC/CI 与串口共用） ---------------------
+ * Windows 上两条链路各起一个常驻 PowerShell：DDC 那条是一次性事务（超时就重启，
+ * 反正只是 I²C 读写），串口那条要一直握着 COM 口，两者的生命周期完全不同，
+ * 不能合用一个进程——否则一次 DDC 超时就会把用户的串口连接一起断掉。 */
 
-let ps = null;          /* 常驻 PowerShell 进程 */
-let psBuf = '';
-let pending = [];       /* 串行队列：DDC 总线慢，必须一条一条来 */
-let chain = Promise.resolve();
+function makeAssistant(scriptFile, label) {
+  const st = { ps: null, buf: '', pending: [], label: label };
 
-function findPowerShell() {
-  const cands = ['powershell.exe', 'pwsh.exe'];
-  for (const exe of cands) {
-    const c = spawnSync('where', [exe], { encoding: 'utf8', shell: false });
-    if (!c.error && c.status === 0 && String(c.stdout || '').trim()) return exe;
+  function findPowerShell() {
+    for (const exe of ['powershell.exe', 'pwsh.exe']) {
+      const c = spawnSync('where', [exe], { encoding: 'utf8', shell: false });
+      if (!c.error && c.status === 0 && String(c.stdout || '').trim()) return exe;
+    }
+    return 'powershell.exe';
   }
-  return 'powershell.exe';
-}
 
-function stopChild(reason) {
-  const rest = pending;
-  pending = [];
-  if (ps) {
-    try { ps.kill(); } catch (e) { /* ignore */ }
-    ps = null;
+  function stop(reason) {
+    const rest = st.pending;
+    st.pending = [];
+    if (st.ps) {
+      try { st.ps.kill(); } catch (e) { /* ignore */ }
+      st.ps = null;
+    }
+    st.buf = '';
+    for (const p of rest) {
+      clearTimeout(p.timer);
+      p.reject(new Error(reason));
+    }
   }
-  psBuf = '';
-  for (const p of rest) {
-    clearTimeout(p.timer);
-    p.reject(new Error(reason));
-  }
-}
 
-function startChild() {
-  const exe = findPowerShell();
-  ps = spawn(exe, ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', PS1, '-Action', 'serve'],
-    { windowsHide: true });
-  ps.stdout.setEncoding('utf8');
-  ps.stdout.on('data', (d) => {
-    psBuf += d;
-    let i;
-    while ((i = psBuf.indexOf('\n')) >= 0) {
-      const line = psBuf.slice(0, i).trim();
-      psBuf = psBuf.slice(i + 1);
-      if (!line) continue;
-      const p = pending.shift();
-      if (p) {
-        clearTimeout(p.timer);
-        p.resolve(line);
+  function start() {
+    const exe = findPowerShell();
+    const ps = spawn(exe, ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+      '-File', scriptFile, '-Action', 'serve'], { windowsHide: true });
+    st.ps = ps;
+    ps.stdout.setEncoding('utf8');
+    ps.stdout.on('data', (d) => {
+      st.buf += d;
+      let i;
+      while ((i = st.buf.indexOf('\n')) >= 0) {
+        const line = st.buf.slice(0, i).trim();
+        st.buf = st.buf.slice(i + 1);
+        if (!line) continue;
+        const p = st.pending.shift();
+        if (p) {
+          clearTimeout(p.timer);
+          p.resolve(line);
+        }
       }
-    }
-  });
-  ps.stderr.setEncoding('utf8');
-  ps.stderr.on('data', (d) => process.stderr.write('[ddc-windows] ' + d));
-  ps.on('exit', (code) => {
-    if (ps) stopChild('PowerShell 助手进程已退出（code ' + code + '）');
-  });
-  ps.on('error', (e) => stopChild('无法启动 PowerShell 助手：' + e.message));
-}
-
-function psSend(cmd, timeoutMs) {
-  return new Promise((resolve, reject) => {
-    if (!ps) startChild();
-    const timer = setTimeout(() => {
-      stopChild('DDC/CI 操作超时（' + timeoutMs + ' ms），已重启助手进程');
-    }, timeoutMs || 25000);
-    pending.push({ resolve, reject, timer });
-    try {
-      ps.stdin.write(cmd + '\n');
-    } catch (e) {
-      clearTimeout(timer);
-      pending.pop();
-      reject(new Error('写入助手进程失败：' + e.message));
-    }
-  });
-}
-
-async function psJson(cmd, timeoutMs) {
-  const line = await psSend(cmd, timeoutMs);
-  try {
-    return JSON.parse(line);
-  } catch (e) {
-    return { ok: false, error: '无法解析助手进程输出：' + line.slice(0, 200) };
+    });
+    ps.stderr.setEncoding('utf8');
+    ps.stderr.on('data', (d) => process.stderr.write('[' + st.label + '] ' + d));
+    ps.on('exit', (code) => {
+      if (st.ps === ps) stop(st.label + ' 助手进程已退出（code ' + code + '）');
+    });
+    ps.on('error', (e) => stop('无法启动 ' + st.label + ' 助手：' + e.message));
   }
+
+  function send(cmd, timeoutMs) {
+    return new Promise((resolve, reject) => {
+      if (!st.ps) start();
+      const timer = setTimeout(() => {
+        stop(st.label + ' 操作超时（' + (timeoutMs || 25000) + ' ms），已重启助手进程');
+      }, timeoutMs || 25000);
+      st.pending.push({ resolve, reject, timer });
+      try {
+        st.ps.stdin.write(cmd + '\n');
+      } catch (e) {
+        clearTimeout(timer);
+        st.pending.pop();
+        reject(new Error('写入 ' + st.label + ' 助手失败：' + e.message));
+      }
+    });
+  }
+
+  function json(cmd, timeoutMs) {
+    return send(cmd, timeoutMs).then((line) => {
+      try {
+        return JSON.parse(line);
+      } catch (e) {
+        return { ok: false, error: '无法解析 ' + st.label + ' 输出：' + line.slice(0, 200) };
+      }
+    });
+  }
+
+  return { send, json, stop, isRunning: () => !!st.ps };
 }
+
+const ddcAssistant = makeAssistant(PS1, 'ddc-windows');
+const serAssistant = makeAssistant(SERIAL_PS1, 'serial-windows');
+
+function psJson(cmd, timeoutMs) { return ddcAssistant.json(cmd, timeoutMs); }
 
 /* --------------------------- ddcutil 后端 --------------------------- */
 
@@ -271,6 +291,98 @@ function backendSave(monitor) {
   return Promise.resolve({ ok: false, error: '没有可用的后端' });
 }
 
+/* ------------------------------- 串口后端 -------------------------------
+ * 只用 Windows 自带的 System.IO.Ports（serial-windows.ps1），无需安装任何包。
+ * Linux / macOS 下这条链路不可用，但浏览器直连（Web Serial）在 https / localhost
+ * 上仍然能用，界面对此有说明。 */
+
+function hasSerialBackend() {
+  return os.platform() === 'win32' && fs.existsSync(SERIAL_PS1);
+}
+
+/* 串口报错大多是「被占用 / 拔了 / 参数不支持」这三类，直接翻成中文省得排查 */
+const SERIAL_HINT = [
+  [/UnauthorizedAccessException|Access is denied|denied|busy/i,
+    '串口被占用 —— 先关掉其它串口工具（串口助手 / 烧录工具 / IDE 的串口监视器）再试'],
+  [/port gone|does not exist|系统找不到|FileNotFoundException/i,
+    '找不到该 COM 口 —— 设备可能已拔出，或驱动没有装好'],
+  [/unsupported parameter|ArgumentException|非标准/i,
+    '这组参数不被驱动支持（常见于非标准波特率、1.5 位停止位、mark/space 校验）']
+];
+
+function serialHint(r) {
+  if (r && !r.ok && r.error) {
+    const text = String(r.error);
+    for (const [re, hint] of SERIAL_HINT) {
+      if (re.test(text)) { r.hint = hint; break; }
+    }
+  }
+  return r;
+}
+
+function serialNoBackend() {
+  return {
+    ok: false,
+    error: '本机没有串口后端：' + (os.platform() === 'win32'
+      ? '请确认 serial-windows.ps1 与 ddc-bridge.js 放在同一个文件夹'
+      : '这个桥接的串口后端只支持 Windows（' + os.platform() +
+        ' 上请在 https / localhost 页面用浏览器直连 Web Serial）')
+  };
+}
+
+function pickOne(value, allowed, def) {
+  const s = String(value === undefined || value === null ? '' : value).toLowerCase();
+  return allowed.indexOf(s) >= 0 ? s : def;
+}
+
+function serialList() {
+  if (!hasSerialBackend()) return Promise.resolve(serialNoBackend());
+  return serAssistant.json('ports', 40000).then(serialHint);
+}
+
+function serialOpen(body) {
+  if (!hasSerialBackend()) return Promise.resolve(serialNoBackend());
+  body = body || {};
+  const port = String(body.port || '').trim();
+  /* 助手进程按空白切分命令行，端口名里的空格会拆坏参数：只放行安全字符 */
+  if (!/^[A-Za-z0-9._:\\-]+$/.test(port)) {
+    return Promise.resolve({ ok: false, error: '串口名不合法（只允许字母、数字与 . _ - : \\\\）' });
+  }
+  const baud = parseIntArg(body.baud, 115200);
+  const bits = parseIntArg(body.dataBits, 8);
+  const parity = pickOne(body.parity, ['none', 'even', 'odd', 'mark', 'space'], 'none');
+  const stop = String(body.stopBits) === '1.5' ? '1.5' : (String(body.stopBits) === '2' ? '2' : '1');
+  const flow = pickOne(body.flow, ['none', 'rtscts', 'xonxoff'], 'none');
+  const dtr = body.dtr === false ? '0' : '1';
+  const rts = body.rts === false ? '0' : '1';
+  const cmd = ['open', port, baud, bits, parity, stop, flow, dtr, rts].join(' ');
+  return serAssistant.json(cmd, 30000).then(serialHint);
+}
+
+function serialClose() {
+  if (!hasSerialBackend()) return Promise.resolve(serialNoBackend());
+  return serAssistant.json('close', 15000).then(serialHint);
+}
+
+function serialWrite(hexText) {
+  if (!hasSerialBackend()) return Promise.resolve(serialNoBackend());
+  const clean = String(hexText || '').replace(/[^0-9a-fA-F]/g, '');
+  if (!clean.length) return Promise.resolve({ ok: false, error: '没有要发送的字节' });
+  if (clean.length > 8192) return Promise.resolve({ ok: false, error: '单次发送最多 4096 字节' });
+  return serAssistant.json('write ' + clean, 15000).then(serialHint);
+}
+
+function serialRead(since) {
+  if (!hasSerialBackend()) return Promise.resolve(serialNoBackend());
+  const n = (typeof since === 'number' && isFinite(since)) ? Math.floor(since) : -1;
+  return serAssistant.json('read ' + n, 10000).then(serialHint);
+}
+
+function serialStatus() {
+  if (!hasSerialBackend()) return Promise.resolve(serialNoBackend());
+  return serAssistant.json('status', 15000).then(serialHint);
+}
+
 /* Windows 显示器控制 API（dxva2）的常见错误码解释：给排错省时间 */
 const WIN32_HINT = {
   0xC0262580: '显示驱动没有提供 DDC/CI 的 I²C 通道（多见于虚拟显示器 / 远程桌面 / 转接器）',
@@ -295,12 +407,20 @@ function withHint(r) {
   return r;
 }
 
-/* 串行化：所有硬件操作排成一队，避免并发占用 I²C 总线 */
-function serialize(fn) {
-  const run = chain.then(fn, fn);
-  chain = run.then(() => undefined, () => undefined);
-  return run;
+/* 串行化：所有硬件操作排成一队，避免并发占用 I²C 总线。
+   串口用第二条独立的队：它每秒要轮询 25 次接收缓冲，若和 DDC 共用一条队，
+   DDC 事务会被反复插队（虽然正确，但延迟变得不可预测）。 */
+function makeQueue() {
+  let chain = Promise.resolve();
+  return function (fn) {
+    const run = chain.then(fn, fn);
+    chain = run.then(() => undefined, () => undefined);
+    return run;
+  };
 }
+
+const serialize = makeQueue();
+const serializeSerial = makeQueue();
 
 /* ------------------------------- HTTP ------------------------------- */
 
@@ -396,8 +516,55 @@ const server = http.createServer((req, res) => {
   if (p === '/api/ping') {
     return sendJson(res, {
       ok: true, service: 'ddc-bridge', version: VERSION,
-      backend: BACKEND, platform: os.platform(), root: ROOT
+      backend: BACKEND, platform: os.platform(), root: ROOT,
+      serial: hasSerialBackend() ? 'windows' : 'none'
     });
+  }
+
+  /* ------------------------------- 串口 ------------------------------- */
+  /* 说明：/api/serial/read 会被前端以 ~25 Hz 轮询，故意不写日志，
+     否则控制台会被淹没（页面自己有收发日志）。 */
+
+  if (p === '/api/serial/ports') {
+    return serializeSerial(() => serialList()).then((r) => {
+      log('serial ports -> ' + (r.ok ? r.count + ' 个 COM 口' : r.error));
+      sendJson(res, r, r.ok ? 200 : 502);
+    }).catch((e) => sendJson(res, { ok: false, error: String(e.message || e) }, 500));
+  }
+
+  if (p === '/api/serial/open' && req.method === 'POST') {
+    return readBody(req).then((body) => serializeSerial(() => serialOpen(body)).then((r) => {
+      log('serial open ' + (body && body.port) + ' @ ' + (body && body.baud) +
+        ' -> ' + (r.ok ? 'ok' : r.error));
+      sendJson(res, r, r.ok ? 200 : 502);
+    })).catch((e) => sendJson(res, { ok: false, error: String(e.message || e) }, 500));
+  }
+
+  if (p === '/api/serial/close' && req.method === 'POST') {
+    return serializeSerial(() => serialClose()).then((r) => {
+      log('serial close -> ' + (r.ok ? 'ok' : r.error));
+      sendJson(res, r, r.ok ? 200 : 502);
+    }).catch((e) => sendJson(res, { ok: false, error: String(e.message || e) }, 500));
+  }
+
+  if (p === '/api/serial/write' && req.method === 'POST') {
+    return readBody(req).then((body) => serializeSerial(() => serialWrite(body.hex)).then((r) => {
+      log('serial write ' + (r.ok ? r.n + ' 字节' : r.error));
+      sendJson(res, r, r.ok ? 200 : 502);
+    })).catch((e) => sendJson(res, { ok: false, error: String(e.message || e) }, 500));
+  }
+
+  if (p === '/api/serial/read') {
+    const since = (u.searchParams.get('since') === null) ? -1 : parseIntArg(u.searchParams.get('since'), -1);
+    return serializeSerial(() => serialRead(since)).then((r) => {
+      sendJson(res, r, r.ok ? 200 : 502);
+    }).catch((e) => sendJson(res, { ok: false, error: String(e.message || e) }, 500));
+  }
+
+  if (p === '/api/serial/status') {
+    return serializeSerial(() => serialStatus()).then((r) => {
+      sendJson(res, r, r.ok ? 200 : 502);
+    }).catch((e) => sendJson(res, { ok: false, error: String(e.message || e) }, 500));
   }
 
   if (p === '/api/monitors') {
@@ -486,17 +653,22 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, HOST, () => {
   const lines = [
     '',
-    '  DDC/CI bridge is running.',
+    '  EDID-X-LAB bridge is running (DDC/CI + serial).',
     '  ------------------------------------------------------------------',
-    '  Page (same origin):  http://' + HOST + ':' + PORT + '/?tab=mccs',
+    '  DDC/CI page:         http://' + HOST + ':' + PORT + '/?tab=mccs',
+    '  Serial page:         http://' + HOST + ':' + PORT + '/?tab=serial',
     '  API base:            http://' + HOST + ':' + PORT + '/api',
-    '  Backend:             ' + BACKEND + '   (platform: ' + os.platform() + ')',
+    '  DDC backend:         ' + BACKEND + '   (platform: ' + os.platform() + ')',
+    '  Serial backend:      ' + (hasSerialBackend() ? 'windows (System.IO.Ports)' : 'none'),
     '  Static root:         ' + ROOT,
     '  ------------------------------------------------------------------',
     (BACKEND === 'none'
-      ? '  WARNING: no backend available. On Windows keep ddc-windows.ps1 next to this\n' +
-        '           file; on Linux/macOS install ddcutil and grant /dev/i2c-* access.'
+      ? '  WARNING: no DDC/CI backend available. On Windows keep ddc-windows.ps1 next\n' +
+        '           to this file; on Linux/macOS install ddcutil and grant /dev/i2c-* access.'
       : '  Open the page and switch to the DDC/CI tab; it will auto-connect to this bridge.'),
+    (hasSerialBackend()
+      ? '  Serial: keep serial-windows.ps1 next to this file (nothing to install).'
+      : '  Serial: no local backend on this platform — use Web Serial on the page instead.'),
     ''
   ];
   process.stdout.write(lines.join('\n') + '\n');

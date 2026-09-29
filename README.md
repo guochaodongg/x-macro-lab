@@ -1,8 +1,8 @@
 # EDID-X-LAB · EDID 工具箱
 
-对 [edidcraft.com](https://edidcraft.com/) 全部功能的**完整复刻**：解析（Decoder）、生成（Encoder）、校验（Validator）、时序计算（Timing Calculator），外加一页 EDID 速成课；在此之上又扩了三件工具：**时序对比**（多标准时序与接口带宽核算）、**伽马验证**（CA410 测量数据）与 **DDC/CI 控制**（直连显示器读写 VCP）。
+对 [edidcraft.com](https://edidcraft.com/) 全部功能的**完整复刻**：解析（Decoder）、生成（Encoder）、校验（Validator）、时序计算（Timing Calculator），外加一页 EDID 速成课；在此之上又扩了四件工具：**时序对比**（多标准时序与接口带宽核算）、**伽马验证**（CA410 测量数据）、**DDC/CI 控制**（直连显示器读写 VCP）与 **串口调试**（普通 / 终端双模式的 COM 口调试台）。
 
-导航按功能域分成五组：**EDID**（解析 / 生成 / 校验 / 学习 EDID）、**Gamma**（伽马验证）、**DDC/CI**（DDC/CI 控制）、**Timing**（时序计算 / 时序对比）、**关于**。
+导航按功能域分成六组：**EDID**（解析 / 生成 / 校验 / 学习 EDID）、**Gamma**（伽马验证）、**DDC/CI**（DDC/CI 控制）、**串口调试**、**Timing**（时序计算 / 时序对比）、**关于**。
 
 - **纯静态**：`index.html` + `css/` + `js/`，可直接放到 GitHub Pages / Cloudflare Pages / 任意静态服务器。
 - **前端实现**：解析、生成、校验与时序计算全部由浏览器端 JavaScript 完成。
@@ -20,7 +20,7 @@
 
 ## 1. 功能清单
 
-顶部导航按 **5 个分组**组织（**EDID** / **Gamma** / **DDC/CI** / **Timing** / **关于**），点分组标题展开下拉菜单；每个页面也支持深链直达，例如 `index.html?tab=mccs`。
+顶部导航按 **6 个分组**组织（**EDID** / **Gamma** / **DDC/CI** / **串口调试** / **Timing** / **关于**），点分组标题展开下拉菜单；每个页面也支持深链直达，例如 `index.html?tab=mccs`。
 
 | 分组 | 页面 | 能力 |
 | --- | --- | --- |
@@ -30,6 +30,7 @@
 |  | **学习 EDID** | 8 节速成课：EDID 是什么、基础块字节地图、四种描述符、18 字节 DTD 逐字节解释、CEA-861 与 DisplayID、CVT/GTF 原理、常见坑、参考资料 |
 | **Gamma** | **伽马验证** | 读取 CA410 色温仪测量数据与灰阶占比表（.xlsx，浏览器本地解析，自研 ZIP / OOXML 读取器），按所选 Gamma 曲线（GammaBT1886 / 1.8 / 2.0 / 2.2 / 2.4 / 2.6）的占比映射生成参考曲线（峰值亮度 × 灰阶占比）、白点一致性（Wx / Wy）图表，并计算平均 Gamma（对数回归，与目标值偏差 ±0.05 内标绿）；可导出 PNG。**内置 6 组实测数据集**（`data/` 内，默认载入 BT1886），切换曲线即自动重绘对应图表，也支持上传自己的 .xlsx |
 | **DDC/CI** | **DDC/CI 控制** | 像 MCCS 工具那样直接读写显示器 VCP 特性：连接本地桥接后列出物理显示器、读/写任意 VCP 码（亮度 / 对比度 / 输入源 / 电源模式…）、扫描常用码、读取并解析显示器 capabilities 字符串；离线也有**报文构建器**（逐字节字段解释 + 校验和核对 + 等价 `ddcutil` / `i2ctransfer` / PowerShell / curl 命令）和 **182 条 VCP 码参考表**（中英文名、类型 C/NC/CNC/T、读写权限、分组、枚举值含义） |
+| **串口调试** | **串口调试** | 两种**可识别的界面模式**：**普通模式**（发送区 + 接收区，接收视图可选 文本 / HEX / HEXDUMP，带时间戳与收发记录）与**终端模式**（提示符 + 命令行 + 闪烁光标，按真实终端语义解释 CR/LF/BS/TAB）。**切到本页即自动枚举已连接的 COM 口**（含友好名与 VID/PID，并自动选回上次用过的口）；波特率 300–2000000、5–8 数据位、五种校验、1 / 1.5 / 2 位停止位、三种流控、DTR/RTS、编码、行结尾、定时发送、常用指令预设（AT / SCPI / 控制字符）；普通模式会**嗅探内容**（命中 ANSI 转义、裸 CR、BEL、BS、FF 即提示切到终端模式）。两种传输方式：**本地桥接**（列全部 COM 口，`file://` 可用）与 **Web Serial**（零安装，仅 https/localhost） |
 | **Timing** | **时序计算** | VESA **CVT 1.1**（标准消隐）与 **CVT 1.2**（RB / RBv2 / RBv3）、**GTF 1.1**（含隔行与缩边）；输出完整参数表、消隐结构图、X11 `Modeline`、`xrandr --newmode` / `--addmode`，以及可直接写进 DTD 的 18 字节 |
 |  | **时序对比** | 多标准时序对比计算器（对标 Tom Verbeure 的 Video Timings Calculator）：一次计算 CVT / CVT-RB / CVT-RBv2 / CEA-861 / DMT / 自定义六种时序，并核算 DP / HDMI / DVI / SDI / RFC4175 各接口带宽余量 |
 | **关于** | — | 项目介绍、部署说明、开发说明、清除草稿 |
@@ -64,14 +65,17 @@ edid-x-lab/
 │   ├── gamma-data.js       # 内置数据集（由 _ref/gen-gamma-data.js 从 data/*.xlsx 生成）
 │   ├── mccs-data.js        # MCCS VCP 码表（182 条）+ DDC/CI 操作码表，纯数据
 │   ├── mccs.js             # DDC/CI 协议逻辑：报文构建、应答解析、能力字符串解析、命令导出（无 DOM 依赖）
+│   ├── serial-data.js      # 串口调试的纯数据表（波特率 / 校验 / 停止位 / 流控 / 编码 / 视图 / 指令预设）
+│   ├── serial.js           # 串口协议逻辑：编解码、HEX 视图、终端缓冲、内容嗅探、两种传输适配器（无 DOM 依赖）
 │   └── app.js              # 界面接线：标签页、表单、草稿、导出
-├── tools/                  # DDC/CI 本地桥接（非页面依赖，用到时才需要）
-│   ├── ddc-windows.ps1     # Windows 后端：dxva2.dll（P/Invoke），支持一次性与常驻两种模式
-│   └── ddc-bridge.js       # 零依赖 Node HTTP 桥接：静态站点 + /api/*，串行化 DDC 事务
+├── tools/                  # 本地桥接（非页面依赖，用到时才需要）
+│   ├── ddc-windows.ps1     # DDC/CI 后端：dxva2.dll（P/Invoke），支持一次性与常驻两种模式
+│   ├── serial-windows.ps1  # 串口后端：System.IO.Ports，枚举 COM 口（WMI 补友好名 / VID / PID）+ 环形接收缓冲
+│   └── ddc-bridge.js       # 零依赖 Node HTTP 桥接：静态站点 + /api/*，DDC 与串口各自独立串行化
 └── README.md
 ```
 
-脚本按 `core → timing → vtc-data → video-timings → decoder → encoder → validator → report → zip-lite → xlsx-lite → gamma → gamma-data → mccs-data → mccs → app` 的顺序加载，**顺序不能改**（都是普通 `<script>`，不是 ES module）。
+脚本按 `core → timing → vtc-data → video-timings → decoder → encoder → validator → report → zip-lite → xlsx-lite → gamma → gamma-data → mccs-data → mccs → serial-data → serial → app` 的顺序加载，**顺序不能改**（都是普通 `<script>`，不是 ES module）。
 
 > `data/*.xlsx` 是原始测量文件，页面不会去 fetch 它们（`file://` 下会被 CORS 拦），
 > 而是用 `js/gamma-data.js` 里的预提取数组，因此双击 `index.html` 也能直接看到内置图表；
@@ -152,21 +156,48 @@ git push -u origin master
 
 ---
 
-## 6. DDC/CI 直连显示器（本地桥接）
+## 6. 本地桥接（DDC/CI 与串口共用）
 
-**浏览器无法直接访问 I²C/DDC 总线**——没有任何 Web API 能发 DDC/CI 报文。所以「DDC/CI 控制」页采用
-「静态页面 + 本地桥接程序」的结构：桥接程序跑在本机、用系统 API 操作显示器，页面通过
+**浏览器无法直接访问 I²C/DDC 总线，也无法枚举 COM 口**——没有任何 Web API 能发 DDC/CI 报文，
+Web Serial 又只能列出「已授权过」的串口。所以「DDC/CI 控制」与「串口调试」两页采用
+「静态页面 + 本地桥接程序」的结构：桥接程序跑在本机、用系统 API 操作显示器与串口，页面通过
 `http://127.0.0.1:8760` 访问它。
+
+一个桥接进程同时提供两套后端，各自独立排队（DDC 超时不会拖垮你的串口连接）：
+
+```
+node ddc-bridge.js
+├── DDC/CI  → tools/ddc-windows.ps1   （dxva2.dll，操作显示器）
+└── Serial  → tools/serial-windows.ps1 （System.IO.Ports，操作 COM 口）
+```
 
 ### 6.1 启动桥接
 
-Windows（用 dxva2.dll，无需装任何依赖）：
+Windows（用 dxva2.dll + System.IO.Ports，无需装任何依赖）：
 
 ```bash
 cd edid-x-lab/tools
 node ddc-bridge.js                 # 默认 127.0.0.1:8760，静态根目录指向上一级
 # 浏览器打开 http://127.0.0.1:8760/?tab=mccs
+# 串口调试页：  http://127.0.0.1:8760/?tab=serial
 ```
+
+启动时会把两个页面的地址和后端可用情况一起打印出来：
+
+```
+  EDID-X-LAB bridge is running (DDC/CI + serial).
+  ------------------------------------------------------------------
+  DDC/CI page:         http://127.0.0.1:8760/?tab=mccs
+  Serial page:         http://127.0.0.1:8760/?tab=serial
+  API base:            http://127.0.0.1:8760/api
+  DDC backend:         dxva2   (platform: win32)
+  Serial backend:      windows (System.IO.Ports)
+  Static root:         D:\...\edid-x-lab
+  ------------------------------------------------------------------
+```
+
+`Serial backend: none` 表示没有找到同目录的 `serial-windows.ps1`（或不是 Windows）——
+串口调试页仍可用，但只能走 Web Serial。
 
 > `?tab=` 是通用深链：任意页面都能直接打开，例如 `?tab=timing`、`?tab=vtc`、`?tab=gamma`。
 > 页面本身记不住这些参数（点导航会走本地草稿），但它会在首屏按参数落在对应页面并高亮所属分组。
@@ -187,6 +218,21 @@ powershell -ExecutionPolicy Bypass -File ddc-windows.ps1 -Monitor 0 -Action set 
 powershell -ExecutionPolicy Bypass -File ddc-windows.ps1 -Action serve   # 常驻模式，stdin/stdout 逐行 JSON
 ```
 
+串口后端同样可以脱离桥接单独用（`-Action` 取 `ports|open|close|write|read|status|selftest|serve`，stdout 是 JSON）：
+
+```bash
+powershell -ExecutionPolicy Bypass -File serial-windows.ps1 -Action ports
+powershell -ExecutionPolicy Bypass -File serial-windows.ps1 -Action open -Port COM15 -Baud 115200
+powershell -ExecutionPolicy Bypass -File serial-windows.ps1 -Action write -Hex "41 54 0D 0A"
+powershell -ExecutionPolicy Bypass -File serial-windows.ps1 -Action read -Since -1   # -1 = 取缓冲尾部
+powershell -ExecutionPolicy Bypass -File serial-windows.ps1 -Action status
+powershell -ExecutionPolicy Bypass -File serial-windows.ps1 -Action selftest        # 无需硬件
+```
+
+> `selftest` 是为了**没有串口设备也能验证链路**（枚举 → 打开 → 收 → 读）而留的：它把
+> `00 01 02 … FF` 循环灌 5000 字节进接收环形缓冲，页面刷新轮询就能把这段数据拉走。
+> 校验和、编码、CR 语义这些纯逻辑另有 `_ref/test-serial.js` 覆盖，不需要接硬件。
+
 ### 6.2 桥接接口
 
 | 接口 | 说明 |
@@ -199,6 +245,21 @@ powershell -ExecutionPolicy Bypass -File ddc-windows.ps1 -Action serve   # 常�
 | `GET /api/capabilities?monitor=0` | 读取能力字符串（原样 ASCII） |
 | `POST /api/save` | 保存当前设置到显示器 NVRAM（`SaveCurrentMonitorSettings` / `ddcutil scs`） |
 | `GET /api/raw` | 恒返回 501：dxva2 只提供 VCP 与能力字符串接口，**不接受任意字节流** |
+
+串口相关（同一个进程、另一套后端）：
+
+| 接口 | 说明 |
+| --- | --- |
+| `GET /api/serial/ports` | 列出本机全部 COM 口（`port` / `name` 友好名 / `vid` / `pid` / `inUse`） |
+| `POST /api/serial/open` | body `{"port":"COM15","baud":115200,"dataBits":8,"parity":"none","stopBits":1,"flow":"none","dtr":true,"rts":true}` |
+| `POST /api/serial/close` | 关闭当前串口 |
+| `POST /api/serial/write` | body `{"hex":"41 54 0D 0A","n":4}`（`n` 供对账，以 `hex` 为准） |
+| `GET /api/serial/read?since=N` | 取**自绝对计数 N 之后**收到的字节：`{ok,n,next,total,rx}`；`since=-1` 取缓冲尾部 |
+| `GET /api/serial/status` | 当前端口 / 参数 / 收发字节数 / 最近错误 |
+
+`since` 是**绝对累计计数**（不是缓冲区下标），所以页面只要记住 `next` 就能无缝续读，
+环形缓冲被覆盖也不会错位。接收走 `SerialPort.DataReceived` → 后台线程写环形缓冲，
+stdin 由另一条后台线程读入队列，主循环保持单线程，因此 stdout 的 JSON 行不会交错。
 
 桥接把硬件操作串行化（内部维护一个队列 + 常驻的 PowerShell `serve` 子进程），因为 DDC/CI 事务
 不能并发——竞态会让显示器返回乱码或直接 NAK。返回的错误码会被翻译成中文提示，例如
@@ -246,7 +307,93 @@ capabilities 字符串也能解析出型号、`mccs_ver`、支持的操作码、
 
 ---
 
-## 7. 复用引擎（二次开发）
+## 7. 串口调试（COM 口）
+
+### 7.1 两种模式的区别
+
+页面顶部有一个「普通模式 / 终端模式」分段开关，切换后**整页的布局都换掉**（不是只换一个小控件），
+所以一眼能看出当前在哪一种：
+
+| | 普通模式 | 终端模式 |
+| --- | --- | --- |
+| 布局 | 上半发送区（编码 / 行结尾 / 定时发送 / 预设按钮），下半接收区 | 一整块深色「屏幕」+ 底部命令行，收发混在一起 |
+| 接收显示 | 视图可选 **文本 / HEX / HEXDUMP**，可带时间戳、可只显示可见字符 | 按真实终端语义解释控制字符 |
+| CR (`0x0D`) | 显示成可见的 `\r`（避免「看着是空行其实有回车」） | 光标回行首，后续字符**覆盖**当前行 |
+| 典型用途 | 看协议报文、比对 HEX、抓日志 | 跟设备的命令行 / shell 交互（AT、uboot、Linux console） |
+
+终端模式的核心是 `SERIAL.termFeed()`，它把字节流解释成一块「屏幕」而不是一份日志：
+
+```
+设备发出  1 2 3 \r 6 7        屏幕变成 "673"（光标停在列 2，残留的 3 还在）
+再发      A T                 屏幕变成 "67AT"（不是追加，是覆盖）
+```
+
+这正是 PuTTY / minicom 的行为，也是设备刷新进度条（`Progress: 10%\rProgress: 20%`）
+能被正确显示而不是刷出一堆重复行的原因。此外 `LF` 换行、`BS` 删除上一个字符、`TAB` 对齐到
+8 列、`BEL` / `ESC` / `FF` 不显示。
+
+**普通模式会自动嗅探**：一段数据里若出现 ANSI 转义序列、**裸 CR**（后面不跟 LF）、`BEL`、
+`BS`、`FF`，页面就在接收区上方提示「这段像终端输出，建议切到终端模式」，并给出命中的理由。
+识别逻辑是纯函数 `SERIAL.sniffMode(bytes)`，可以单独调用。
+
+### 7.2 切到本页就会列出已连接的 COM 口
+
+进入页面（点击导航或 `?tab=serial` 深链）时会自动枚举一次；「刷新」按钮可手工再来一次。
+按传输方式不同，结果差别很大：
+
+| | 本地桥接（推荐） | Web Serial（浏览器直连） |
+| --- | --- | --- |
+| 能看到的串口 | **本机全部 COM 口** | **只有你授权过的那几个** |
+| COM 号 | 有（`COM15`） | **没有**，只给 VID/PID |
+| 友好名 | 有（WMI 补 `USB-SERIAL CH340` 这类名字） | 无 |
+| 可用页面 | `file://` / `http://127.0.0.1` / https | 仅 https 或 localhost |
+| 1.5 位停止位 | 支持 | **不支持**（自动降级为 2 位并告警） |
+| mark / space 校验 | 支持 | **不支持**（自动降级为无校验并告警） |
+| XON/XOFF 软件流控 | 支持 | **不支持**（自动降级为无流控并告警） |
+| 需要装东西 | 需要一个 Node 进程（零 npm 依赖） | 不需要 |
+
+枚举结果里点某个口会显示它的 VID/PID 与友好名；页面还会把**上次用过的口**记在
+`localStorage` 里，下次进页面自动选回（先认 `COM` 号，认不出再退而认 VID/PID —— 换 USB 口
+导致 COM 号漂移时仍然能对上）。
+
+> 「设备已连接」在本机表现为：Windows 的设备管理器里能看到该 COM 口。桥接用
+> `SerialPort.GetPortNames()` 拿**真实存在的串口**，再用 WMI `Win32_PnPEntity` 补上友好名与
+> VID/PID；虚拟串口（蓝牙、USB 转串口的空槽位）也会列出来，打开失败时才报错。
+
+### 7.3 离线 / 没有硬件时能验证什么
+
+- 打开 `index.html?tab=serial`（或线上页面）→ 页面会明确告诉你：桥接没跑、Web Serial 此时
+  也不可用（`file://` 下浏览器不给 Web Serial 权限），并把「怎么跑起来」的命令写在提示里。
+- 跑起桥接后，即使**手上没有串口设备**也能用 `-Action selftest` 灌一段递增字节，
+  验证「页面的轮询 → 显示 → 终端语义」整条链路。
+- 所有纯逻辑（编解码、HEXDUMP、终端缓冲、嗅探、端口合并与匹配、两个适配器的成功/失败/断开
+  路径）都由 `_ref/test-serial.js` 覆盖，用一个假的 `fetch` / 假 `navigator.serial` 跑，
+  不需要任何真实硬件。
+- `_ref/_e2e-serial.js` 是**真机端到端**：自己起一个真桥接进程，走完
+  `ping → ports → open → write → read → close → reopen → status → monitors`，
+  验证静态资源能被正确托管，最后杀掉进程。手上有串口设备时跑一遍最放心
+  （没有设备也能跑，会自动跳过 open 之后的部分）。
+
+> **一个踩过的坑，值得记一笔**：`SerialPort.Close()` 会等它自己的事件循环线程退出，而那个
+> 线程正在 `DataReceived` 回调里等我们自己那把锁 —— **持锁关闭就是自己等自己**。
+> 空闲串口上完全测不出来，只有接上一台**一直在吐数据**的设备才会 100% 卡死
+> （桥接侧表现为 15 s 超时后重启助手进程）。修法是：接收环形缓冲与生命周期各用一把锁，
+> 并且 `Close()` 一律在锁外调用。`_ref/_e2e-serial.js` 里那条
+> 「close succeeds while the device is still streaming」就是它的守卫。
+
+### 7.4 已知限制
+
+- **Web Serial 拿不到 COM 号**，这是 API 本身的限制（只给 `usbVendorId` / `usbProductId`），
+  所以想按 COM 号认设备请用本地桥接。
+- 浏览器直接开 `file://` 时 **Web Serial 一定不可用**（需要 secure context），只有桥接这条路。
+- 页面**不能**收发中继/断线自动重连之外的底层操作：DTR/RTS 在 Web Serial 上依赖平台支持，
+  部分系统调用 `setSignals` 会失败（页面会忽略这个失败，不影响收发）。
+- 高速率下轮询间隔是 40 ms、单次最多取走系统缓冲里的全部字节；用 2 Mbaud 持续灌数据时
+  显示会明显滞后于真实串口（这是浏览器的渲染瓶颈，不是丢数据——环形缓冲有 1 MB）。
+
+---
+
+## 8. 复用引擎（二次开发）
 
 引擎文件都是普通脚本，会挂到 `window` 上，可以脱离界面单独使用：
 
@@ -288,14 +435,43 @@ capabilities 字符串也能解析出型号、`mccs_ver`、支持的操作码、
 | `EDIDReport` | `decodeReport`、`validationReport`、`timingReport`、`hexViewer`、`chromaPlot`、`kv`、`card`、`chip`、`tableHtml`、`esc` |
 | `MCCS` | `buildGetVCP`、`buildSetVCP`、`buildSaveSettings`、`buildVcpReset`、`buildGetCapabilities`、`buildRaw`、`build(kind, opts)`、`parseReply`、`verifyChecksum`、`describe`、`parseCapabilities`、`vcp`、`vcpName`、`vcpText`、`formatValue`、`toDdcutil`、`toI2cTransfer`、`toCurl`、`toBridgeScript` |
 | `MCCSData` | `VCP`（182 条码表）、`OPCODES`（9 条操作码）、`VALUES`（枚举值表） |
+| `SERIAL` | `bytes`、`hex`、`hex2`、`hex4`、`concat`、`textToBytes`、`decodeBytes`、`eolBytes`、`eolLabel`、`printable`、`escapeText`、`hexdump`、`describeBytes`、`termNew`、`termFeed`、`termText`、`termSize`（终端缓冲）、`sniffMode`（内容嗅探）、`stamp`、`bridgePort`、`webPort`、`mergePortLists`、`matchPort`、`transportOrder`、`transportName`、`normalizeCfg`、`toWebSerialOptions`、`toBridgeArgs`、`presetBytes`、`makeWebSerialTransport`、`makeBridgeTransport` |
+| `SERIALData` | `BAUDS`、`DATA_BITS`、`PARITY`、`STOP_BITS`、`FLOW`、`EOL`、`SEND_ENCODING`、`RECV_ENCODING`、`RX_VIEWS`、`PRESETS`（AT / SCPI / 控制字符）、`WEB_SERIAL_LIMITS` |
+
+两个传输适配器（`makeBridgeTransport` / `makeWebSerialTransport`）对外是同一组方法，
+所以换传输不用改调用方：
+
+```js
+<script src="js/serial-data.js"></script>
+<script src="js/serial.js"></script>
+<script>
+  // 桥接：一个进程同时提供 DDC 与串口，base 可指向任意回环端口
+  var t = SERIAL.makeBridgeTransport({ base: 'http://127.0.0.1:8760' });
+  t.list().then(function (r) { console.log(r.ports.map(function (p) { return p.label; })); });
+  t.on('data', function (bytes) { console.log(SERIAL.hex(bytes)); });
+  t.open({ port: 'COM15', baud: 115200 });          // 参数经 toBridgeArgs 落到 ps1
+  t.write(SERIAL.bytes('41 54 0D 0A'));
+
+  // 终端语义：把字节流解释成一块「屏幕」
+  var st = SERIAL.termNew();
+  SERIAL.termFeed(st, '123\r67');  SERIAL.termText(st);   // '673'
+  SERIAL.termFeed(st, 'AT');       SERIAL.termText(st);   // '67AT'（覆盖不是追加）
+
+  // 这段数据像不像终端输出？
+  SERIAL.sniffMode(SERIAL.bytes('1B 5B 32 4A')).mode;     // 'terminal'
+
+  // 换传输时它自己会告警哪些参数被降级
+  SERIAL.toWebSerialOptions({ stopBits: 1.5 }).warnings;  // [ '…将按 2 位打开——需要它请改用本地桥接' ]
+</script>
+```
 
 ---
 
-## 8. 自测
+## 9. 自测
 
 > 发布仓库包含 `index.html` + `css/` + `js/` + `data/` + `tools/`，**不含测试脚本**（测试在仓库外的 `_ref/`）。下面两种方式都不需要安装任何第三方包，可随时用来验证引擎是否完好。
 
-### 8.1 Node 里跑一遍（推荐）
+### 9.1 Node 里跑一遍（推荐）
 
 引擎文件是普通脚本，用 `vm.runInThisContext` 在同一个全局上下文里依次加载即可（它们靠 `window`/`global` 互相引用，所以**必须共享同一个上下文**）：
 
@@ -328,7 +504,7 @@ console.log(EDIDTiming.modeline(cvt));
 console.log(EDIDTiming.compare(cvt, gtf).recommendation);
 ```
 
-### 8.2 浏览器控制台里跑一遍
+### 9.2 浏览器控制台里跑一遍
 
 打开页面后按 F12，在控制台直接输入（引擎已挂在 `window` 上）：
 
@@ -341,7 +517,7 @@ Object.keys(EDIDEncoder.FORMAT_PRESETS).map(k => {
 });
 ```
 
-### 8.3 界面层
+### 9.3 界面层
 
 界面（`app.js`）依赖真实 DOM，需要 [jsdom](https://www.npmjs.com/package/jsdom) 才能自动化。jsdom **不是**项目依赖，装在目录之外即可，避免污染这个纯静态仓库：
 
@@ -353,12 +529,15 @@ NODE_PATH=/tmp/edid-domtest/node_modules node your-dom-test.js
 Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 
 > 本项目的测试脚本（`_ref/test-*.js`，覆盖编解码往返、时序矩阵、报告层、时序对比、伽马、
-> DDC/CI 协议、以及 jsdom 驱动的界面层）都在仓库外的 `_ref/`，不会随静态站点发布。
-> 当前基线：**108 / 356 / 2094 / 20095 / 122 / 258 / 64，全部 0 失败**。
+> DDC/CI 协议、串口协议与传输适配器、以及 jsdom 驱动的界面层）都在仓库外的 `_ref/`，
+> 不会随静态站点发布。
+> 当前基线：**108 / 356 / 2094 / 20095 / 122 / 258 / 241 + 界面 82，全部 0 失败**
+> （依次为 `test-edid` / `test-timing` / `test-render` / `test-vtc` / `test-gamma` /
+> `test-mccs` / `test-serial`，最后是 `test-app-dom`）。
 
 ---
 
-## 9. 已知边界
+## 10. 已知边界
 
 - **DisplayID** 只解析到“分节”层级（标签/版本/长度/偏移），不做逐节内容解释；生成器也按分节字节原样写入。
 - **VTB** 与**块映射表**同样只做结构与标签层面的处理。
@@ -372,9 +551,19 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 - **DDC/CI 控制**页必须配合 `tools/` 下的本地桥接才能操作硬件：浏览器没有访问 I²C 总线的 API，`file://` 或 GitHub Pages 上只能使用报文构建器、码表与能力字符串解析。桥接监听在回环地址并带 CORS 头，只接受本机页面发起的请求；在公共网络中不要把它暴露到 `0.0.0.0`。
 - 显示器差异极大：capabilities 未声明某码不等于一定不支持（反之亦然，以实际读写结果为准）；`0xE0–0xFF` 是厂商自定义区间，同一个码在不同品牌含义完全不同。Windows 的 dxva2 路径只能寻址 `0x00–0xFF` 的单字节 VCP 码，`0xE2A002` 这类 24 位扩展码需要 `ddcutil`。实测本机 `DISPLAY1` 是虚拟显示器，能读 VCP 但读能力字符串会返回 `INVALID_MESSAGE_LENGTH`，属正常现象。
 
+- **串口调试**页同样受浏览器限制：`file://` 下 Web Serial 一定不可用（需要 secure context），
+  只有本地桥接这条路；桥接的串口后端只在 Windows 可用（`System.IO.Ports` 来自 PowerShell 自带的
+  .NET，无需安装）。Linux / macOS 上目前只能走 Web Serial（Chrome/Edge + localhost）。
+- Web Serial **拿不到 COM 号**，只给 VID/PID；想按 COM 号认设备、或需要 1.5 位停止位 /
+  mark·space 校验 / XON/XOFF 时，必须用桥接（页面会把这些降级逐条告警出来）。
+- 同一个串口**同一时间只能被一个程序打开**（串口是独占资源）。被串口助手 / 烧录工具 / IDE 的
+  串口监视器占用时，打开会失败并提示「可能已被其他程序占用」，先关掉对方再试。
+- 串口调试页的吞吐上限来自浏览器渲染：40 ms 轮询、界面按帧合并重绘，高波特率持续灌数据时
+  显示会滞后于真实串口（数据本身不丢，桥接侧有 1 MB 环形缓冲，缓冲区被写满时才丢弃最旧的字节）。
+
 ---
 
-## 10. 说明
+## 11. 说明
 
 本项目的代码与文案为独立实现，功能对标 edidcraft.com。「时序对比」页的功能对标 Tom Verbeure 的
 Video Timings Calculator（其 DMT/VIC 标准时序数据与 CVT 公式来自 VESA/CTA 公开规范，算法经交叉验证对齐）。

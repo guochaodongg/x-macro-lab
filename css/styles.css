@@ -158,8 +158,9 @@ nav.tabs .tabmenu {
   flex-direction: column; gap: 2px;
 }
 nav.tabs .tabgroup.open > .tabmenu { display: flex; }
-/* 右侧两组右对齐，菜单不会溢出视口 */
+/* 右侧几组下拉右对齐，菜单不会溢出视口 */
 nav.tabs .tabgroup:nth-last-child(-n+2) > .tabmenu { left: auto; right: 0; }
+nav.tabs .tabgroup.menu-right > .tabmenu { left: auto; right: 0; }
 nav.tabs .tabmenu button {
   width: 100%; justify-content: flex-start; scroll-margin: 12px;
   border-radius: var(--radius-sm); padding: 8px 10px;
@@ -495,3 +496,77 @@ footer.site .wrap { display: flex; gap: 16px; flex-wrap: wrap; align-items: cent
 /* ---- gamma charts ---- */
 .gam-charts { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start; }
 .gam-charts svg { flex: 1 1 440px; min-width: 320px; height: auto; display: block; }
+
+/* ==========================================================================
+   串口调试页：普通模式 / 终端模式
+   两种模式必须「一眼可辨」——所以差异不只写在文字上，也写在版式上：
+   普通模式是标准卡片 + 分栏表单；终端模式是等宽、行式、带提示符与行内光标的
+   终端面。模式由 section[data-mode] 单点驱动，JS 只改这一个属性。
+   ========================================================================== */
+
+/* 顶部的模式开关（分段控件） */
+.seg {
+  display: inline-flex; padding: 3px; gap: 2px;
+  background: var(--bg-soft); border: 1px solid var(--border); border-radius: 999px;
+}
+.seg button {
+  font: inherit; font-size: .86rem; font-weight: 550;
+  border: 1px solid transparent; background: transparent; color: var(--text-soft);
+  border-radius: 999px; padding: 5px 12px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.seg button:hover { color: var(--text); }
+.seg button[aria-selected="true"] {
+  background: var(--surface); color: var(--accent-text);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  box-shadow: var(--shadow-sm);
+}
+.seg button .ic { width: 14px; height: 14px; }
+
+#panel-serial[data-mode="normal"] #ser-term-card { display: none; }
+#panel-serial[data-mode="terminal"] #ser-normal { display: none; }
+
+/* 终端面 */
+.ser-term {
+  margin: 0; min-height: 240px; max-height: 440px; overflow: auto;
+  font-family: var(--mono); font-size: .84rem; line-height: 1.55;
+  white-space: pre-wrap; word-break: break-word;
+  background: var(--code-bg); color: var(--text);
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  padding: 12px 14px;
+}
+.ser-term .ser-caret {
+  display: inline-block; width: 2px; height: 1em; vertical-align: -2px;
+  margin-left: 2px; background: var(--accent);
+  animation: serblink 1.1s steps(1) infinite;
+}
+@keyframes serblink { 50% { opacity: 0; } }
+.ser-term-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px; background: var(--surface-2);
+}
+.ser-term-bar #ser-prompt { flex: none; font-size: .82rem; }
+.ser-term-bar input { font-family: var(--mono); font-size: .86rem; }
+
+/* 接收面（普通模式） */
+.ser-rx {
+  margin: 0; min-height: 180px; max-height: 460px; overflow: auto;
+  font-family: var(--mono); font-size: .84rem; line-height: 1.6;
+  white-space: pre-wrap; word-break: break-word;
+  background: var(--code-bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+/* 预设命令 */
+.ser-preset-group { margin-bottom: 14px; }
+.ser-preset-group:last-child { margin-bottom: 0; }
+.ser-preset-group > .cap {
+  font-size: .76rem; font-weight: 650; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--text-dim); margin-bottom: 7px;
+}
+.ser-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.ser-presets button { font-family: var(--mono); font-size: .82rem; padding: 5px 10px; }
+
+.card > .foot .check, .card .body .check.inline { margin-bottom: 0; }
