@@ -1110,6 +1110,7 @@
     document.documentElement.setAttribute('data-theme', theme);
     $('#theme-icon').innerHTML = '<use href="#' + (theme === 'dark' ? 'i-sun' : 'i-moon') + '"/>';
     gammaRerender();
+    cieRerender();
     save();
   }
 
@@ -3872,6 +3873,250 @@
     window.addEventListener('resize', blogQueueSpy);
   }
 
+  /* ------------------------------------------------ 色彩空间 CIE 1931 */
+
+  var cie = {
+    ready: false,
+    env: { wp: 'D65', space: 'sRGB', adapt: 'Bradford' },
+    XYZ: [95.047, 100, 108.883],
+    realtime: true,
+    background: true,
+    source: 'XYZ',
+    baseKey: '',
+    last: null,
+    drag: false
+  };
+
+  /* 界面上所有输入框的当前值，直接喂给 CIE.compute() */
+  function cieRaw() {
+    var raw = {};
+    Object.keys(CIE.FIELD).forEach(function (k) {
+      var el = $('#' + CIE.FIELD[k]);
+      raw[CIE.FIELD[k]] = el ? el.value : '';
+    });
+    return raw;
+  }
+
+  function cieSync(source, force) {
+    if (!cie.ready) return;
+    /* 「最后动过的是哪一组」要在实时计算之前记下来：关掉实时计算后点
+       「执行计算」，要算的是刚输入的那一组，而不是上一次算过的来源。 */
+    cie.source = source;
+    if (!cie.realtime && !force && source !== 'pick') return;
+    var res = CIE.compute(source, cieRaw(), cie.env, cie.XYZ);
+    cie.XYZ = res.XYZ;
+    cie.last = res;
+    ciePaint(res);
+  }
+
+  function cieSpaceName() {
+    return CIEData.RGB_SPACES[cie.env.space].name;
+  }
+
+  function ciePaint(res) {
+    Object.keys(res.values).forEach(function (id) {
+      var el = $('#' + id);
+      if (!el) return;
+      var v = res.values[id];
+      /* number 输入框会把非数字字符串（比如读数里的「—」）静默变成空串，
+         与其留个看不出原因的空白，不如主动清空 —— 旁边的说明文字已经解释了。 */
+      if (el.type === 'number' && !isFinite(parseFloat(v))) { el.value = ''; return; }
+      el.value = v;
+    });
+
+    /* 色块按 sRGB 显示（白点已适应到 D65），文字颜色跟着亮度选黑或白 */
+    var sw = $('#cie-swatch');
+    var lin = 0.299 * res.srgb[0] + 0.587 * res.srgb[1] + 0.114 * res.srgb[2];
+    sw.style.background = 'rgb(' + res.srgb.join(',') + ')';
+    sw.style.color = lin > 140 ? '#111111' : '#ffffff';
+    $('#cie-swatch-hex').textContent = res.hex;
+    $('#cie-swatch-sub').textContent = res.srgbHex === res.hex
+      ? 'sRGB 预览（与设备值一致）'
+      : 'sRGB 预览 ' + res.srgbHex;
+
+    $('#cie-oog').classList.toggle('hide', !res.oog);
+    var chip = $('#cie-gamut-chip');
+    chip.textContent = res.oog ? '超出 ' + cieSpaceName() + ' 色域' : '色域内';
+    chip.className = 'chip ' + (res.oog ? 'warn' : 'ok');
+    $('#cie-cct-note').textContent = res.cctNote;
+
+    cieEnvLine();
+    cieMatrix();
+    cieDraw(res);
+  }
+
+  function cieEnvLine() {
+    var info = CIE.envInfo(cie.env);
+    var extra = info.needAdapt
+      ? '空间白点与参考白点不同，矩阵已含 ' + info.adaptName + ' 色度适应'
+      : '空间白点与参考白点一致，无需色度适应';
+    $('#cie-env-line').textContent = info.spaceLine + ' · 参考白点 → ' + info.wpName +
+      '（' + info.adaptName + '）；' + extra;
+  }
+
+  function cieMatrix() {
+    var info = CIE.envInfo(cie.env);
+    var h = '<thead><tr><th>基色</th><th>X</th><th>Y</th><th>Z</th></tr></thead><tbody>';
+    ['R', 'G', 'B'].forEach(function (n, i) {
+      h += '<tr><td>' + n + '</td><td>' + info.matrixRows[i][0] + '</td><td>' +
+        info.matrixRows[i][1] + '</td><td>' + info.matrixRows[i][2] + '</td></tr>';
+    });
+    h += '</tbody>';
+    $('#cie-matrix').innerHTML = h;
+    $('#cie-matrix-note').textContent =
+      '行 = R / G / B，列 = X / Y / Z；输入为归一化线性 RGB（0–1），输出为 ' +
+      info.white[0] + ' / ' + info.white[1] + ' / ' + info.white[2] +
+      ' 标度的 XYZ。RGB = (1,1,1) 正好落在 ' + info.wpName + ' 白点上。';
+  }
+
+  function cieDraw(res) {
+    var opts = { theme: state.theme, background: cie.background };
+    var key = CIE.baseKey(opts);
+    if (key !== cie.baseKey) {
+      $('#cie-map-bg').innerHTML = CIE.diagramBase(opts);
+      cie.baseKey = key;
+    }
+    $('#cie-map-fg').innerHTML = CIE.diagramOverlay({
+      theme: state.theme, env: cie.env, xy: res.xyY
+    });
+  }
+
+  /* 主题换了，SVG 里的色值要重新生成（presentation 属性不认 var()） */
+  function cieRerender() {
+    if (!cie.ready || !cie.last) return;
+    cie.baseKey = '';
+    cieDraw(cie.last);
+  }
+
+  function initCIE() {
+    var panel = $('#panel-cie');
+    if (!panel || !window.CIE || !window.CIEData) return;
+
+    var wpSel = $('#cie-wp'), spSel = $('#cie-space'), adSel = $('#cie-adapt');
+    CIEData.ILLUMINANT_ORDER.forEach(function (k) {
+      var ill = CIEData.ILLUMINANTS[k];
+      var o = document.createElement('option');
+      o.value = k;
+      o.textContent = ill.name + ' (' + ill.temp + ' K · ' + ill.note + ')';
+      wpSel.appendChild(o);
+    });
+    CIEData.RGB_ORDER.forEach(function (k) {
+      var sp = CIEData.RGB_SPACES[k];
+      var o = document.createElement('option');
+      o.value = k;
+      o.textContent = sp.name + ' · 白点 ' + CIEData.ILLUMINANTS[sp.wp].name;
+      spSel.appendChild(o);
+    });
+    CIEData.ADAPT_ORDER.forEach(function (k) {
+      var ad = CIEData.ADAPT[k];
+      var o = document.createElement('option');
+      o.value = k;
+      o.textContent = ad.name + ' · ' + ad.note;
+      adSel.appendChild(o);
+    });
+    wpSel.value = cie.env.wp;
+    spSel.value = cie.env.space;
+    adSel.value = cie.env.adapt;
+
+    /* 起手是一块标准白，D65 = 6504 K */
+    var start = [
+      ['cie-xyz-x', '95.047'], ['cie-xyz-y', '100.000'], ['cie-xyz-z', '108.883']
+    ];
+    start.forEach(function (kv) { $('#' + kv[0]).value = kv[1]; });
+
+    cie.ready = true;
+    cieSync('XYZ', true);
+
+    /* 输入绑定：每一格都声明自己是哪一组「来源」 */
+    var BIND = {
+      XYZ: ['cie-xyz-x', 'cie-xyz-y', 'cie-xyz-z'],
+      xyY: ['cie-xy-x', 'cie-xy-y'],
+      CCT: ['cie-cct'],
+      RGB: ['cie-rgb-r', 'cie-rgb-g', 'cie-rgb-b'],
+      HEX: ['cie-hex'],
+      Lab: ['cie-lab-l', 'cie-lab-a', 'cie-lab-b'],
+      LCHab: ['cie-lchab-c', 'cie-lchab-h'],
+      Luv: ['cie-luv-l', 'cie-luv-u', 'cie-luv-v'],
+      LCHuv: ['cie-lchuv-c', 'cie-lchuv-h']
+    };
+    Object.keys(BIND).forEach(function (source) {
+      BIND[source].forEach(function (id) {
+        var el = $('#' + id);
+        if (!el) return;
+        el.addEventListener('input', function () { cieSync(source); });
+        el.addEventListener('change', function () { cieSync(source, true); });
+      });
+    });
+
+    [wpSel, spSel, adSel].forEach(function (sel, i) {
+      sel.addEventListener('change', function () {
+        var key = ['wp', 'space', 'adapt'][i];
+        cie.env[key] = sel.value || cie.env[key];
+        /* 换环境不换 XYZ：同一份三刺激值在新白点下重新解读，这才是要看的东西 */
+        cie.baseKey = '';
+        cieSync('XYZ', true);
+      });
+    });
+
+    $('#cie-realtime').addEventListener('change', function (e) {
+      cie.realtime = !!e.target.checked;
+      $('#cie-calc').classList.toggle('hide', cie.realtime);
+      if (cie.realtime) cieSync(cie.source, true);
+    });
+    $('#cie-calc').addEventListener('click', function () { cieSync(cie.source, true); });
+    $('#cie-bg').addEventListener('change', function (e) {
+      cie.background = !!e.target.checked;
+      cie.baseKey = '';
+      if (cie.last) cieDraw(cie.last);
+    });
+
+    /* 色度图取点：pointer 事件同时覆盖鼠标、触屏与手写笔 */
+    var svg = $('#cie-map');
+    function svgPoint(e) {
+      var r = svg.getBoundingClientRect();
+      /* jsdom 里 rect 全是 0，也不能让缩放系数变成 NaN —— 退回 1:1 */
+      var sx = r.width ? CIE.geometry.W / r.width : 1;
+      var sy = r.height ? CIE.geometry.H / r.height : 1;
+      return CIE.atSvgPoint((e.clientX - r.left) * sx, (e.clientY - r.top) * sy);
+    }
+    function clampXY(p) {
+      return {
+        x: Math.min(Math.max(p.x, 0.0001), 0.8),
+        y: Math.min(Math.max(p.y, 0.0001), 0.9)
+      };
+    }
+    function ciePick(e) {
+      var xy = clampXY(svgPoint(e));
+      var raw = {};
+      raw['cie-xy-x'] = xy.x;
+      raw['cie-xy-y'] = xy.y;
+      cie.source = 'pick';
+      var res = CIE.compute('pick', raw, cie.env, cie.XYZ);
+      cie.XYZ = res.XYZ;
+      cie.last = res;
+      ciePaint(res);
+      ciePointer(xy);
+    }
+    function ciePointer(xy) {
+      $('#cie-pointer').textContent = '指针 x = ' + xy.x.toFixed(4) + '，y = ' + xy.y.toFixed(4);
+    }
+    svg.addEventListener('pointerdown', function (e) {
+      cie.drag = true;
+      if (svg.setPointerCapture && e.pointerId !== undefined) {
+        try { svg.setPointerCapture(e.pointerId); } catch (err) { /* 环境不支持就算了 */ }
+      }
+      ciePick(e);
+    });
+    svg.addEventListener('pointermove', function (e) {
+      var xy = clampXY(svgPoint(e));
+      ciePointer(xy);
+      if (cie.drag) ciePick(e);
+    });
+    ['pointerup', 'pointercancel'].forEach(function (type) {
+      svg.addEventListener(type, function () { cie.drag = false; });
+    });
+  }
+
   function init() {
     var draft = load();
     var linkTab = tabFromUrl();
@@ -3907,6 +4152,7 @@
     initMCCS();
     initSerial();
     initBlog();
+    initCIE();
 
     $$('nav.tabs button[data-tab]').forEach(function (b) {
       b.addEventListener('click', function () { switchTab(b.getAttribute('data-tab')); });

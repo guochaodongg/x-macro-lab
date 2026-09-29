@@ -3,9 +3,9 @@
 作者：**guochaodongg**（GitHub [@guochaodongg](https://github.com/guochaodongg)）· Display Driver Firmware Engineer —— 显示驱动固件工程师。
 本工具服务于显示工程日常：EDID 核对、时序核算、伽马校准、DDC/CI 调机与设备串口调试。
 
-对 [edidcraft.com](https://edidcraft.com/) 全部功能的**完整复刻**：解析（Decoder）、生成（Encoder）、校验（Validator）、时序计算（Timing Calculator），外加一页 EDID 速成课；在此之上又扩了五块内容：**时序对比**（多标准时序与接口带宽核算）、**伽马验证**（CA410 测量数据）、**DDC/CI 控制**（直连显示器读写 VCP）、**串口调试**（普通 / 终端双模式的 COM 口调试台）与 **Technology Blog**（显示技术长文专栏）。
+对 [edidcraft.com](https://edidcraft.com/) 全部功能的**完整复刻**：解析（Decoder）、生成（Encoder）、校验（Validator）、时序计算（Timing Calculator），外加一页 EDID 速成课；在此之上又扩了六块内容：**时序对比**（多标准时序与接口带宽核算）、**伽马验证**（CA410 测量数据）、**色彩空间**（CIE 1931 分析转换）、**DDC/CI 控制**（直连显示器读写 VCP）、**串口调试**（普通 / 终端双模式的 COM 口调试台）与 **Technology Blog**（显示技术长文专栏）。
 
-导航按功能域分成七组：**EDID**（解析 / 生成 / 校验 / 学习 EDID）、**Gamma**（伽马验证）、**DDC/CI**（DDC/CI 控制）、**串口调试**、**Timing**（时序计算 / 时序对比）、**Technology Blog**（显示器进阶技术）、**关于**。
+导航按功能域分成七组：**EDID**（解析 / 生成 / 校验 / 学习 EDID）、**PQ**（伽马验证 / 色彩空间）、**DDC/CI**（DDC/CI 控制）、**串口调试**、**Timing**（时序计算 / 时序对比）、**Technology Blog**（显示器进阶技术）、**关于**。
 
 - **纯静态**：`index.html` + `css/` + `js/`，可直接放到 GitHub Pages / Cloudflare Pages / 任意静态服务器。
 - **前端实现**：解析、生成、校验与时序计算全部由浏览器端 JavaScript 完成。
@@ -24,7 +24,7 @@
 
 ## 1. 功能清单
 
-顶部导航按 **7 个分组**组织（**EDID** / **Gamma** / **DDC/CI** / **串口调试** / **Timing** / **Technology Blog** / **关于**），点分组标题展开下拉菜单；每个页面也支持深链直达，例如 `index.html?tab=mccs`、`index.html?tab=blog`。
+顶部导航按 **7 个分组**组织（**EDID** / **PQ** / **DDC/CI** / **串口调试** / **Timing** / **Technology Blog** / **关于**），点分组标题展开下拉菜单；每个页面也支持深链直达，例如 `index.html?tab=mccs`、`index.html?tab=cie`、`index.html?tab=blog`。
 
 | 分组 | 页面 | 能力 |
 | --- | --- | --- |
@@ -32,7 +32,8 @@
 |  | **生成** | 可视化表单组包：厂商/产品/序列号、日期与版本、数字（位深/接口/颜色编码）或模拟（电平/同步方式）输入、DPMS 与特性位、色度坐标（一键 sRGB / D65）、17 项既定时序、最多 8 组标准时序、4 个可切换类型的描述符槽位、可增删的 CEA / DisplayID / VTB / 块映射扩展块；校验和自动计算，实时十六进制预览 + 自校验结果 |
 |  | **校验** | 结构、固定头、块长度、逐块校验和、扩展块数量一致性、日期范围、色度合法性与 sRGB 一致性、时序自洽、描述符格式（文本终止符、范围限制填充、CVT 参数）、CEA/VSDB/HDR/色度块一致性；按**错误 / 警告 / 提示**三级报告 |
 |  | **学习 EDID** | 8 节速成课：EDID 是什么、基础块字节地图、四种描述符、18 字节 DTD 逐字节解释、CEA-861 与 DisplayID、CVT/GTF 原理、常见坑、参考资料 |
-| **Gamma** | **伽马验证** | 读取 CA410 色温仪测量数据与灰阶占比表（.xlsx，浏览器本地解析，自研 ZIP / OOXML 读取器），按所选 Gamma 曲线（GammaBT1886 / 1.8 / 2.0 / 2.2 / 2.4 / 2.6）的占比映射生成参考曲线（峰值亮度 × 灰阶占比）、白点一致性（Wx / Wy）图表，并计算平均 Gamma（对数回归，与目标值偏差 ±0.05 内标绿）；可导出 PNG。**内置 6 组实测数据集**（`data/` 内，默认载入 BT1886），切换曲线即自动重绘对应图表，也支持上传自己的 .xlsx |
+| **PQ** | **伽马验证** | 读取 CA410 色温仪测量数据与灰阶占比表（.xlsx，浏览器本地解析，自研 ZIP / OOXML 读取器），按所选 Gamma 曲线（GammaBT1886 / 1.8 / 2.0 / 2.2 / 2.4 / 2.6）的占比映射生成参考曲线（峰值亮度 × 灰阶占比）、白点一致性（Wx / Wy）图表，并计算平均 Gamma（对数回归，与目标值偏差 ±0.05 内标绿）；可导出 PNG。**内置 6 组实测数据集**（`data/` 内，默认载入 BT1886），切换曲线即自动重绘对应图表，也支持上传自己的 .xlsx |
+|  | **色彩空间** | CIE 1931 色彩空间分析与转换（对标 CIE Color Space Analyzer，纯前端）：**XYZ / xyY / CCT / 设备 RGB 与 HEX / Lab / Luv（含 LCH）六组坐标互为输入输出**，改任一组其余五组即时算出；六种参考白点（A / C / D50 / D55 / D65 / E）、六种 RGB 空间（sRGB / AdobeRGB / Display P3 / Rec.709 / Rec.2020 / ProPhoto）、四套色度适应模型（Bradford / Von Kries / XYZ Scaling / 不换算）可自由组合，含传递函数解码 / 编码与矩阵推导。右侧 **XY 色度图**（内联 SVG，无外部资源）可**点击 / 拖动取点**：背景是该色度下 sRGB 能达到的最饱和亮度（6px 网格 + 光谱轨迹裁剪），叠加当前 RGB 空间色域三角形、黑体 / 日光轨迹与波长刻度；越出色域给出提示，并同时算出 **McCamy 色温与 Duv**、设备 RGB 值与 HEX 色样 |
 | **DDC/CI** | **DDC/CI 控制** | 像 MCCS 工具那样直接读写显示器 VCP 特性：连接本地桥接后列出物理显示器、读/写任意 VCP 码（亮度 / 对比度 / 输入源 / 电源模式…）、扫描常用码、读取并解析显示器 capabilities 字符串；离线也有**报文构建器**（逐字节字段解释 + 校验和核对 + 等价 `ddcutil` / `i2ctransfer` / PowerShell / curl 命令）和 **182 条 VCP 码参考表**（中英文名、类型 C/NC/CNC/T、读写权限、分组、枚举值含义） |
 | **串口调试** | **串口调试** | 两种**可识别的界面模式**：**普通模式**（发送区 + 接收区，接收视图可选 文本 / HEX / HEXDUMP，带时间戳与收发记录）与**终端模式**（提示符 + 命令行 + 闪烁光标，按真实终端语义解释 CR/LF/BS/TAB）。**切到本页即自动枚举已连接的 COM 口**（含友好名与 VID/PID，并自动选回上次用过的口）；波特率 300–2000000、5–8 数据位、五种校验、1 / 1.5 / 2 位停止位、三种流控、DTR/RTS、编码、行结尾、定时发送、常用指令预设（AT / SCPI / 控制字符）；普通模式会**嗅探内容**（命中 ANSI 转义、裸 CR、BEL、BS、FF 即提示切到终端模式）。两种传输方式：**本地桥接**（列全部 COM 口，`file://` 可用）与 **Web Serial**（零安装，仅 https/localhost） |
 | **Timing** | **时序计算** | VESA **CVT 1.1**（标准消隐）与 **CVT 1.2**（RB / RBv2 / RBv3）、**GTF 1.1**（含隔行与缩边）；输出完整参数表、消隐结构图、X11 `Modeline`、`xrandr --newmode` / `--addmode`，以及可直接写进 DTD 的 18 字节 |
@@ -74,6 +75,8 @@ x-macro-lab/
 │   ├── serial.js           # 串口协议逻辑：编解码、HEX 视图、终端缓冲、内容嗅探、两种传输适配器（无 DOM 依赖）
 │   ├── blog-data.js        # 技术博客文章数据（章节/小节/段落块/内联 SVG 示意图/术语表，纯数据）
 │   ├── blog.js             # 技术博客渲染层：行内标记、目录、正文、术语表 → HTML 字符串（无 DOM 依赖）
+│   ├── cie-data.js         # 色彩空间纯数据（参考白点 / RGB 空间基色与白点 / 色度适应矩阵 / 光谱轨迹 / 色度图配色）
+│   ├── cie.js              # CIE 1931 色彩空间逻辑：矩阵与色度适应、六组坐标互转、色度图几何与取点、色温/Duv（无 DOM 依赖）
 │   └── app.js              # 界面接线：标签页、表单、草稿、导出
 ├── tools/                  # 本地桥接（非页面依赖，用到时才需要）
 │   ├── ddc-windows.ps1     # DDC/CI 后端：dxva2.dll（P/Invoke），支持一次性与常驻两种模式
@@ -82,7 +85,7 @@ x-macro-lab/
 └── README.md
 ```
 
-脚本按 `core → timing → vtc-data → video-timings → decoder → encoder → validator → report → zip-lite → xlsx-lite → gamma → gamma-data → mccs-data → mccs → serial-data → serial → app` 的顺序加载，**顺序不能改**（都是普通 `<script>`，不是 ES module）。
+脚本按 `core → timing → vtc-data → video-timings → decoder → encoder → validator → report → zip-lite → xlsx-lite → gamma → gamma-data → mccs-data → mccs → serial-data → serial → blog-data → blog → cie-data → cie → app` 的顺序加载，**顺序不能改**（都是普通 `<script>`，不是 ES module）。
 
 > `data/*.xlsx` 是原始测量文件，页面不会去 fetch 它们（`file://` 下会被 CORS 拦），
 > 而是用 `js/gamma-data.js` 里的预提取数组，因此双击 `index.html` 也能直接看到内置图表；
@@ -474,6 +477,8 @@ capabilities 字符串也能解析出型号、`mccs_ver`、支持的操作码、
 | `MCCSData` | `VCP`（182 条码表）、`OPCODES`（9 条操作码）、`VALUES`（枚举值表） |
 | `SERIAL` | `bytes`、`hex`、`hex2`、`hex4`、`concat`、`textToBytes`、`decodeBytes`、`eolBytes`、`eolLabel`、`printable`、`escapeText`、`hexdump`、`describeBytes`、`termNew`、`termFeed`、`termText`、`termSize`、`termHTML`（终端缓冲与 ANSI 颜色渲染）、`sniffMode`（内容嗅探）、`stamp`、`bridgePort`、`webPort`、`mergePortLists`、`matchPort`、`transportOrder`、`transportName`、`normalizeCfg`、`toWebSerialOptions`、`toBridgeArgs`、`presetBytes`、`makeWebSerialTransport`、`makeBridgeTransport` |
 | `SERIALData` | `BAUDS`、`DATA_BITS`、`PARITY`、`STOP_BITS`、`FLOW`、`EOL`、`SEND_ENCODING`、`RECV_ENCODING`、`RX_VIEWS`、`PRESETS`（AT / SCPI / 控制字符）、`WEB_SERIAL_LIMITS` |
+| `CIE` | `matrix`（`mulMatVec` / `mulMatMat` / `invMat`）、`decode` / `encode`（传递函数）、`buildRGBMatrix`、`adaptationMatrix`、`pipeline`、`rgbToXyz` / `xyzToRgb`、`convert`（`XYZ_to_xyY` / `xyY_to_XYZ` / `xy_to_CCT` / `CCT_to_xy` / `XYZ_to_Lab` / `Lab_to_XYZ` / `ab_to_LCH` / `LCH_to_ab` / `XYZ_to_Luv` / `Luv_to_XYZ` / `xy_to_uv60`）、`outOfGamut`、`deviceRGB`、`srgb8`、`rgbHex` / `parseHex`、`compute`、`envInfo`、`locusPoints` / `pointInLocus`、`planckianPoints`、`nearestPlanck`（最近黑体点 + Duv）、`diagramBase` / `diagramOverlay` / `baseKey`、`pickXYZ` / `pickAt` / `atSvgPoint`、`readout`、`FIELD` / `SKIP` |
+| `CIEData` | `ILLUMINANTS` / `ILLUMINANT_ORDER`（A / C / D50 / D55 / D65 / E）、`RGB_SPACES` / `RGB_ORDER`（sRGB / AdobeRGB / Display P3 / Rec.709 / Rec.2020 / ProPhoto）、`ADAPT` / `ADAPT_ORDER`（Bradford / Von Kries / XYZ Scaling / None）、`SPECTRAL_LOCUS` / `LOCUS_TICKS`、`DIAGRAM_THEME` |
 
 两个传输适配器（`makeBridgeTransport` / `makeWebSerialTransport`）对外是同一组方法，
 所以换传输不用改调用方：
@@ -499,6 +504,40 @@ capabilities 字符串也能解析出型号、`mccs_ver`、支持的操作码、
 
   // 换传输时它自己会告警哪些参数被降级
   SERIAL.toWebSerialOptions({ stopBits: 1.5 }).warnings;  // [ '…将按 2 位打开——需要它请改用本地桥接' ]
+</script>
+```
+
+色彩空间引擎同理（`cie-data.js` → `cie.js`）：
+
+```html
+<script src="js/cie-data.js"></script>
+<script src="js/cie.js"></script>
+<script>
+  var env = { wp: 'D65', space: 'sRGB', adapt: 'Bradford' };   // 白点 / RGB 空间 / 色度适应
+
+  // 六组坐标互为输入输出：给一组原始值，其余全部算出
+  // raw 的键就是界面上的输入框 id（列表见 CIE.FIELD；CIE.SKIP 给出该来源下不必回填的框）
+  var r = CIE.compute('xyY', { 'cie-xy-x': 0.3127, 'cie-xy-y': 0.3290 }, env);
+  // r.text   → { X: '95.047', Y: '100.000', …, cct: '6504', hex: '#FFFFFF', … }（已格式化的字符串）
+  // r.values → 同样内容、键为 DOM id，可直接写回界面
+  // r.xyz / r.xyY / r.lab / r.luv / r.lchab / r.lchuv / r.rgb8 / r.hex / r.oog / r.planck …
+
+  // 色度 ↔ 色温（McCamy 近似；算不出返回 null）
+  CIE.convert.xy_to_CCT(0.3127, 0.3290);   // 6504（D65）
+  CIE.convert.CCT_to_xy(6500);             // 黑体轨迹反算 [x, y]
+
+  // 偏离黑体轨迹时，用「最近黑体点 + Duv」判断这个温度可不可信
+  CIE.nearestPlanck(0.30, 0.60);           // { T, duv, u, v }；|Duv| > 0.05 时界面把 CCT 显示成「—」
+
+  // 设备 RGB / 色域
+  CIE.srgb8(env, r.xyz);                   // 该 XYZ 在 sRGB 下的 8 位 RGB
+  CIE.rgbHex([255, 128, 0]);               // '#FF8000'（8 位值 → HEX）
+  CIE.outOfGamut([1.2, -0.1, 0.4]);        // true（线性 RGB 超出 0–1）
+
+  // 色度图：底层只随主题 / 背景开关（可用 CIE.baseKey 做缓存键），叠加层随白点 / 空间 / 取点
+  var bg = CIE.diagramBase({ theme: 'dark', background: true, cell: 6 });  // 内联 SVG 片段
+  var fg = CIE.diagramOverlay({ env: env, theme: 'dark', xy: [0.3127, 0.3290] });
+  CIE.pickAt(env, 0.33, 0.33);             // 取点 → { x, y, Y, XYZ }，亮度取「该色度下不超色域」的最大值
 </script>
 ```
 
@@ -566,11 +605,11 @@ NODE_PATH=/tmp/edid-domtest/node_modules node your-dom-test.js
 Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 
 > 本项目的测试脚本（`_ref/test-*.js`，覆盖编解码往返、时序矩阵、报告层、时序对比、伽马、
-> DDC/CI 协议、串口协议与传输适配器、技术博客数据与渲染层，以及 jsdom 驱动的界面层）都在
-> 仓库外的 `_ref/`，不会随静态站点发布。
-> 当前基线：**108 / 356 / 2094 / 20095 / 122 / 258 / 269 / 475 + 界面 92，全部 0 失败**
+> DDC/CI 协议、串口协议与传输适配器、技术博客数据与渲染层、CIE 1931 色彩空间，以及 jsdom
+> 驱动的界面层）都在仓库外的 `_ref/`，不会随静态站点发布。
+> 当前基线：**108 / 356 / 2094 / 20095 / 122 / 258 / 269 / 475 / 489 + 界面 106，全部 0 失败**
 > （依次为 `test-edid` / `test-timing` / `test-render` / `test-vtc` / `test-gamma` /
-> `test-mccs` / `test-serial` / `test-blog`，最后是 `test-app-dom`）。
+> `test-mccs` / `test-serial` / `test-blog` / `test-cie`，最后是 `test-app-dom`）。
 
 ---
 
@@ -612,7 +651,52 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 
 ---
 
-## 11. 已知边界
+## 11. 色彩空间（CIE 1931）
+
+### 11.1 分层
+
+与其余页面一致，是「纯数据 → 纯逻辑 → DOM 接线」三层，因此可在 Node 里直接测：
+
+- `js/cie-data.js` —— 纯数据：六种参考白点（A / C / D50 / D55 / D65 / E，各带归一化 XYZ）、
+  六种 RGB 空间（基色色度 + 白点 + 传递函数 + 说明）、四套色度适应（Bradford / Von Kries /
+  XYZ Scaling / 不换算的 3×3 矩阵）、光谱轨迹 29 点（380–700 nm）与波长刻度、
+  色度图的两套配色（浅色 / 深色）。
+- `js/cie.js` —— 纯逻辑：矩阵运算、传递函数解码 / 编码、RGB↔XYZ 矩阵推导、色度适应、
+  六组坐标互转、Lab/Luv 与 LCH 极坐标、CCT（McCamy）、最近黑体点 + Duv、色域判定、
+  色度图几何（坐标映射、光谱轨迹裁剪、底图 / 叠加层 SVG 生成）。**不碰 DOM**。
+- `js/app.js` 里的 `initCIE()` —— 只负责填槽位、读写输入框、画 SVG、接指针事件。
+
+### 11.2 六组坐标互为输入输出
+
+XYZ / xyY / CCT / 设备 RGB 与 HEX / Lab / Luv（含 LCH）七类（共 21 个）输入框处于**同一张图**里：
+改动任意一组并触发计算，其余各组立即更新。核心是 `CIE.compute(source, raw, env, prev)` ——
+`source` 指明「这次是谁被改了」，`raw` 是全部输入框的当前值（键就是 DOM id），
+`prev` 用来在 xyY / CCT 这类信息不足的来源下沿用上一次的亮度 Y。
+
+实时计算开关打开时逐键重算；关闭时只有点「执行计算」才结算 —— 此时会先记账「最后被编辑的来源」，
+否则按下按钮会用错来源。
+
+### 11.3 色度图
+
+- **内联 SVG，不是 canvas**：这是站点「零外链、可 `file://` 直开」约定的必然结果，
+  SVG presentation 属性不认 `var()`，所以配色取 `cie-data.js` 里的真色值，并随明暗主题重画。
+- **背景 = 该色度下 sRGB 能达到的最饱和颜色**：6px 网格逐格求值，同行同色合并成一条
+  `<rect>` 减少节点数，越出光谱轨迹的格子用 `clipPath` 裁掉。底层只随「主题 / 背景开关」变化，
+  与白点、空间无关，所以 `CIE.baseKey(opts)` 给出的键可直接当缓存键。
+- **叠加层随点变**：当前 RGB 空间的色域三角形（基色已做色度适应，所以换白点 / 换适应模型时
+  三角形会跟着动）、参考白点标记、黑体轨迹、取点十字。
+- **取点**：在图上点击 / 拖动（pointer 事件，鼠标 / 触屏 / 笔通吃）即把该色度写进 xyY；
+  亮度取「该色度下刚好不超色域」的最大值，所以预览永远是最饱和的样子。越出色域会给出提示。
+
+### 11.4 色温为什么需要 Duv 兜底
+
+McCamy 是**近似**公式，色度一旦远离黑体轨迹（最典型的是光谱绿）它仍会硬算出一个数 ——
+实测纯绿能算出 13 亿 K。所以页面另算 `CIE.nearestPlanck(x, y)`：在 1960 UCS 空间里找**最近的黑体点**
+并给出带符号的 **Duv**，当 `|Duv| > 0.05` 或温度越出常规区间时把 CCT 显示成「—」。
+
+---
+
+## 12. 已知边界
 
 - **DisplayID** 只解析到“分节”层级（标签/版本/长度/偏移），不做逐节内容解释；生成器也按分节字节原样写入。
 - **VTB** 与**块映射表**同样只做结构与标签层面的处理。
@@ -636,15 +720,27 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 - 串口调试页的吞吐上限来自浏览器渲染：40 ms 轮询、界面按帧合并重绘，高波特率持续灌数据时
   显示会滞后于真实串口（数据本身不丢，桥接侧有 1 MB 环形缓冲，缓冲区被写满时才丢弃最旧的字节）。
 
+- **色彩空间**页的色温是 **McCamy 近似**（不是查表迭代），只对黑体 / 日光附近可信；页面用
+  「最近黑体点 + Duv」兜底，`|Duv| > 0.05` 或温度越界时把 CCT 显示成「—」，此时请以 Lab / Luv
+  等绝对量为准。色度适应只有四套 3×3 线性模型（Bradford / Von Kries / XYZ Scaling / 不换算），
+  不包括 CAT02 / CMCCAT2000 之类更复杂的模型。色域判定为「线性 RGB 是否落在 0–1（带 0.0005 容差）」，
+  与参考实现一致；RGB 空间的传递函数只覆盖常见几种（分段 sRGB、纯 γ、BT.709 / BT.2020 OETF、ProPhoto），
+  不做 OOTF / 色域映射。色度图背景按 sRGB 计算，与页面上所选 RGB 空间无关。
+
 ---
 
-## 12. 说明
+## 13. 说明
 
 本项目的代码与文案为独立实现，功能对标 edidcraft.com。「时序对比」页的功能对标 Tom Verbeure 的
 Video Timings Calculator（其 DMT/VIC 标准时序数据与 CVT 公式来自 VESA/CTA 公开规范，算法经交叉验证对齐）。
 「伽马验证」页为内部 Python 版「Gamma Curve Verification Tool」的 Web 移植，数据读取、列/行配置与
 平均 Gamma 算法与原工具保持一致；内置数据集即该工具配套的 CA410 实测样本（`data/` 目录，可下载）。
 EDID / CEA-861 / DisplayID / CVT / GTF 的具体细节请以 VESA 与 CTA 官方规范为准。
+
+「色彩空间」页的功能对标 [CIE 1931 Color Converter](https://zq-moonlight.github.io/cie1931-color-converter/)
+（CIE Color Space Analyzer，作者 zq-moonlight），按本项目「数据 / 逻辑 / 界面」三层重写为可离线运行的
+纯前端实现：矩阵、传递函数与色温公式来自公开的 CIE / IEC 规范与 Bruce Lindbloom 的色度学参考矩阵，
+矩阵与白点数值在 `_ref/test-cie.js` 里逐项对照。原站的界面与代码**没有随文转载**，本页为独立实现。
 
 「Technology Blog」页首篇为 **TFTCentral** 专题 *Technologies*（<https://tftcentral.co.uk/advanced>）
 的中文翻译整理，原文及其中厂商资料、商标、型号名称的权利均归各自所有者；版权声明见

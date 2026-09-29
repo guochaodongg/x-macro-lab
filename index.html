@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>X-MACRO-LAB — EDID / 时序 / 伽马 / DDC-CI / 串口 / 显示技术博客</title>
-<meta name="description" content="X-MACRO-LAB：纯前端实现的显示工程师工具箱 —— EDID 解析（Decoder）、生成（Encoder）、校验（Validator）、VESA CVT/GTF 时序计算与对比、伽马曲线验证、DDC/CI 显示器控制、串口调试，以及显示技术长文博客。纯静态页面，可直接部署到 GitHub Pages 或任意静态托管。">
+<title>X-MACRO-LAB — EDID / 时序 / PQ 伽马 / 色彩空间 / DDC-CI / 串口 / 显示技术博客</title>
+<meta name="description" content="X-MACRO-LAB：纯前端实现的显示工程师工具箱 —— EDID 解析（Decoder）、生成（Encoder）、校验（Validator）、VESA CVT/GTF 时序计算与对比、伽马曲线验证与 CIE 色彩空间分析、DDC/CI 显示器控制、串口调试，以及显示技术长文博客。纯静态页面，可直接部署到 GitHub Pages 或任意静态托管。">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Crect x='7' y='7' width='7' height='7' fill='%23fff'/%3E%3Crect x='18' y='7' width='7' height='7' fill='%23fff' opacity='.65'/%3E%3Crect x='7' y='18' width='7' height='7' fill='%23fff' opacity='.65'/%3E%3Crect x='18' y='18' width='7' height='7' fill='%23fff'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="css/styles.css">
@@ -65,9 +65,12 @@
     <rect x="7" y="7" width="10" height="10" rx="1.5"/>
     <path d="M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4"/>
   </symbol>
-  <symbol id="i-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-    <path d="m6 9.5 6 5.5 6-5.5"/>
-  </symbol>
+    <symbol id="i-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m6 9.5 6 5.5 6-5.5"/>
+    </symbol>
+    <symbol id="i-color" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="9" cy="9" r="4.6"/><circle cx="15" cy="9" r="4.6"/><circle cx="12" cy="14.6" r="4.6"/>
+    </symbol>
   <symbol id="i-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <rect x="3" y="4.5" width="18" height="15" rx="2.5"/>
     <path d="m7 9.5 3 2.8-3 2.8"/>
@@ -94,10 +97,11 @@
           <button type="button" role="tab" aria-selected="false" data-tab="learn"><svg class="ic"><use href="#i-book"/></svg><span class="lbl">学习 EDID</span><span class="hint">Learn</span></button>
         </div>
       </div>
-      <div class="tabgroup" data-group="gamma">
-        <button type="button" class="gbtn" aria-expanded="false">Gamma<svg class="ic caret" aria-hidden="true"><use href="#i-caret"/></svg></button>
-        <div class="tabmenu" role="tablist" aria-label="Gamma">
+      <div class="tabgroup" data-group="pq">
+        <button type="button" class="gbtn" aria-expanded="false">PQ<svg class="ic caret" aria-hidden="true"><use href="#i-caret"/></svg></button>
+        <div class="tabmenu" role="tablist" aria-label="PQ">
           <button type="button" role="tab" aria-selected="false" data-tab="gamma"><svg class="ic"><use href="#i-chart"/></svg><span class="lbl">伽马验证</span><span class="hint">Gamma Curve</span></button>
+          <button type="button" role="tab" aria-selected="false" data-tab="cie"><svg class="ic"><use href="#i-color"/></svg><span class="lbl">色彩空间</span><span class="hint">CIE 1931</span></button>
         </div>
       </div>
       <div class="tabgroup" data-group="ddcci">
@@ -451,6 +455,147 @@
     </div>
     <p class="muted" id="gam-status" style="margin-top:0">请先选择测量数据 Excel 文件，然后点击「生成图表」。</p>
     <div class="stack" id="gam-out"></div>
+  </section>
+
+  <!-- ================================================ 色彩空间 CIE 1931 ==== -->
+  <section class="panel" id="panel-cie">
+    <p class="muted" style="margin-top:0">
+      CIE 1931 色彩空间分析与转换（功能移植自 <b>CIE Color Space Analyzer</b>）。任意一组坐标都能当输入 ——
+      <b>XYZ</b> 三刺激值、<b>xyY</b> 色度、<b>CCT</b> 色温、<b>设备 RGB / HEX</b>、<b>Lab</b> 与 <b>Luv</b>（含 LCH 极坐标），
+      转换全程走「基色矩阵 + 色度适应」算到所选参考白点。右侧色度图可<b>点击 / 拖动取点</b>，
+      亮度自动取该色度下不超色域的最大值；背景是该色度下 sRGB 能达到的最饱和颜色，
+      虚线是黑体轨迹（1667–25000 K）。数学模型与常数取自 Bruce Lindbloom 的公开参考模型，
+      <b>全浏览器本地计算，无任何数据外发。</b>
+    </p>
+
+    <div class="cie-wrap">
+      <div class="stack">
+
+        <div class="card">
+          <header>
+            <h3>1. 环境参数配置</h3>
+            <span class="spacer"></span>
+            <label class="check" style="margin:0"><input type="checkbox" id="cie-realtime" checked><span>启用实时计算</span></label>
+            <button type="button" class="btn hide" id="cie-calc"><svg class="ic"><use href="#i-refresh"/></svg>执行计算</button>
+          </header>
+          <div class="body">
+            <div class="field-row">
+              <div class="field"><label for="cie-wp">参考白点（Reference Illuminant）</label>
+                <select id="cie-wp"></select></div>
+              <div class="field"><label for="cie-space">RGB 色彩空间（RGB Color Space）</label>
+                <select id="cie-space"></select></div>
+              <div class="field"><label for="cie-adapt">色度适应模型（Chromatic Adaptation）</label>
+                <select id="cie-adapt"></select></div>
+            </div>
+            <p class="small dim" id="cie-env-line" style="margin:2px 0 0"></p>
+          </div>
+        </div>
+
+        <div class="card">
+          <header>
+            <h3>2. 空间坐标数据</h3>
+            <span class="spacer"></span>
+            <span class="chip" id="cie-gamut-chip">色域内</span>
+          </header>
+          <div class="body">
+            <div class="cie-grid">
+
+              <div class="cie-block">
+                <div class="cie-bt">CIE XYZ <span class="dim">三刺激值 / Tristimulus</span></div>
+                <label class="cie-in"><span>X</span><input type="number" id="cie-xyz-x" step="0.01"></label>
+                <label class="cie-in"><span>Y</span><input type="number" id="cie-xyz-y" step="0.01"></label>
+                <label class="cie-in"><span>Z</span><input type="number" id="cie-xyz-z" step="0.01"></label>
+                <p class="cie-note">0–100 标度，Y = 100 即参考白点的亮度</p>
+              </div>
+
+              <div class="cie-block">
+                <div class="cie-bt">CIE xyY <span class="dim">色度坐标 / Chromaticity</span></div>
+                <label class="cie-in"><span>x</span><input type="number" id="cie-xy-x" step="0.0001"></label>
+                <label class="cie-in"><span>y</span><input type="number" id="cie-xy-y" step="0.0001"></label>
+                <label class="cie-in"><span>Y</span><input type="number" id="cie-xy-lum" step="0.01" readonly></label>
+                <p class="cie-note">改 x / y 只换色度，亮度沿用当前 Y</p>
+              </div>
+
+              <div class="cie-block">
+                <div class="cie-bt">CCT <span class="dim">相关色温 / Color Temp</span></div>
+                <label class="cie-in"><span>K</span><input type="number" id="cie-cct" step="1" placeholder="不适用"></label>
+                <p class="cie-note" id="cie-cct-note">McCamy 近似方程</p>
+              </div>
+
+              <div class="cie-block">
+                <div class="cie-bt">Device RGB <span class="dim">设备码值 / 8-bit</span></div>
+                <label class="cie-in"><span>R</span><input type="number" id="cie-rgb-r" min="0" max="255"></label>
+                <label class="cie-in"><span>G</span><input type="number" id="cie-rgb-g" min="0" max="255"></label>
+                <label class="cie-in"><span>B</span><input type="number" id="cie-rgb-b" min="0" max="255"></label>
+                <label class="cie-in"><span>HEX</span><input type="text" id="cie-hex" maxlength="7" spellcheck="false"></label>
+              </div>
+
+              <div class="cie-block">
+                <div class="cie-bt">CIE L*a*b* <span class="dim">/ LCH(ab)</span></div>
+                <label class="cie-in"><span>L*</span><input type="number" id="cie-lab-l" step="0.1"></label>
+                <label class="cie-in"><span>a*</span><input type="number" id="cie-lab-a" step="0.1"></label>
+                <label class="cie-in"><span>b*</span><input type="number" id="cie-lab-b" step="0.1"></label>
+                <div class="cie-hr"></div>
+                <label class="cie-in"><span>C</span><input type="number" id="cie-lchab-c" step="0.1"></label>
+                <label class="cie-in"><span>h°</span><input type="number" id="cie-lchab-h" step="0.1"></label>
+                <p class="cie-note">以 x 轴为 0°、逆时针为正</p>
+              </div>
+
+              <div class="cie-block">
+                <div class="cie-bt">CIE L*u*v* <span class="dim">/ LCH(uv)</span></div>
+                <label class="cie-in"><span>L*</span><input type="number" id="cie-luv-l" step="0.1"></label>
+                <label class="cie-in"><span>u*</span><input type="number" id="cie-luv-u" step="0.1"></label>
+                <label class="cie-in"><span>v*</span><input type="number" id="cie-luv-v" step="0.1"></label>
+                <div class="cie-hr"></div>
+                <label class="cie-in"><span>C</span><input type="number" id="cie-lchuv-c" step="0.1"></label>
+                <label class="cie-in"><span>h°</span><input type="number" id="cie-lchuv-h" step="0.1"></label>
+                <p class="cie-note">1960 UCS 派生，常用于显示器色差</p>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="stack">
+
+        <div class="card">
+          <header>
+            <h3>CIE 1931 xy 色度图</h3>
+            <span class="spacer"></span>
+            <label class="check" style="margin:0"><input type="checkbox" id="cie-bg" checked><span>亮度背景</span></label>
+          </header>
+          <div class="body">
+            <div class="cie-swatch" id="cie-swatch">
+              <b id="cie-swatch-hex">#FFFFFF</b>
+              <span id="cie-swatch-sub">sRGB 预览</span>
+            </div>
+            <div class="cie-oog hide" id="cie-oog">⚠️ 超出所选 RGB 色域（Out of Gamut）</div>
+            <div class="cie-diagram">
+              <svg id="cie-map" viewBox="0 0 450 480" role="img" aria-label="CIE 1931 xy 色度图，可点击或拖动取点">
+                <g id="cie-map-bg"></g>
+                <g id="cie-map-fg"></g>
+              </svg>
+            </div>
+            <p class="small dim" id="cie-pointer" style="margin:8px 0 4px">指针 x = -, y = -</p>
+            <p class="small dim" style="margin:0">
+              点击或拖动色度图取点；背景为该色度下 sRGB 能达到的最饱和颜色；
+              实线是所选 RGB 空间的色域三角形（换白点 / 换适应模型时会跟着动），虚线是黑体轨迹。
+            </p>
+          </div>
+        </div>
+
+        <div class="card">
+          <header><h3>转换矩阵 <span class="dim">RGB → XYZ（含色度适应）</span></h3></header>
+          <div class="body">
+            <div class="table-scroll"><table id="cie-matrix"></table></div>
+            <p class="small dim" id="cie-matrix-note" style="margin:10px 0 0"></p>
+          </div>
+        </div>
+
+      </div>
+    </div>
   </section>
 
   <section class="panel" id="panel-mccs">
@@ -941,7 +1086,7 @@
     <div class="grid cols-2">
       <div class="card"><div class="body">
         <h3>关于本工具</h3>
-        <p><b>X-MACRO-LAB</b> 是一个 <b>纯静态、纯前端</b> 的显示工程工具箱，EDID 部分完整覆盖 edidcraft.com 的解析、生成、校验与时序计算，并加入时序对比、伽马曲线验证、DDC/CI 显示器控制、串口调试与技术博客，所有运算都由浏览器端 JavaScript 实现：</p>
+        <p><b>X-MACRO-LAB</b> 是一个 <b>纯静态、纯前端</b> 的显示工程工具箱，EDID 部分完整覆盖 edidcraft.com 的解析、生成、校验与时序计算，并加入时序对比、伽马曲线验证、CIE 1931 色彩空间分析、DDC/CI 显示器控制、串口调试与技术博客，所有运算都由浏览器端 JavaScript 实现：</p>
         <ul class="small muted">
           <li>没有后端、不请求任何远程接口，页面逻辑全部在本地运行；</li>
           <li>不加载任何 CDN 资源（图标为内联 SVG、字体为系统字体）；</li>
@@ -963,7 +1108,7 @@
           <i>Driving advanced displays from silicon to every pixel.</i><br>
           致力于先进显示器驱动固件研发，工作覆盖
           <b>Panel → TCON → Driver IC → Firmware → Timing → Image Quality</b> 全链路。
-          这套工具就是为日常的 EDID 核对、时序核算、伽马校准、DDC/CI 调机与设备串口调试而做的。
+          这套工具就是为日常的 EDID 核对、时序核算、伽马校准、色彩空间换算、DDC/CI 调机与设备串口调试而做的。
         </p>
         <div class="kv">
           <dt>固件</dt><dd>DDIC / TCON 固件架构、板级启动、外设驱动、I²C / SPI、无 Flash 启动、低功耗设计</dd>
@@ -978,13 +1123,14 @@
 
       <div class="card"><div class="body">
         <h3>功能清单</h3>
-        <p class="small muted" style="margin-top:0">顶部导航按 <b>EDID</b> / <b>Gamma</b> / <b>DDC/CI</b> / <b>串口调试</b> / <b>Timing</b> / <b>Technology Blog</b> / <b>关于</b> 七组组织，点分组标题展开下拉菜单；每个页面也能用深链直达，例如 <code>?tab=mccs</code>、<code>?tab=blog</code>。</p>
+        <p class="small muted" style="margin-top:0">顶部导航按 <b>EDID</b> / <b>PQ</b> / <b>DDC/CI</b> / <b>串口调试</b> / <b>Timing</b> / <b>Technology Blog</b> / <b>关于</b> 七组组织，点分组标题展开下拉菜单；每个页面也能用深链直达，例如 <code>?tab=mccs</code>、<code>?tab=cie</code>、<code>?tab=blog</code>。</p>
         <div class="kv">
           <dt>EDID · 解析</dt><dd>基础块全字段、既定 / 标准时序、四类描述符、CEA-861 数据块、DisplayID 分节、VTB、块映射</dd>
           <dt>EDID · 生成</dt><dd>厂商 / 产品 / 序列号、日期与版本、数字 / 模拟输入、色度、既定与标准时序、描述符与扩展块，自动校验和</dd>
           <dt>EDID · 校验</dt><dd>结构与校验和、日期范围、色度合法性与 sRGB 一致性、时序自洽、描述符格式、扩展块一致性，分级报告</dd>
           <dt>EDID · 学习 EDID</dt><dd>8 节速成课：基础块字节地图、四种描述符、18 字节 DTD 逐字节解释、CEA-861 与 DisplayID、CVT/GTF 原理、常见坑</dd>
-          <dt>Gamma · 伽马验证</dt><dd>读取 CA410 测量数据与灰阶占比表（.xlsx 本地解析），生成实测 / 参考伽马曲线与白点一致性图表，计算平均 Gamma；内置 6 组实测数据集（默认 BT1886，切换曲线自动重绘）</dd>
+          <dt>PQ · 伽马验证</dt><dd>读取 CA410 测量数据与灰阶占比表（.xlsx 本地解析），生成实测 / 参考伽马曲线与白点一致性图表，计算平均 Gamma；内置 6 组实测数据集（默认 BT1886，切换曲线自动重绘）</dd>
+          <dt>PQ · 色彩空间</dt><dd>CIE 1931 色彩空间分析与转换（移植自 CIE Color Space Analyzer）：XYZ / xyY / CCT / 设备 RGB 与 HEX / Lab / Luv（含 LCH）六组坐标互为输入输出，六种参考白点、六种 RGB 空间、四套色度适应模型可换；xy 色度图可点击拖动取点，背景是该色度下 sRGB 能达到的最饱和颜色，另有色域三角形与黑体轨迹，超出色域会给出提示，并顺带算出 McCamy 色温与 Duv</dd>
           <dt>DDC/CI · 控制</dt><dd>像 MCCS 工具一样读写显示器 VCP 特性（亮度 / 对比度 / 输入源 / 电源模式…）、扫描支持码、读取并解析 capabilities 字符串；离线可用报文构建器（逐字节解释 + 校验和核对 + 等价 ddcutil / i2ctransfer / curl 命令）与 182 条 VCP 码参考表</dd>
           <dt>串口调试</dt><dd>普通模式（发送 / 接收分区，接收视图可选文本 / HEX / HEXDUMP，带时间戳与收发记录）与终端模式（提示符 + 命令行 + 闪烁光标，按 CR / LF / BS / TAB 的真实终端语义解释）双界面；切到本页自动枚举已连接的 COM 口（友好名 + VID/PID，并自动选回上次用过的口），支持 300–2000000 波特率、五种校验、1 / 1.5 / 2 位停止位、三种流控、定时发送与常用指令预设，普通模式还会嗅探内容并提示切换到终端模式</dd>
           <dt>Timing · 时序计算</dt><dd>CVT 标准 / RB / RBv2 / RBv3 与 GTF（含隔行与缩边），输出参数表、Modeline、xrandr 命令与可写入 DTD 的字节</dd>
@@ -1013,10 +1159,10 @@
           <dt>自测</dt><dd>用 Node 或浏览器控制台加载引擎即可跑通预设与校验，详见 README</dd>
           <dt>目录</dt><dd><code>index.html</code> · <code>css/styles.css</code> · <code>js/*.js</code> · <code>tools/</code>（DDC/CI 与串口的本地桥接）</dd>
           <dt>引擎</dt><dd><code>edid-core.js</code>（常量与工具）· <code>timing.js</code>（CVT/GTF）· <code>edid-decoder.js</code> · <code>edid-encoder.js</code> · <code>edid-validator.js</code></dd>
-          <dt>扩展</dt><dd><code>zip-lite.js</code> / <code>xlsx-lite.js</code>（纯 JS 读取 .xlsx）· <code>gamma.js</code>（伽马验证与 SVG 图表）· <code>mccs.js</code> / <code>mccs-data.js</code>（DDC/CI 协议与 VCP 码表）· <code>serial.js</code> / <code>serial-data.js</code>（串口编解码、终端缓冲、内容嗅探与两种传输适配器）· <code>blog.js</code> / <code>blog-data.js</code>（技术博客：文章数据与渲染层，新增文章只需往数据里加一条）</dd>
+          <dt>扩展</dt><dd><code>zip-lite.js</code> / <code>xlsx-lite.js</code>（纯 JS 读取 .xlsx）· <code>gamma.js</code>（伽马验证与 SVG 图表）· <code>cie.js</code> / <code>cie-data.js</code>（CIE 色彩转换与内联 SVG 色度图）· <code>mccs.js</code> / <code>mccs-data.js</code>（DDC/CI 协议与 VCP 码表）· <code>serial.js</code> / <code>serial-data.js</code>（串口编解码、终端缓冲、内容嗅探与两种传输适配器）· <code>blog.js</code> / <code>blog-data.js</code>（技术博客：文章数据与渲染层，新增文章只需往数据里加一条）</dd>
           <dt>校验</dt><dd>引擎自带 Node 测试脚本，可与在线服务结果逐项比对</dd>
         </div>
-        <p class="small muted" style="margin-top:10px">想做二次开发？引擎文件都是普通脚本，暴露 <code>window.EDIDCore / EDIDTiming / EDIDDecoder / EDIDEncoder / EDIDValidator / MCCS / MCCSData / SERIAL / SERIALData / BLOG / BLOGData</code>，可以单独取用。</p>
+        <p class="small muted" style="margin-top:10px">想做二次开发？引擎文件都是普通脚本，暴露 <code>window.EDIDCore / EDIDTiming / EDIDDecoder / EDIDEncoder / EDIDValidator / MCCS / MCCSData / SERIAL / SERIALData / CIE / CIEData / BLOG / BLOGData</code>，可以单独取用。</p>
         <div class="btn-row" style="margin-top:10px">
           <button class="sm" id="about-reset">清除本地草稿</button>
           <button class="sm" id="about-print">打印本页</button>
@@ -1063,6 +1209,8 @@
   <script src="js/serial.js"></script>
   <script src="js/blog-data.js"></script>
   <script src="js/blog.js"></script>
+  <script src="js/cie-data.js"></script>
+  <script src="js/cie.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
