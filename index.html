@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>EDID-X-LAB — EDID 解析 / 生成 / 校验 / 时序计算</title>
-<meta name="description" content="纯前端实现的 EDID 工具箱：解析（Decoder）、生成（Encoder）、校验（Validator）与 VESA CVT/GTF 时序计算，纯静态页面，可直接部署到 GitHub Pages 或任意静态托管。">
+<title>X-MACRO-LAB — EDID / 时序 / 伽马 / DDC-CI / 串口工具箱</title>
+<meta name="description" content="X-MACRO-LAB：纯前端实现的显示工程师工具箱 —— EDID 解析（Decoder）、生成（Encoder）、校验（Validator）、VESA CVT/GTF 时序计算与对比、伽马曲线验证、DDC/CI 显示器控制、串口调试。纯静态页面，可直接部署到 GitHub Pages 或任意静态托管。">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Crect x='7' y='7' width='7' height='7' fill='%23fff'/%3E%3Crect x='18' y='7' width='7' height='7' fill='%23fff' opacity='.65'/%3E%3Crect x='7' y='18' width='7' height='7' fill='%23fff' opacity='.65'/%3E%3Crect x='18' y='18' width='7' height='7' fill='%23fff'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="css/styles.css">
@@ -82,7 +82,7 @@
   <div class="wrap">
     <div class="brand">
       <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="var(--accent)"/><rect x="7" y="7" width="7" height="7" fill="#fff"/><rect x="18" y="7" width="7" height="7" fill="#fff" opacity=".6"/><rect x="7" y="18" width="7" height="7" fill="#fff" opacity=".6"/><rect x="18" y="18" width="7" height="7" fill="#fff"/></svg>
-      <b>EDID-X-LAB</b>
+      <b>X-MACRO-LAB</b>
     </div>
     <nav class="tabs" aria-label="功能导航">
       <div class="tabgroup" data-group="edid">
@@ -918,7 +918,7 @@
     <div class="grid cols-2">
       <div class="card"><div class="body">
         <h3>关于本工具</h3>
-        <p>这是一个 <b>纯静态、纯前端</b> 的 EDID 工具箱，功能覆盖 edidcraft.com 的解析、生成、校验与时序计算四大部分，另加入时序对比、伽马曲线验证、DDC/CI 显示器控制与串口调试扩展工具，所有运算都由浏览器端 JavaScript 实现：</p>
+        <p><b>X-MACRO-LAB</b> 是一个 <b>纯静态、纯前端</b> 的显示工程工具箱，EDID 部分完整覆盖 edidcraft.com 的解析、生成、校验与时序计算，并加入时序对比、伽马曲线验证、DDC/CI 显示器控制与串口调试，所有运算都由浏览器端 JavaScript 实现：</p>
         <ul class="small muted">
           <li>没有后端、不请求任何远程接口，页面逻辑全部在本地运行；</li>
           <li>不加载任何 CDN 资源（图标为内联 SVG、字体为系统字体）；</li>
@@ -927,6 +927,30 @@
           <li>唯一会发起请求的地方是「DDC/CI 控制」与「串口调试」两页连接本机 <code>127.0.0.1:8760</code> 的桥接程序（浏览器既不能访问显示器的 I²C 总线，也不能枚举 COM 口）；不装桥接时 DDC/CI 页仍可做离线报文分析与码表查询，串口页也可以改用浏览器自带的 Web Serial。</li>
         </ul>
         <p class="small muted">你的 EDID 数据只存在于当前页面，刷新即消失（仅在浏览器本地保存主题与表单草稿）。</p>
+      </div></div>
+
+      <div class="card"><div class="body">
+        <h3>作者 · Author</h3>
+        <p style="margin-top:0">
+          <b>X-MACRO-LAB</b> · GitHub
+          <a href="https://github.com/guochaodongg" target="_blank" rel="noopener">@guochaodongg</a><br>
+          <span class="muted">Display Driver Firmware Engineer · 显示驱动固件工程师</span>
+        </p>
+        <p class="small muted" style="margin:6px 0 10px">
+          <i>Driving advanced displays from silicon to every pixel.</i><br>
+          致力于先进显示器驱动固件研发，工作覆盖
+          <b>Panel → TCON → Driver IC → Firmware → Timing → Image Quality</b> 全链路。
+          这套工具就是为日常的 EDID 核对、时序核算、伽马校准、DDC/CI 调机与设备串口调试而做的。
+        </p>
+        <div class="kv">
+          <dt>固件</dt><dd>DDIC / TCON 固件架构、板级启动、外设驱动、I²C / SPI、无 Flash 启动、低功耗设计</dd>
+          <dt>显示接口</dt><dd>MIPI DSI / DSI-2、eDP / DP、LVDS、V-by-One、DSC / VDC-M 压缩</dd>
+          <dt>时序与电源</dt><dd>porch / blanking、多刷新与 VRR / Adaptive-Sync、PMIC 时序、ELVDD、背光 PWM 调光</dd>
+          <dt>画质</dt><dd>Gamma / 亮度校准、Demura 与 DDIC 补偿、闪烁调整、屏端色彩管理</dd>
+          <dt>先进显示</dt><dd>Mini-LED 局域调光、LTPO 动态刷新、Micro-OLED / MicroLED、高 PPI 高刷面板</dd>
+          <dt>其他项目</dt><dd><a href="https://github.com/guochaodongg/knowledge-os" target="_blank" rel="noopener">knowledge-os</a>（工程师知识库）· <a href="https://github.com/guochaodongg/our_story" target="_blank" rel="noopener">our_story</a></dd>
+          <dt>所在地</dt><dd>中国 · 深圳</dd>
+        </div>
       </div></div>
 
       <div class="card"><div class="body">
@@ -949,11 +973,12 @@
       <div class="card"><div class="body">
         <h3>部署到 GitHub Pages</h3>
         <ol class="small">
-          <li>新建仓库并把 <code>edid-x-lab</code> 内的文件推到根目录（或 <code>docs/</code>）。</li>
+          <li>新建仓库并把 <code>x-macro-lab</code> 内的文件推到根目录（或 <code>docs/</code>）。</li>
           <li>仓库 <b>Settings → Pages</b>，Source 选分支 <code>master</code> 与目录 <code>/(root)</code> 或 <code>/docs</code>。</li>
           <li>等待一分钟，访问 <code>https://用户名.github.io/仓库名/</code>。</li>
           <li>本工具用相对路径引用资源，放在子目录里也能正常工作。</li>
         </ol>
+        <p class="small muted" style="margin:8px 0 0">本项目在线地址：<a href="https://guochaodongg.github.io/x-macro-lab/" target="_blank" rel="noopener">guochaodongg.github.io/x-macro-lab</a>，源码：<a href="https://github.com/guochaodongg/x-macro-lab" target="_blank" rel="noopener">github.com/guochaodongg/x-macro-lab</a>。</p>
         <h3 style="margin-top:14px">关于 Gitee Pages</h3>
         <p class="small muted" style="margin:8px 0 0"><b>Gitee Pages 已停服，无法再用于部署。</b>Gitee 仓库仍可作为国内代码镜像，推送用 <code>git push gitee master</code>，详见项目 README。</p>
       </div></div>
@@ -980,10 +1005,10 @@
 </main>
 
 <footer class="site"><div class="wrap">
-  <span>EDID-X-LAB · EDID 工具箱</span>
+  <span>X-MACRO-LAB · 显示与 EDID 工具箱</span>
   <span class="dim">·</span>
   <span class="dim">纯静态页面，无后端、无跟踪</span>
-  <span class="right dim">功能对标 edidcraft.com，代码与文案为独立实现</span>
+  <span class="right dim">功能对标 edidcraft.com，代码与文案为独立实现 · by <a href="https://github.com/guochaodongg" target="_blank" rel="noopener">guochaodongg</a></span>
 </div></footer>
 
 <div id="toasts" aria-live="polite"></div>

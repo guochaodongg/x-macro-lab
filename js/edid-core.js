@@ -1,5 +1,5 @@
 /* ==========================================================================
-   EDID-X-LAB — edid-core.js
+   X-MACRO-LAB — edid-core.js
    Shared constants, byte helpers and lookup tables.
    Zero dependencies (classic script, no modules).
    ========================================================================== */

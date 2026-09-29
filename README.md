@@ -1,4 +1,7 @@
-# EDID-X-LAB · EDID 工具箱
+# X-MACRO-LAB · 显示与 EDID 工具箱
+
+作者：**guochaodongg**（GitHub [@guochaodongg](https://github.com/guochaodongg)）· Display Driver Firmware Engineer —— 显示驱动固件工程师。
+本工具服务于显示工程日常：EDID 核对、时序核算、伽马校准、DDC/CI 调机与设备串口调试。
 
 对 [edidcraft.com](https://edidcraft.com/) 全部功能的**完整复刻**：解析（Decoder）、生成（Encoder）、校验（Validator）、时序计算（Timing Calculator），外加一页 EDID 速成课；在此之上又扩了四件工具：**时序对比**（多标准时序与接口带宽核算）、**伽马验证**（CA410 测量数据）、**DDC/CI 控制**（直连显示器读写 VCP）与 **串口调试**（普通 / 终端双模式的 COM 口调试台）。
 
@@ -9,12 +12,13 @@
 
 | 项 | 值 |
 | --- | --- |
-| 在线地址 | <https://guochaodongg.github.io/edid-x-lab/> |
-| GitHub 仓库（主） | <https://github.com/guochaodongg/edid-x-lab> |
-| Gitee 仓库（国内镜像） | <https://gitee.com/guochaodong_admin/edid-x-lab> |
-| 本地目录名 | `edid-x-lab` |
+| 在线地址 | <https://guochaodongg.github.io/x-macro-lab/> |
+| GitHub 仓库（主） | <https://github.com/guochaodongg/x-macro-lab> |
+| 本地目录名 | `x-macro-lab` |
+| 旧地址（仓库改名前） | `https://guochaodongg.github.io/edid-x-lab/`（GitHub 会自动重定向到新地址） |
 
-> 项目名、仓库名与本地目录名统一为 **edid-x-lab**（页面品牌名写作 **EDID-X-LAB**）；本文所有命令示例都以目录名 `edid-x-lab` 为准。
+> 项目名、仓库名与本地目录名统一为 **x-macro-lab**（页面品牌名写作 **X-MACRO-LAB**）；本文所有命令示例都以目录名 `x-macro-lab` 为准。
+> Gitee 上的国内镜像仓库建在 [gitee.com/guochaodong_admin](https://gitee.com/guochaodong_admin)，如需与 GitHub 侧一致，请在 Gitee 后台把仓库改名为 `x-macro-lab`（**Gitee Pages 已停服**，与部署无关）。
 
 ---
 
@@ -42,7 +46,7 @@
 ## 2. 目录结构
 
 ```
-edid-x-lab/
+x-macro-lab/
 ├── index.html              # 页面骨架 + 内联 SVG 图标 + 分组导航 + 各页面内容
 ├── css/
 │   └── styles.css          # 设计系统（浅色/深色变量、组件、打印样式）
@@ -90,8 +94,8 @@ edid-x-lab/
 
 | 项 | 值 |
 | --- | --- |
-| 在线地址 | <https://guochaodongg.github.io/edid-x-lab/> |
-| 仓库 | <https://github.com/guochaodongg/edid-x-lab>（公开） |
+| 在线地址 | <https://guochaodongg.github.io/x-macro-lab/> |
+| 仓库 | <https://github.com/guochaodongg/x-macro-lab>（公开） |
 | 分支 | `master` |
 | Pages 源 | `/`（根目录） |
 | HTTPS | 已强制 |
@@ -101,7 +105,7 @@ edid-x-lab/
 ### 3.2 日常更新
 
 ```bash
-cd edid-x-lab
+cd x-macro-lab
 git add -A
 git commit -m "描述这次改了什么"
 git push
@@ -112,10 +116,10 @@ GitHub Pages 会在推送后**自动重新构建**（约 30–90 秒），不需
 ### 3.3 从零部署到别的仓库（换账号或换名字时）
 
 ```bash
-cd edid-x-lab
+cd x-macro-lab
 git init -b master
 git add .
-git commit -m "EDID-X-LAB: EDID toolkit"
+git commit -m "X-MACRO-LAB: EDID toolkit"
 git remote add origin https://github.com/<你的用户名>/<仓库名>.git
 git push -u origin master
 ```
@@ -141,14 +145,14 @@ git push -u origin master
 
 > 网上仍有文章说"Gitee Pages 并未下线"，其中不少是 AI 生成的内容农场 —— 有的甚至描述"Settings → Pages 页面"和 `.gitee/pages.yml` 配置，那是 GitHub 的形态，Gitee 从来没有这两个东西。实测结果和客服答复才是准的。
 
-如果你想把 Gitee 仓库留作国内镜像，它仍然有效：<https://gitee.com/guochaodong_admin/edid-x-lab>，
-推送用 `git push gitee master`（本项目本地已把 Gitee 配成一个名为 `gitee` 的远程）。
+如果你想把 Gitee 仓库留作国内镜像，它仍然有效：<https://gitee.com/guochaodong_admin>（Gitee 侧仓库名可能仍是 `edid-x-lab`，与本项目的 GitHub 仓库名无关，**Gitee Pages 已停服、纯做代码镜像**），
+推送时把 Gitee 配成一个名为 `gitee` 的远程即可：`git remote add gitee <你的 Gitee 仓库地址>`，之后 `git push gitee master`。
 
 ---
 
 ## 5. 部署到其他静态托管
 
-因为是纯静态文件，以下平台都可以直接用（构建命令留空、输出目录填 `edid-x-lab` 或 `.`）：
+因为是纯静态文件，以下平台都可以直接用（构建命令留空、输出目录填 `x-macro-lab` 或 `.`）：
 
 - **Cloudflare Pages** / **Netlify** / **Vercel** — 拖拽文件夹即可
 - **对象存储** — 阿里云 OSS、腾讯云 COS、七牛等，开启静态网站托管后上传整个目录
@@ -176,7 +180,7 @@ node ddc-bridge.js
 Windows（用 dxva2.dll + System.IO.Ports，无需装任何依赖）：
 
 ```bash
-cd edid-x-lab/tools
+cd x-macro-lab/tools
 node ddc-bridge.js                 # 默认 127.0.0.1:8760，静态根目录指向上一级
 # 浏览器打开 http://127.0.0.1:8760/?tab=mccs
 # 串口调试页：  http://127.0.0.1:8760/?tab=serial
@@ -185,14 +189,14 @@ node ddc-bridge.js                 # 默认 127.0.0.1:8760，静态根目录指�
 启动时会把两个页面的地址和后端可用情况一起打印出来：
 
 ```
-  EDID-X-LAB bridge is running (DDC/CI + serial).
+  X-MACRO-LAB bridge is running (DDC/CI + serial).
   ------------------------------------------------------------------
   DDC/CI page:         http://127.0.0.1:8760/?tab=mccs
   Serial page:         http://127.0.0.1:8760/?tab=serial
   API base:            http://127.0.0.1:8760/api
   DDC backend:         dxva2   (platform: win32)
   Serial backend:      windows (System.IO.Ports)
-  Static root:         D:\...\edid-x-lab
+  Static root:         D:\...\x-macro-lab
   ------------------------------------------------------------------
 ```
 
@@ -206,7 +210,7 @@ Linux / macOS（依赖 `ddcutil`，桥接会自动识别后端）：
 
 ```bash
 sudo apt install ddcutil           # macOS: brew install ddcutil
-cd edid-x-lab/tools && node ddc-bridge.js
+cd x-macro-lab/tools && node ddc-bridge.js
 ```
 
 也可以不用桥接，直接命令行操作单个显示器：
@@ -489,7 +493,7 @@ capabilities 字符串也能解析出型号、`mccs_ver`、支持的操作码、
 引擎文件是普通脚本，用 `vm.runInThisContext` 在同一个全局上下文里依次加载即可（它们靠 `window`/`global` 互相引用，所以**必须共享同一个上下文**）：
 
 ```js
-// check.js —— 放在 edid-x-lab/ 下，执行：node check.js
+// check.js —— 放在 x-macro-lab/ 下，执行：node check.js
 const fs = require('fs'), vm = require('vm');
 ['edid-core', 'timing', 'edid-decoder', 'edid-encoder', 'edid-validator', 'edid-report']
   .forEach(f => vm.runInThisContext(fs.readFileSync('js/' + f + '.js', 'utf8'), { filename: f }));

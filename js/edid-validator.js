@@ -1,5 +1,5 @@
 /* ==========================================================================
-   EDID-X-LAB — edid-validator.js
+   X-MACRO-LAB — edid-validator.js
    Standards-aware structural and semantic validation of an EDID image.
    Produces errors / warnings / info messages with severities.
    ========================================================================== */

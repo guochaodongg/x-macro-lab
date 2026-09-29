@@ -1,5 +1,5 @@
 /* ==========================================================================
-   EDID-X-LAB — app.js
+   X-MACRO-LAB — app.js
    UI wiring: tabs, theme, file input, decoder / encoder / validator /
    timing calculators, drafts, exports.  No dependencies.
    ========================================================================== */

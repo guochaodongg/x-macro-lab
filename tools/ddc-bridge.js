@@ -653,7 +653,7 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, HOST, () => {
   const lines = [
     '',
-    '  EDID-X-LAB bridge is running (DDC/CI + serial).',
+    '  X-MACRO-LAB bridge is running (DDC/CI + serial).',
     '  ------------------------------------------------------------------',
     '  DDC/CI page:         http://' + HOST + ':' + PORT + '/?tab=mccs',
     '  Serial page:         http://' + HOST + ':' + PORT + '/?tab=serial',
