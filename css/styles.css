@@ -788,7 +788,7 @@ footer.site .wrap { display: flex; gap: 16px; flex-wrap: wrap; align-items: cent
   .cie-wrap { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* ============================== 生存 · 成年人基本功 ============================== */
+/* ============================== 成长 · 成年人基本功 ============================== */
 .ad-check { display: flex; flex-direction: column; gap: 2px; }
 .ad-check-head {
   display: flex; align-items: center; justify-content: space-between;

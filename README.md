@@ -3,7 +3,7 @@
 作者：**guochaodongg**（GitHub [@guochaodongg](https://github.com/guochaodongg)）· Display Driver Firmware Engineer —— 显示驱动固件工程师。
 本工具服务于显示工程日常：EDID 核对、时序核算、伽马校准、DDC/CI 调机与设备串口调试。
 
-对 [edidcraft.com](https://edidcraft.com/) 全部功能的**完整复刻**：解析（Decoder）、生成（Encoder）、校验（Validator）、时序计算（Timing Calculator），外加一页 EDID 速成课；在此之上又扩了七块内容：**时序对比**（多标准时序与接口带宽核算）、**伽马验证**（CA410 测量数据）、**色彩空间**（CIE 1931 分析转换）、**DDC/CI 控制**（直连显示器读写 VCP）、**串口调试**（普通 / 终端双模式的 COM 口调试台）、**Technology Blog**（显示技术长文专栏）与**生存专栏**（成年人基本功笔记）。
+对 [edidcraft.com](https://edidcraft.com/) 全部功能的**完整复刻**：解析（Decoder）、生成（Encoder）、校验（Validator）、时序计算（Timing Calculator），外加一页 EDID 速成课；在此之上又扩了七块内容：**时序对比**（多标准时序与接口带宽核算）、**伽马验证**（CA410 测量数据）、**色彩空间**（CIE 1931 分析转换）、**DDC/CI 控制**（直连显示器读写 VCP）、**串口调试**（普通 / 终端双模式的 COM 口调试台）、**Technology Blog**（显示技术长文专栏）与**成长专栏**（成年人基本功笔记）。
 
 导航按功能域分成七组：**EDID**（解析 / 生成 / 校验 / 学习 EDID）、**PQ**（伽马验证 / 色彩空间）、**DDC/CI**（DDC/CI 控制）、**串口调试**、**Timing**（时序计算 / 时序对比）、**Technology Blog**（显示器进阶技术）、**关于**。
 
@@ -24,7 +24,7 @@
 
 ## 1. 功能清单
 
-顶部导航按 **8 个分组**组织（**EDID** / **PQ** / **DDC/CI** / **串口调试** / **Timing** / **Technology Blog** / **生存** / **关于**），点分组标题展开下拉菜单；每个页面也支持深链直达，例如 `index.html?tab=mccs`、`index.html?tab=cie`、`index.html?tab=blog`、`index.html?tab=adult`。
+顶部导航按 **8 个分组**组织（**EDID** / **PQ** / **DDC/CI** / **串口调试** / **Timing** / **Technology Blog** / **成长** / **关于**），点分组标题展开下拉菜单；每个页面也支持深链直达，例如 `index.html?tab=mccs`、`index.html?tab=cie`、`index.html?tab=blog`、`index.html?tab=adult`。
 
 | 分组 | 页面 | 能力 |
 | --- | --- | --- |
@@ -39,7 +39,7 @@
 | **Timing** | **时序计算** | VESA **CVT 1.1**（标准消隐）与 **CVT 1.2**（RB / RBv2 / RBv3）、**GTF 1.1**（含隔行与缩边）；输出完整参数表、消隐结构图、X11 `Modeline`、`xrandr --newmode` / `--addmode`，以及可直接写进 DTD 的 18 字节 |
 |  | **时序对比** | 多标准时序对比计算器（对标 Tom Verbeure 的 Video Timings Calculator）：一次计算 CVT / CVT-RB / CVT-RBv2 / CEA-861 / DMT / 自定义六种时序，并核算 DP / HDMI / DVI / SDI / RFC4175 各接口带宽余量 |
 | **Technology Blog** | **显示器进阶技术** | 长文专栏页：左侧**分章目录**（滚动自动高亮当前节并只展开所在章）+ 右侧正文 + 顶部阅读进度条。首篇《显示器进阶技术全解》是 TFTCentral 显示器进阶技术专题（`tftcentral.co.uk/advanced`）的**完整中文翻译与结构化重排**：4 章 41 节，覆盖过驱 RTC（FFD / 双重过驱 / 过冲与光晕 / G2G 口径 / 六家厂商命名）、运动与响应增强（BFI / 扫描背光 / ASPD / MPA / MP Mode / MEMC 插帧 / 真 120 Hz）、面板涂层（X-Black / CrystalBrite / 保护玻璃 / OptiClear）、画面增强与预设（Senseye / 三星 Magic 系列 / eColor / f-Engine / 环境光 / 均匀性校正 / 动态对比度），附 **5 张内联 SVG 原理图**与 **19 条中英术语对照表** |
-| **生存** | **成年人基本功** | 整理自小红书 @空山素衣 视频《25岁到30岁做到这些，你将领先同龄人十年》（5:49）的结构化学习笔记：开篇 + **8 个正章**（处理大额消费 / 理解合同 / 搞懂自己的钱 / 处理突发情况 / 法律职场常识 / 经营身体 / 处理关系 / 了解自己）+ 结语，每章带视频时间点对照；左侧分章目录（滚动自动高亮）+ 阅读进度条，侧栏还有 **8 项基本功自查清单**，勾选状态存 `localStorage`，刷新不丢 |
+| **成长** | **成年人基本功** | 整理自小红书 @空山素衣 视频《25岁到30岁做到这些，你将领先同龄人十年》（5:49）的结构化学习笔记：开篇 + **8 个正章**（处理大额消费 / 理解合同 / 搞懂自己的钱 / 处理突发情况 / 法律职场常识 / 经营身体 / 处理关系 / 了解自己）+ 结语，每章带视频时间点对照；左侧分章目录（滚动自动高亮）+ 阅读进度条，侧栏还有 **8 项基本功自查清单**，勾选状态存 `localStorage`，刷新不丢 |
 | **关于** | — | 项目介绍、部署说明、开发说明、清除草稿 |
 
 附加能力：拖放 `.bin` / `.hex` / `.txt` / `.dat` / `.edid` 文件、粘贴任意十六进制文本（空格/换行/逗号/`0x` 前缀自动忽略）、`.bin/.hex` 导出、复制到剪贴板、打印 / 存 PDF、深色/浅色主题、自动保存草稿到 `localStorage`、**解析结果一键送进生成器**。
@@ -76,8 +76,8 @@ x-macro-lab/
 │   ├── serial.js           # 串口协议逻辑：编解码、HEX 视图、终端缓冲、内容嗅探、两种传输适配器（无 DOM 依赖）
 │   ├── blog-data.js        # 技术博客文章数据（章节/小节/段落块/内联 SVG 示意图/术语表，纯数据）
 │   ├── blog.js             # 技术博客渲染层：行内标记、目录、正文、术语表 → HTML 字符串（无 DOM 依赖）
-│   ├── adult-data.js       # 生存 · 成年人基本功笔记数据（与 blog post 同构，纯数据）
-│   ├── adult.js            # 生存页渲染适配层：复用 BLOG 渲染器 + 自查清单 HTML（无 DOM 依赖）
+│   ├── adult-data.js       # 成长 · 成年人基本功笔记数据（与 blog post 同构，纯数据）
+│   ├── adult.js            # 成长页渲染适配层：复用 BLOG 渲染器 + 自查清单 HTML（无 DOM 依赖）
 │   ├── cie-data.js         # 色彩空间纯数据（参考白点 / RGB 空间基色与白点 / 色度适应矩阵 / 光谱轨迹 / 色度图配色）
 │   ├── cie.js              # CIE 1931 色彩空间逻辑：矩阵与色度适应、六组坐标互转、色度图几何与取点、色温/Duv（无 DOM 依赖）
 │   └── app.js              # 界面接线：标签页、表单、草稿、导出
@@ -654,7 +654,7 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 
 ---
 
-## 11. 生存 · 成年人基本功
+## 11. 成长 · 成年人基本功
 
 ### 11.1 内容来源
 

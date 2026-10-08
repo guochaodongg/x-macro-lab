@@ -1,5 +1,5 @@
 /* =============================================================================
- * adult.js — 生存 · 成年人基本功 渲染层（纯逻辑，不碰 DOM，可在 Node 里直接测）
+ * adult.js — 成长 · 成年人基本功 渲染层（纯逻辑，不碰 DOM，可在 Node 里直接测）
  *
  * 挂载 window.ADULT：
  *   escapeHtml(s) / inline(s)      转义与行内标记（直接复用 BLOG 的实现）
@@ -35,7 +35,7 @@
     }).join('');
 
     var h = '<div class="bl-hero">' +
-      '<span class="bl-cat">' + escapeHtml(post.category || '生存') + '</span>' +
+      '<span class="bl-cat">' + escapeHtml(post.category || '成长') + '</span>' +
       '<h1>' + escapeHtml(post.title) + (post.titleEn ? '<span class="bl-en">' + escapeHtml(post.titleEn) + '</span>' : '') + '</h1>' +
       (post.subtitle ? '<p class="bl-sub">' + escapeHtml(post.subtitle) + '</p>' : '') +
       '<div class="bl-meta">' + chips + '</div>' +
