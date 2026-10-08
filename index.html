@@ -129,6 +129,12 @@
           <button type="button" role="tab" aria-selected="false" data-tab="blog"><svg class="ic"><use href="#i-book"/></svg><span class="lbl">显示器进阶技术</span><span class="hint">RTC / BFI / DCR</span></button>
         </div>
       </div>
+      <div class="tabgroup" data-group="survival">
+        <button type="button" class="gbtn" aria-expanded="false">生存<svg class="ic caret" aria-hidden="true"><use href="#i-caret"/></svg></button>
+        <div class="tabmenu" role="tablist" aria-label="生存">
+          <button type="button" role="tab" aria-selected="false" data-tab="adult"><svg class="ic"><use href="#i-book"/></svg><span class="lbl">成年人基本功</span><span class="hint">Adult Basics</span></button>
+        </div>
+      </div>
       <div class="tabgroup single" data-group="about" role="tablist" aria-label="关于">
         <button type="button" class="gbtn flat" role="tab" data-tab="about" aria-selected="false">关于</button>
       </div>
@@ -1087,12 +1093,31 @@
     </div>
   </section>
 
+  <!-- ================================================= 成年人基本功 ======== -->
+  <section class="panel" id="panel-adult">
+    <div class="bl-shell">
+      <aside class="bl-side">
+        <div class="card"><div class="body" id="ad-side-slot"></div></div>
+        <div class="card"><div class="body">
+          <h3>基本功自查</h3>
+          <p class="small muted">八件事各占一行，做到一条勾一条。勾选状态存在浏览器本地，刷新不丢。</p>
+          <div id="ad-check-slot"></div>
+        </div></div>
+      </aside>
+      <div class="bl-main">
+        <div id="ad-hero-slot"></div>
+        <div class="bl-progress" aria-hidden="true"><span id="ad-progress"></span></div>
+        <div id="ad-post-slot"></div>
+      </div>
+    </div>
+  </section>
+
   <!-- ================================================= 关于 About ======== -->
   <section class="panel" id="panel-about">
     <div class="grid cols-2">
       <div class="card"><div class="body">
         <h3>关于本工具</h3>
-        <p><b>X-MACRO-LAB</b> 是一个 <b>纯静态、纯前端</b> 的显示工程工具箱，EDID 部分完整覆盖 edidcraft.com 的解析、生成、校验与时序计算，并加入时序对比、伽马曲线验证、CIE 1931 色彩空间分析、DDC/CI 显示器控制、串口调试与技术博客，所有运算都由浏览器端 JavaScript 实现：</p>
+        <p><b>X-MACRO-LAB</b> 是一个 <b>纯静态、纯前端</b> 的显示工程工具箱，EDID 部分完整覆盖 edidcraft.com 的解析、生成、校验与时序计算，并加入时序对比、伽马曲线验证、CIE 1931 色彩空间分析、DDC/CI 显示器控制、串口调试、技术博客与生存专栏，所有运算都由浏览器端 JavaScript 实现：</p>
         <ul class="small muted">
           <li>没有后端、不请求任何远程接口，页面逻辑全部在本地运行；</li>
           <li>不加载任何 CDN 资源（图标为内联 SVG、字体为系统字体）；</li>
@@ -1129,7 +1154,7 @@
 
       <div class="card"><div class="body">
         <h3>功能清单</h3>
-        <p class="small muted" style="margin-top:0">顶部导航按 <b>EDID</b> / <b>PQ</b> / <b>DDC/CI</b> / <b>串口调试</b> / <b>Timing</b> / <b>Technology Blog</b> / <b>关于</b> 七组组织，点分组标题展开下拉菜单；每个页面也能用深链直达，例如 <code>?tab=mccs</code>、<code>?tab=cie</code>、<code>?tab=blog</code>。</p>
+        <p class="small muted" style="margin-top:0">顶部导航按 <b>EDID</b> / <b>PQ</b> / <b>DDC/CI</b> / <b>串口调试</b> / <b>Timing</b> / <b>Technology Blog</b> / <b>生存</b> / <b>关于</b> 八组组织，点分组标题展开下拉菜单；每个页面也能用深链直达，例如 <code>?tab=mccs</code>、<code>?tab=cie</code>、<code>?tab=blog</code>、<code>?tab=adult</code>。</p>
         <div class="kv">
           <dt>EDID · 解析</dt><dd>基础块全字段、既定 / 标准时序、四类描述符、CEA-861 数据块、DisplayID 分节、VTB、块映射</dd>
           <dt>EDID · 生成</dt><dd>厂商 / 产品 / 序列号、日期与版本、数字 / 模拟输入、色度、既定与标准时序、描述符与扩展块，自动校验和</dd>
@@ -1142,6 +1167,7 @@
           <dt>Timing · 时序计算</dt><dd>CVT 标准 / RB / RBv2 / RBv3 与 GTF（含隔行与缩边），输出参数表、Modeline、xrandr 命令与可写入 DTD 的字节</dd>
           <dt>Timing · 时序对比</dt><dd>一次计算 CVT / CVT-RB / CVT-RBv2 / CEA-861 / DMT / 自定义六种时序，核算 DP / HDMI / DVI / SDI / RFC4175 接口带宽余量</dd>
           <dt>Technology Blog</dt><dd>显示技术长文专栏：左侧分章目录（滚动自动高亮并展开当前章）+ 右侧正文，带阅读进度条、行内示意图（纯内联 SVG）与术语对照表。首篇《显示器进阶技术全解》完整翻译并重排 TFTCentral 显示器进阶技术专题（过驱 RTC / 黑帧插入 / 扫描背光 / MEMC / 真 120 Hz / 面板涂层 / 均匀性校正 / 动态对比度），四个章节 41 节、5 张示意图、19 条术语</dd>
+          <dt>生存 · 成年人基本功</dt><dd>整理自小红书 @空山素衣 的视频《25岁到30岁做到这些，你将领先同龄人十年》：大额消费、合同、钱、突发情况、法律职场、身体、关系与自我认知八个章节的要点提炼，每章附视频时间点对照；侧栏带八项基本功自查清单，勾选状态保存在浏览器本地</dd>
           <dt>关于</dt><dd>项目介绍、部署说明、开发说明、清除本地草稿</dd>
         </div>
       </div></div>
@@ -1215,6 +1241,8 @@
   <script src="js/serial.js"></script>
   <script src="js/blog-data.js"></script>
   <script src="js/blog.js"></script>
+  <script src="js/adult-data.js"></script>
+  <script src="js/adult.js"></script>
   <script src="js/cie-data.js"></script>
   <script src="js/cie.js"></script>
   <script src="js/app.js"></script>

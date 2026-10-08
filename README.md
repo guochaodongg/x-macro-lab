@@ -3,7 +3,7 @@
 作者：**guochaodongg**（GitHub [@guochaodongg](https://github.com/guochaodongg)）· Display Driver Firmware Engineer —— 显示驱动固件工程师。
 本工具服务于显示工程日常：EDID 核对、时序核算、伽马校准、DDC/CI 调机与设备串口调试。
 
-对 [edidcraft.com](https://edidcraft.com/) 全部功能的**完整复刻**：解析（Decoder）、生成（Encoder）、校验（Validator）、时序计算（Timing Calculator），外加一页 EDID 速成课；在此之上又扩了六块内容：**时序对比**（多标准时序与接口带宽核算）、**伽马验证**（CA410 测量数据）、**色彩空间**（CIE 1931 分析转换）、**DDC/CI 控制**（直连显示器读写 VCP）、**串口调试**（普通 / 终端双模式的 COM 口调试台）与 **Technology Blog**（显示技术长文专栏）。
+对 [edidcraft.com](https://edidcraft.com/) 全部功能的**完整复刻**：解析（Decoder）、生成（Encoder）、校验（Validator）、时序计算（Timing Calculator），外加一页 EDID 速成课；在此之上又扩了七块内容：**时序对比**（多标准时序与接口带宽核算）、**伽马验证**（CA410 测量数据）、**色彩空间**（CIE 1931 分析转换）、**DDC/CI 控制**（直连显示器读写 VCP）、**串口调试**（普通 / 终端双模式的 COM 口调试台）、**Technology Blog**（显示技术长文专栏）与**生存专栏**（成年人基本功笔记）。
 
 导航按功能域分成七组：**EDID**（解析 / 生成 / 校验 / 学习 EDID）、**PQ**（伽马验证 / 色彩空间）、**DDC/CI**（DDC/CI 控制）、**串口调试**、**Timing**（时序计算 / 时序对比）、**Technology Blog**（显示器进阶技术）、**关于**。
 
@@ -24,7 +24,7 @@
 
 ## 1. 功能清单
 
-顶部导航按 **7 个分组**组织（**EDID** / **PQ** / **DDC/CI** / **串口调试** / **Timing** / **Technology Blog** / **关于**），点分组标题展开下拉菜单；每个页面也支持深链直达，例如 `index.html?tab=mccs`、`index.html?tab=cie`、`index.html?tab=blog`。
+顶部导航按 **8 个分组**组织（**EDID** / **PQ** / **DDC/CI** / **串口调试** / **Timing** / **Technology Blog** / **生存** / **关于**），点分组标题展开下拉菜单；每个页面也支持深链直达，例如 `index.html?tab=mccs`、`index.html?tab=cie`、`index.html?tab=blog`、`index.html?tab=adult`。
 
 | 分组 | 页面 | 能力 |
 | --- | --- | --- |
@@ -39,6 +39,7 @@
 | **Timing** | **时序计算** | VESA **CVT 1.1**（标准消隐）与 **CVT 1.2**（RB / RBv2 / RBv3）、**GTF 1.1**（含隔行与缩边）；输出完整参数表、消隐结构图、X11 `Modeline`、`xrandr --newmode` / `--addmode`，以及可直接写进 DTD 的 18 字节 |
 |  | **时序对比** | 多标准时序对比计算器（对标 Tom Verbeure 的 Video Timings Calculator）：一次计算 CVT / CVT-RB / CVT-RBv2 / CEA-861 / DMT / 自定义六种时序，并核算 DP / HDMI / DVI / SDI / RFC4175 各接口带宽余量 |
 | **Technology Blog** | **显示器进阶技术** | 长文专栏页：左侧**分章目录**（滚动自动高亮当前节并只展开所在章）+ 右侧正文 + 顶部阅读进度条。首篇《显示器进阶技术全解》是 TFTCentral 显示器进阶技术专题（`tftcentral.co.uk/advanced`）的**完整中文翻译与结构化重排**：4 章 41 节，覆盖过驱 RTC（FFD / 双重过驱 / 过冲与光晕 / G2G 口径 / 六家厂商命名）、运动与响应增强（BFI / 扫描背光 / ASPD / MPA / MP Mode / MEMC 插帧 / 真 120 Hz）、面板涂层（X-Black / CrystalBrite / 保护玻璃 / OptiClear）、画面增强与预设（Senseye / 三星 Magic 系列 / eColor / f-Engine / 环境光 / 均匀性校正 / 动态对比度），附 **5 张内联 SVG 原理图**与 **19 条中英术语对照表** |
+| **生存** | **成年人基本功** | 整理自小红书 @空山素衣 视频《25岁到30岁做到这些，你将领先同龄人十年》（5:49）的结构化学习笔记：开篇 + **8 个正章**（处理大额消费 / 理解合同 / 搞懂自己的钱 / 处理突发情况 / 法律职场常识 / 经营身体 / 处理关系 / 了解自己）+ 结语，每章带视频时间点对照；左侧分章目录（滚动自动高亮）+ 阅读进度条，侧栏还有 **8 项基本功自查清单**，勾选状态存 `localStorage`，刷新不丢 |
 | **关于** | — | 项目介绍、部署说明、开发说明、清除草稿 |
 
 附加能力：拖放 `.bin` / `.hex` / `.txt` / `.dat` / `.edid` 文件、粘贴任意十六进制文本（空格/换行/逗号/`0x` 前缀自动忽略）、`.bin/.hex` 导出、复制到剪贴板、打印 / 存 PDF、深色/浅色主题、自动保存草稿到 `localStorage`、**解析结果一键送进生成器**。
@@ -75,6 +76,8 @@ x-macro-lab/
 │   ├── serial.js           # 串口协议逻辑：编解码、HEX 视图、终端缓冲、内容嗅探、两种传输适配器（无 DOM 依赖）
 │   ├── blog-data.js        # 技术博客文章数据（章节/小节/段落块/内联 SVG 示意图/术语表，纯数据）
 │   ├── blog.js             # 技术博客渲染层：行内标记、目录、正文、术语表 → HTML 字符串（无 DOM 依赖）
+│   ├── adult-data.js       # 生存 · 成年人基本功笔记数据（与 blog post 同构，纯数据）
+│   ├── adult.js            # 生存页渲染适配层：复用 BLOG 渲染器 + 自查清单 HTML（无 DOM 依赖）
 │   ├── cie-data.js         # 色彩空间纯数据（参考白点 / RGB 空间基色与白点 / 色度适应矩阵 / 光谱轨迹 / 色度图配色）
 │   ├── cie.js              # CIE 1931 色彩空间逻辑：矩阵与色度适应、六组坐标互转、色度图几何与取点、色温/Duv（无 DOM 依赖）
 │   └── app.js              # 界面接线：标签页、表单、草稿、导出
@@ -85,7 +88,7 @@ x-macro-lab/
 └── README.md
 ```
 
-脚本按 `core → timing → vtc-data → video-timings → decoder → encoder → validator → report → zip-lite → xlsx-lite → gamma → gamma-data → mccs-data → mccs → serial-data → serial → blog-data → blog → cie-data → cie → app` 的顺序加载，**顺序不能改**（都是普通 `<script>`，不是 ES module）。
+脚本按 `core → timing → vtc-data → video-timings → decoder → encoder → validator → report → zip-lite → xlsx-lite → gamma → gamma-data → mccs-data → mccs → serial-data → serial → blog-data → blog → adult-data → adult → cie-data → cie → app` 的顺序加载，**顺序不能改**（都是普通 `<script>`，不是 ES module）。
 
 > `data/*.xlsx` 是原始测量文件，页面不会去 fetch 它们（`file://` 下会被 CORS 拦），
 > 而是用 `js/gamma-data.js` 里的预提取数组，因此双击 `index.html` 也能直接看到内置图表；
@@ -607,7 +610,7 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 > 本项目的测试脚本（`_ref/test-*.js`，覆盖编解码往返、时序矩阵、报告层、时序对比、伽马、
 > DDC/CI 协议、串口协议与传输适配器、技术博客数据与渲染层、CIE 1931 色彩空间，以及 jsdom
 > 驱动的界面层）都在仓库外的 `_ref/`，不会随静态站点发布。
-> 当前基线：**108 / 356 / 2094 / 20095 / 122 / 258 / 269 / 475 / 521 + 界面 107，全部 0 失败**
+> 当前基线：**108 / 356 / 2094 / 20095 / 122 / 258 / 269 / 475 / 521 + 界面 112，全部 0 失败**
 > （依次为 `test-edid` / `test-timing` / `test-render` / `test-vtc` / `test-gamma` /
 > `test-mccs` / `test-serial` / `test-blog` / `test-cie`，最后是 `test-app-dom`）。
 
@@ -651,9 +654,37 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 
 ---
 
-## 11. 色彩空间（CIE 1931 / CIE 1976）
+## 11. 生存 · 成年人基本功
 
-### 11.1 分层
+### 11.1 内容来源
+
+整理自小红书用户 **@空山素衣** 的视频
+[《25岁到30岁做到这些，你将领先同龄人十年》](https://www.xiaohongshu.com/explore/6ac09c7a0000000018014719)
+（时长 5:49，约 890 赞 / 881 收藏）。本页是按视频章节与口述内容做的**结构化学习笔记**：
+开篇 + 8 个正章 + 结语，每章附视频时间点对照；内容版权归原作者所有，原视频作者声明含 AI 生成内容。
+
+### 11.2 分层
+
+与博客页同一套三层结构，但更薄：
+
+- `js/adult-data.js` —— 纯数据。`post` 对象与 `BLOGData.posts` 里的 post **完全同构**
+  （`chapters → sections → blocks`，block 支持 p / list / table / callout / quote），
+  外加 `checklist`（8 项自查清单）。
+- `js/adult.js` —— 渲染适配层（挂 `window.ADULT`）：`renderArticle` / `renderToc` 直接**复用 `BLOG` 的实现**，
+  自己只写 `renderHero` / `renderChecklist` / `renderSource`（来源措辞与博客页不同），无 DOM 依赖，可在 Node 直测。
+- `app.js` 的 `initAdult()` 只做三件事：填四个槽位（`#ad-side-slot` / `#ad-hero-slot` / `#ad-post-slot` / `#ad-check-slot`）、
+  接线目录锚点与清单勾选、滚动侦测（`adultSpy()`，与 `blogSpy()` 同款，切页时同步首算）。
+
+### 11.3 自查清单
+
+侧栏「基本功自查」8 行，勾选状态存 `localStorage`（键 `xm-adult-check`），刷新 / 重开浏览器不丢；
+全部勾完计数变绿。存取都包了 try/catch，隐身模式等存储被禁的场景静默降级。
+
+---
+
+## 12. 色彩空间（CIE 1931 / CIE 1976）
+
+### 12.1 分层
 
 与其余页面一致，是「纯数据 → 纯逻辑 → DOM 接线」三层，因此可在 Node 里直接测：
 
@@ -666,7 +697,7 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
   色度图几何（坐标映射、光谱轨迹裁剪、底图 / 叠加层 SVG 生成）。**不碰 DOM**。
 - `js/app.js` 里的 `initCIE()` —— 只负责填槽位、读写输入框、画 SVG、接指针事件。
 
-### 11.2 六组坐标互为输入输出
+### 12.2 六组坐标互为输入输出
 
 XYZ / xyY / CCT / 设备 RGB 与 HEX / Lab / Luv（含 LCH）七类（共 21 个）输入框处于**同一张图**里：
 改动任意一组并触发计算，其余各组立即更新。核心是 `CIE.compute(source, raw, env, prev)` ——
@@ -676,7 +707,7 @@ XYZ / xyY / CCT / 设备 RGB 与 HEX / Lab / Luv（含 LCH）七类（共 21 个
 实时计算开关打开时逐键重算；关闭时只有点「执行计算」才结算 —— 此时会先记账「最后被编辑的来源」，
 否则按下按钮会用错来源。
 
-### 11.3 色度图
+### 12.3 色度图
 
 - **内联 SVG，不是 canvas**：这是站点「零外链、可 `file://` 直开」约定的必然结果，
   SVG presentation 属性不认 `var()`，所以配色取 `cie-data.js` 里的真色值，并随明暗主题重画。
@@ -695,7 +726,7 @@ XYZ / xyY / CCT / 设备 RGB 与 HEX / Lab / Luv（含 LCH）七类（共 21 个
 - **取点**：在图上点击 / 拖动（pointer 事件，鼠标 / 触屏 / 笔通吃）即把该色度写进 xyY；
   亮度取「该色度下刚好不超色域」的最大值，所以预览永远是最饱和的样子。越出色域会给出提示。
 
-### 11.4 色温为什么需要 Duv 兜底
+### 12.4 色温为什么需要 Duv 兜底
 
 McCamy 是**近似**公式，色度一旦远离黑体轨迹（最典型的是光谱绿）它仍会硬算出一个数 ——
 实测纯绿能算出 13 亿 K。所以页面另算 `CIE.nearestPlanck(x, y)`：在 1960 UCS 空间里找**最近的黑体点**
@@ -703,7 +734,7 @@ McCamy 是**近似**公式，色度一旦远离黑体轨迹（最典型的是光
 
 ---
 
-## 12. 已知边界
+## 13. 已知边界
 
 - **DisplayID** 只解析到“分节”层级（标签/版本/长度/偏移），不做逐节内容解释；生成器也按分节字节原样写入。
 - **VTB** 与**块映射表**同样只做结构与标签层面的处理。
@@ -736,7 +767,7 @@ McCamy 是**近似**公式，色度一旦远离黑体轨迹（最典型的是光
 
 ---
 
-## 13. 说明
+## 14. 说明
 
 本项目的代码与文案为独立实现，功能对标 edidcraft.com。「时序对比」页的功能对标 Tom Verbeure 的
 Video Timings Calculator（其 DMT/VIC 标准时序数据与 CVT 公式来自 VESA/CTA 公开规范，算法经交叉验证对齐）。

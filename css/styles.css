@@ -787,3 +787,20 @@ footer.site .wrap { display: flex; gap: 16px; flex-wrap: wrap; align-items: cent
 @media (max-width: 1100px) {
   .cie-wrap { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ============================== 生存 · 成年人基本功 ============================== */
+.ad-check { display: flex; flex-direction: column; gap: 2px; }
+.ad-check-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.ad-check-row {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 7px 8px; border-radius: var(--radius-sm);
+  font-size: .86rem; line-height: 1.45; color: var(--text-soft);
+  cursor: pointer; user-select: none;
+}
+.ad-check-row:hover { background: var(--surface-2); }
+.ad-check-row input { margin: 2px 0 0; accent-color: var(--accent); cursor: pointer; }
+.ad-check-row.done { color: var(--text-dim); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--text-dim) 55%, transparent); }
+.ad-check-row.done span { opacity: .75; }

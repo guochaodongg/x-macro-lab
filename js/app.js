@@ -1103,6 +1103,7 @@
        这里同步算，而不是排队到下一帧 —— 面板的 display 已经切好，布局是同步可读的，
        排队反而会让第一次进入时进度条空着（jsdom 下 rAF 未必及时跑）。 */
     if (name === 'blog') blogSpy();
+    if (name === 'adult') adultSpy();
   }
 
   function setTheme(theme) {
@@ -3873,6 +3874,125 @@
     window.addEventListener('resize', blogQueueSpy);
   }
 
+  /* ------------------------------------------------ 生存 · 成年人基本功 */
+  /* 单篇笔记页：渲染复用 BLOG 的文章/目录渲染器；额外带一个八项自查清单，
+     勾选状态存 localStorage（key: xm-adult-check），刷新不丢。 */
+
+  var adult = { ready: false, data: null, activeId: '', queued: false };
+  var ADULT_CHECK_KEY = 'xm-adult-check';
+
+  function adultCheckLoad() {
+    try {
+      var raw = localStorage.getItem(ADULT_CHECK_KEY);
+      if (!raw) return {};
+      var v = JSON.parse(raw);
+      return (v && typeof v === 'object') ? v : {};
+    } catch (e) { return {}; }
+  }
+
+  function adultCheckSave(map) {
+    try { localStorage.setItem(ADULT_CHECK_KEY, JSON.stringify(map)); } catch (e) { /* 隐身模式等场景忽略 */ }
+  }
+
+  /* 重画清单的勾选态与计数（不重建 DOM，保持焦点） */
+  function adultCheckPaint(map) {
+    var slot = $('#ad-check-slot');
+    if (!slot) return;
+    var rows = $$('#ad-check-slot [data-ad-check]');
+    var n = 0;
+    rows.forEach(function (box) {
+      var on = !!map[box.getAttribute('data-ad-check')];
+      box.checked = on;
+      var row = box.closest('.ad-check-row');
+      if (row) row.classList.toggle('done', on);
+      if (on) n++;
+    });
+    var count = $('#ad-check-count');
+    if (count) {
+      count.textContent = n + ' / ' + rows.length;
+      count.classList.toggle('ok', rows.length > 0 && n === rows.length);
+    }
+  }
+
+  function adultSpy() {
+    if (!adult.ready || state.tab !== 'adult') return;
+    var slot = $('#ad-post-slot');
+    var heads = $$('.bl-chap, .bl-sec, .bl-subsec', slot);
+    if (!heads.length) return;
+
+    var cur = heads[0];
+    heads.forEach(function (el) { if (el.getBoundingClientRect().top <= 112) cur = el; });
+    var id = cur ? cur.id : '';
+
+    var r = slot.getBoundingClientRect();
+    var span = r.height - window.innerHeight * 0.55;
+    var done = span > 0 ? (112 - r.top) / span : 0;
+    done = Math.max(0, Math.min(1, done));
+    var bar = $('#ad-progress');
+    if (bar) bar.style.width = (done * 100).toFixed(1) + '%';
+
+    if (id === adult.activeId) return;
+    adult.activeId = id;
+    $$('#ad-side-slot a[data-bl-goto]').forEach(function (a) {
+      a.classList.toggle('active', a.getAttribute('data-bl-goto') === id);
+    });
+    var chap = cur && cur.closest ? cur.closest('.bl-chap') : null;
+    if (!chap) return;
+    $$('#ad-side-slot li.bl-toc-chap').forEach(function (li) {
+      li.classList.toggle('open', li.getAttribute('data-bl-chap') === chap.id);
+    });
+  }
+
+  function adultQueueSpy() {
+    if (adult.queued) return;
+    adult.queued = true;
+    window.requestAnimationFrame(function () { adult.queued = false; adultSpy(); });
+  }
+
+  function initAdult() {
+    var panel = $('#panel-adult');
+    if (!panel) return;
+    adult.data = window.ADULTData;
+    if (!adult.data || !adult.data.post || !window.ADULT) {
+      $('#ad-post-slot').innerHTML = window.ADULT ? ADULT.renderEmpty() : '';
+      return;
+    }
+    adult.ready = true;
+    var post = adult.data.post;
+
+    $('#ad-side-slot').innerHTML = ADULT.renderToc(post);
+    $('#ad-hero-slot').innerHTML = ADULT.renderHero(post, adult.data);
+    $('#ad-post-slot').innerHTML = ADULT.renderArticle(post) + ADULT.renderSource(adult.data);
+    $('#ad-check-slot').innerHTML = ADULT.renderChecklist(adult.data.checklist, adultCheckLoad());
+    adult.activeId = '';
+    adultSpy();
+
+    /* 目录锚点：同博客页，接管默认跳转 + 平滑滚动 */
+    panel.addEventListener('click', function (e) {
+      var box = e.target.closest('[data-ad-check]');
+      if (box) {
+        var map = adultCheckLoad();
+        if (box.checked) map[box.getAttribute('data-ad-check')] = true;
+        else delete map[box.getAttribute('data-ad-check')];
+        adultCheckSave(map);
+        adultCheckPaint(map);
+        return;
+      }
+      var link = e.target.closest('a[data-bl-goto]');
+      if (!link) return;
+      e.preventDefault();
+      var target = document.getElementById(link.getAttribute('data-bl-goto'));
+      if (!target) return;
+      var top = target.getBoundingClientRect().top + (window.scrollY || 0) - 96;
+      if (typeof window.scrollTo === 'function') window.scrollTo({ top: top, behavior: 'smooth' });
+      adult.activeId = '';
+      adultQueueSpy();
+    });
+
+    window.addEventListener('scroll', adultQueueSpy, { passive: true });
+    window.addEventListener('resize', adultQueueSpy);
+  }
+
   /* ------------------------------------------------ 色彩空间 CIE 1931 */
 
   var cie = {
@@ -4183,6 +4303,7 @@
     initMCCS();
     initSerial();
     initBlog();
+    initAdult();
     initCIE();
 
     $$('nav.tabs button[data-tab]').forEach(function (b) {
