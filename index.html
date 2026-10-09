@@ -126,7 +126,7 @@
       <div class="tabgroup" data-group="blog">
         <button type="button" class="gbtn" aria-expanded="false">Technology Blog<svg class="ic caret" aria-hidden="true"><use href="#i-caret"/></svg></button>
         <div class="tabmenu" role="tablist" aria-label="Technology Blog">
-          <button type="button" role="tab" aria-selected="false" data-tab="blog"><svg class="ic"><use href="#i-book"/></svg><span class="lbl">显示器进阶技术</span><span class="hint">RTC / BFI / DCR</span></button>
+          <button type="button" role="tab" aria-selected="false" data-tab="blog"><svg class="ic"><use href="#i-book"/></svg><span class="lbl">技术长文</span><span class="hint">RTC / BFI / DSC</span></button>
         </div>
       </div>
       <div class="tabgroup" data-group="growth">
@@ -1077,7 +1077,7 @@
   </section>
 
   <!-- =============================================== Technology Blog ===== -->
-  <!-- 文章本体由 js/blog-data.js（数据）+ js/blog.js（渲染）+ app.js（挂载）生成，
+  <!-- 文章本体由 js/blog-data.js + js/dsc-data.js（数据）+ js/blog.js（渲染）+ app.js（挂载）生成，
        这里只放骨架：左侧目录、右侧正文，外加一条阅读进度条。 -->
   <section class="panel" id="panel-blog">
     <div class="bl-shell">
@@ -1154,7 +1154,7 @@
 
       <div class="card"><div class="body">
         <h3>功能清单</h3>
-        <p class="small muted" style="margin-top:0">顶部导航按 <b>EDID</b> / <b>PQ</b> / <b>DDC/CI</b> / <b>串口调试</b> / <b>Timing</b> / <b>Technology Blog</b> / <b>成长</b> / <b>关于</b> 八组组织，点分组标题展开下拉菜单；每个页面也能用深链直达，例如 <code>?tab=mccs</code>、<code>?tab=cie</code>、<code>?tab=blog</code>、<code>?tab=adult</code>。</p>
+        <p class="small muted" style="margin-top:0">顶部导航按 <b>EDID</b> / <b>PQ</b> / <b>DDC/CI</b> / <b>串口调试</b> / <b>Timing</b> / <b>Technology Blog</b> / <b>成长</b> / <b>关于</b> 八组组织，点分组标题展开下拉菜单；每个页面也能用深链直达，例如 <code>?tab=mccs</code>、<code>?tab=cie</code>、<code>?tab=blog</code>、<code>?tab=blog&amp;post=dsc</code>（博客可指定文章）、<code>?tab=adult</code>。</p>
         <div class="kv">
           <dt>EDID · 解析</dt><dd>基础块全字段、既定 / 标准时序、四类描述符、CEA-861 数据块、DisplayID 分节、VTB、块映射</dd>
           <dt>EDID · 生成</dt><dd>厂商 / 产品 / 序列号、日期与版本、数字 / 模拟输入、色度、既定与标准时序、描述符与扩展块，自动校验和</dd>
@@ -1166,7 +1166,7 @@
           <dt>串口调试</dt><dd>普通模式（发送 / 接收分区，接收视图可选文本 / HEX / HEXDUMP，带时间戳与收发记录）与终端模式（提示符 + 命令行 + 闪烁光标，按 CR / LF / BS / TAB 的真实终端语义解释）双界面；切到本页自动枚举已连接的 COM 口（友好名 + VID/PID，并自动选回上次用过的口），支持 300–2000000 波特率、五种校验、1 / 1.5 / 2 位停止位、三种流控、定时发送与常用指令预设，普通模式还会嗅探内容并提示切换到终端模式</dd>
           <dt>Timing · 时序计算</dt><dd>CVT 标准 / RB / RBv2 / RBv3 与 GTF（含隔行与缩边），输出参数表、Modeline、xrandr 命令与可写入 DTD 的字节</dd>
           <dt>Timing · 时序对比</dt><dd>一次计算 CVT / CVT-RB / CVT-RBv2 / CEA-861 / DMT / 自定义六种时序，核算 DP / HDMI / DVI / SDI / RFC4175 接口带宽余量</dd>
-          <dt>Technology Blog</dt><dd>显示技术长文专栏：左侧分章目录（滚动自动高亮并展开当前章）+ 右侧正文，带阅读进度条、行内示意图（纯内联 SVG）与术语对照表。首篇《显示器进阶技术全解》完整翻译并重排 TFTCentral 显示器进阶技术专题（过驱 RTC / 黑帧插入 / 扫描背光 / MEMC / 真 120 Hz / 面板涂层 / 均匀性校正 / 动态对比度），四个章节 41 节、5 张示意图、19 条术语</dd>
+          <dt>Technology Blog</dt><dd>显示技术长文专栏：左侧分章目录（滚动自动高亮并展开当前章）+ 右侧正文，带阅读进度条、行内示意图（纯内联 SVG）与术语对照表，多篇文章用顶部文章切换条切换。已收录两篇：<b>《显示器进阶技术全解》</b>（完整翻译并重排 TFTCentral 显示器进阶技术专题：过驱 RTC / 黑帧插入 / 扫描背光 / MEMC / 真 120 Hz / 面板涂层 / 均匀性校正 / 动态对比度，4 章 41 节、5 张示意图、19 条术语）与 <b>《显示流压缩（DSC）技术解析》</b>（整理自 VESA DSC 标准 v1.2a：色彩变换 / MMAP·BP·MPP 三种预测 / 索引色历史 / DSU-VLC 熵编码 / 速率控制与 HRD / 子流与切片复用 / PPS 参数 / 原生 4:2:2 与 4:2:0，12 章 54 节、9 张示意图、25 条术语）</dd>
           <dt>成长 · 成年人基本功</dt><dd>整理自小红书 @空山素衣 的视频《25岁到30岁做到这些，你将领先同龄人十年》：大额消费、合同、钱、突发情况、法律职场、身体、关系与自我认知八个章节的要点提炼，每章附视频时间点对照；侧栏带八项基本功自查清单，勾选状态保存在浏览器本地</dd>
           <dt>关于</dt><dd>项目介绍、部署说明、开发说明、清除本地草稿</dd>
         </div>
@@ -1191,7 +1191,7 @@
           <dt>自测</dt><dd>用 Node 或浏览器控制台加载引擎即可跑通预设与校验，详见 README</dd>
           <dt>目录</dt><dd><code>index.html</code> · <code>css/styles.css</code> · <code>js/*.js</code> · <code>tools/</code>（DDC/CI 与串口的本地桥接）</dd>
           <dt>引擎</dt><dd><code>edid-core.js</code>（常量与工具）· <code>timing.js</code>（CVT/GTF）· <code>edid-decoder.js</code> · <code>edid-encoder.js</code> · <code>edid-validator.js</code></dd>
-          <dt>扩展</dt><dd><code>zip-lite.js</code> / <code>xlsx-lite.js</code>（纯 JS 读取 .xlsx）· <code>gamma.js</code>（伽马验证与 SVG 图表）· <code>cie.js</code> / <code>cie-data.js</code>（CIE 色彩转换与内联 SVG 色度图）· <code>mccs.js</code> / <code>mccs-data.js</code>（DDC/CI 协议与 VCP 码表）· <code>serial.js</code> / <code>serial-data.js</code>（串口编解码、终端缓冲、内容嗅探与两种传输适配器）· <code>blog.js</code> / <code>blog-data.js</code>（技术博客：文章数据与渲染层，新增文章只需往数据里加一条）</dd>
+          <dt>扩展</dt><dd><code>zip-lite.js</code> / <code>xlsx-lite.js</code>（纯 JS 读取 .xlsx）· <code>gamma.js</code>（伽马验证与 SVG 图表）· <code>cie.js</code> / <code>cie-data.js</code>（CIE 色彩转换与内联 SVG 色度图）· <code>mccs.js</code> / <code>mccs-data.js</code>（DDC/CI 协议与 VCP 码表）· <code>serial.js</code> / <code>serial-data.js</code>（串口编解码、终端缓冲、内容嗅探与两种传输适配器）· <code>blog.js</code> / <code>blog-data.js</code> / <code>dsc-data.js</code>（技术博客：渲染层 + 文章数据，新增文章只需往数据里加一条）</dd>
           <dt>校验</dt><dd>引擎自带 Node 测试脚本，可与在线服务结果逐项比对</dd>
         </div>
         <p class="small muted" style="margin-top:10px">想做二次开发？引擎文件都是普通脚本，暴露 <code>window.EDIDCore / EDIDTiming / EDIDDecoder / EDIDEncoder / EDIDValidator / MCCS / MCCSData / SERIAL / SERIALData / CIE / CIEData / BLOG / BLOGData</code>，可以单独取用。</p>
@@ -1240,6 +1240,7 @@
   <script src="js/serial-data.js"></script>
   <script src="js/serial.js"></script>
   <script src="js/blog-data.js"></script>
+  <script src="js/dsc-data.js"></script>
   <script src="js/blog.js"></script>
   <script src="js/adult-data.js"></script>
   <script src="js/adult.js"></script>

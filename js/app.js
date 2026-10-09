@@ -1088,6 +1088,17 @@
     return $('nav.tabs button[data-tab="' + want + '"]') ? want : null;
   }
 
+  /* 博客的深链：?tab=blog&post=dsc 直接定位到某篇文章。
+     未知的 post 值一律忽略（落回第一篇），与 ?tab= 的策略一致。 */
+  function blogPostFromUrl() {
+    var want = null;
+    try { want = new URLSearchParams(location.search).get('post'); } catch (err) { /* 老环境 */ }
+    if (!want) return null;
+    var D = window.BLOGData || {};
+    var ok = (D.posts || []).some(function (p) { return p.id === want; });
+    return ok ? want : null;
+  }
+
   function switchTab(name) {
     state.tab = name;
     $$('nav.tabs button[data-tab]').forEach(function (b) {
@@ -1374,9 +1385,12 @@
     state.vtc.cvblank = clamp(Math.round(Number($('#vtc-cvblank').value) || 0), 0, 2048);
   }
 
-  /* 与原工具一致的 URL 分享参数（file:// 下 replaceState 可能被拒，静默忽略） */
+  /* 与原工具一致的 URL 分享参数（file:// 下 replaceState 可能被拒，静默忽略）。
+     注意：这里会整体重写查询串，所以要先把站点自己的深链参数（?tab= / ?post=）留出来，
+     否则从 ?tab=blog&post=dsc 进来、只要时序计算器同步过一次 URL，地址栏就再也回不去了。 */
   function vtcSyncUrl() {
     try {
+      var keep = new URLSearchParams(location.search);
       var sp = new URLSearchParams();
       sp.set('horiz_pixels', state.vtc.h);
       sp.set('vert_pixels', state.vtc.v);
@@ -1388,6 +1402,10 @@
       sp.set('video_opt', state.vtc.vopt);
       sp.set('custom_hblank', state.vtc.chblank);
       sp.set('custom_vblank', state.vtc.cvblank);
+      ['tab', 'post'].forEach(function (k) {
+        var v = keep.get(k);
+        if (v) sp.set(k, v);
+      });
       history.replaceState(null, '', '?' + sp.toString());
     } catch (e) { /* file:// 等 */
     }
@@ -3764,15 +3782,16 @@
   /* 文章本体来自 js/blog-data.js（纯数据）+ js/blog.js（纯渲染），这里只负责：
      ① 把渲染结果填进骨架的三个槽位；② 目录点击的平滑滚动；③ 滚动侦测（目录高亮 +
      当前章展开 + 阅读进度条）。新增文章只需往 BLOGData.posts 里加一条。 */
-  var blog = { ready: false, post: null, data: null, activeId: '', queued: false };
+  var blog = { ready: false, post: null, data: null, activeId: '', queued: false, wantId: null, deepLink: false };
 
   function blogHero(post) {
     var D = blog.data || {};
+    var glossary = post.glossary || D.glossary;
     var chips = [
       post.chapters ? post.chapters.length + ' 章' : '',
       BLOG.sectionCount(post) + ' 节',
       '约 ' + BLOG.readingMinutes(post) + ' 分钟',
-      (D.glossary && D.glossary.length ? D.glossary.length + ' 条术语' : '')
+      (glossary && glossary.length ? glossary.length + ' 条术语' : '')
     ].map(function (s) {
       return s ? '<span class="chip">' + esc(s) + '</span>' : '';
     }).join('');
@@ -3792,6 +3811,18 @@
       '</div>';
   }
 
+  /* 切文章时同步 URL：只有「本来就是用深链打开的」才同步，
+     这样普通访问不会被塞上查询参数，而分享出去的 ?post= 会一直跟着当前文章。 */
+  function blogSyncUrl(postId) {
+    try {
+      if (!blog.deepLink) return;
+      if (!window.history || !window.history.replaceState) return;
+      var q = new URLSearchParams(location.search);
+      q.set('post', postId);
+      window.history.replaceState(null, '', '?' + q.toString());
+    } catch (err) { /* 老环境 / file:// 下静默忽略 */ }
+  }
+
   function blogPick(postId) {
     var D = blog.data;
     if (!D || !D.posts || !D.posts.length) return;
@@ -3803,8 +3834,11 @@
     $('#bl-side-slot').innerHTML = BLOG.renderPicker(D.posts, post.id) + BLOG.renderToc(post);
     $('#bl-hero-slot').innerHTML = blogHero(post);
     $('#bl-post-slot').innerHTML = BLOG.renderArticle(post, D.figures);
-    $('#bl-extra-slot').innerHTML = BLOG.renderGlossary(D.glossary) + BLOG.renderSource(D);
+    /* 术语表按文章走：post 自带 glossary 就用它，否则退回全局表 */
+    $('#bl-extra-slot').innerHTML =
+      BLOG.renderGlossary(post.glossary || D.glossary) + BLOG.renderSource(D, post);
     blog.activeId = '';
+    blogSyncUrl(post.id);
     blogSpy();
   }
 
@@ -3853,7 +3887,7 @@
       return;
     }
     blog.ready = true;
-    blogPick(blog.data.posts[0].id);
+    blogPick(blog.wantId || blog.data.posts[0].id);
 
     /* 目录里的锚点：接管默认跳转，避免它把 URL 的 ?tab= 冲掉，同时做平滑滚动 */
     panel.addEventListener('click', function (e) {
@@ -4291,6 +4325,11 @@
     }
 
     if (linkTab) state.tab = linkTab;      /* 深链优先于本地草稿 */
+
+    /* 深链参数必须在任何模块改 URL 之前读走：时序计算器会重写整个查询串，
+       等到 initBlog 再去读 location.search 就晚了（这是实测踩到的坑）。 */
+    blog.wantId = blogPostFromUrl();
+    blog.deepLink = !!(linkTab || blog.wantId);
 
     setTheme(state.theme);
     switchTab(state.tab);

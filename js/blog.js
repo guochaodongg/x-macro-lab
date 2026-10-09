@@ -11,7 +11,7 @@
  *     renderToc(post)              目录 HTML
  *     renderArticle(post, figures)  正文 HTML
  *     renderGlossary(glossary)      术语表 HTML
- *     renderSource(data)            来源与版权说明 HTML
+ *     renderSource(data, post)      来源与版权说明 HTML（post 可选，自带 source 时优先）
  *     renderPicker(posts, activeId) 文章切换条（只有一篇时返回空串）
  *     renderEmpty()                 数据缺失时的占位
  *
@@ -22,6 +22,10 @@
   'use strict';
 
   var ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+  /* 无文章级 source 时的默认「来源说明」（TFTCentral 那篇的语境） */
+  var INTRO_CN = '本页为面向中文读者的完整翻译与结构化整理，章节顺序与原文一致，' +
+    '术语按国内显示行业惯例翻译。';
 
   function escapeHtml(s) {
     if (s == null) return '';
@@ -245,16 +249,22 @@
       '</tbody></table></div></section>';
   }
 
-  function renderSource(data) {
+  /* 来源区块：文章自带 source 时以文章为准（不同的文章可能取材于不同原始出处），
+     否则退回 BLOGData.meta 里的全局来源。第二个参数可选，老调用方式保持不变。 */
+  function renderSource(data, post) {
     var m = (data && data.meta) || {};
+    var s = (post && post.source) || null;
+    var url = (s && s.url) || m.sourceUrl || '#';
+    var label = s ? ((s.name || '') + (s.label ? ' · ' + s.label : '')) : (m.sourceTitle || '');
+    var intro = (s && s.note) ? s.note : INTRO_CN;
     return '<section class="bl-source" id="bl-source">' +
       '<h2>来源与版权<span class="bl-en">Source &amp; Credits</span></h2>' +
       '<ul class="bl-list">' +
-      '<li>原文：<a href="' + escapeHtml(m.sourceUrl || '#') + '" target="_blank" rel="noopener">' +
-      escapeHtml(m.sourceTitle || '') + '</a>（英文）</li>' +
-      '<li>本页为面向中文读者的完整翻译与结构化整理，章节顺序与原文一致，术语按国内显示行业惯例翻译。</li>' +
+      '<li>原文：<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' +
+      escapeHtml(label) + '</a></li>' +
+      '<li>' + escapeHtml(intro) + '</li>' +
       '<li>原文插图未随文转载，页面内示意图由本站按原文所述原理重绘（纯内联 SVG，不请求任何外部资源）。</li>' +
-      '<li>' + escapeHtml(m.license || '') + '</li>' +
+      '<li>' + escapeHtml((post && post.license) || m.license || '') + '</li>' +
       '</ul></section>';
   }
 
