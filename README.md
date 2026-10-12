@@ -5,7 +5,7 @@
 
 对 [edidcraft.com](https://edidcraft.com/) 全部功能的**完整复刻**：解析（Decoder）、生成（Encoder）、校验（Validator）、时序计算（Timing Calculator），外加一页 EDID 速成课；在此之上又扩了七块内容：**时序对比**（多标准时序与接口带宽核算）、**伽马验证**（CA410 测量数据）、**色彩空间**（CIE 1931 分析转换）、**DDC/CI 控制**（直连显示器读写 VCP）、**串口调试**（普通 / 终端双模式的 COM 口调试台）、**Technology Blog**（显示技术长文专栏）与**成长专栏**（成年人基本功笔记）。
 
-导航按功能域分成八组：**EDID**（解析 / 生成 / 校验 / 学习 EDID）、**PQ**（伽马验证 / 色彩空间）、**DDC/CI**（DDC/CI 控制）、**串口调试**、**Timing**（时序计算 / 时序对比）、**Technology Blog**（技术长文：显示器进阶技术 / DSC）、**成长**（成年人基本功）、**关于**。
+导航按功能域分成八组：**EDID**（解析 / 生成 / 校验 / 学习 EDID）、**PQ**（伽马验证 / 色彩空间）、**DDC/CI**（DDC/CI 控制）、**串口调试**、**Timing**（时序计算 / 时序对比）、**Technology Blog**（技术长文：显示器进阶技术 / DSC）、**成长**（成长专栏：成年人基本功 / 30 岁后的职场价值）、**关于**。
 
 - **纯静态**：`index.html` + `css/` + `js/`，可直接放到 GitHub Pages / Cloudflare Pages / 任意静态服务器。
 - **前端实现**：解析、生成、校验与时序计算全部由浏览器端 JavaScript 完成。
@@ -24,7 +24,7 @@
 
 ## 1. 功能清单
 
-顶部导航按 **8 个分组**组织（**EDID** / **PQ** / **DDC/CI** / **串口调试** / **Timing** / **Technology Blog** / **成长** / **关于**），点分组标题展开下拉菜单；每个页面也支持深链直达，例如 `index.html?tab=mccs`、`index.html?tab=cie`、`index.html?tab=blog`、`index.html?tab=blog&post=dsc`（长文专栏可直指某一篇）、`index.html?tab=adult`。
+顶部导航按 **8 个分组**组织（**EDID** / **PQ** / **DDC/CI** / **串口调试** / **Timing** / **Technology Blog** / **成长** / **关于**），点分组标题展开下拉菜单；每个页面也支持深链直达，例如 `index.html?tab=mccs`、`index.html?tab=cie`、`index.html?tab=blog`、`index.html?tab=blog&post=dsc`（长文专栏可直指某一篇）、`index.html?tab=adult`、`index.html?tab=adult&post=career-30`（成长专栏可直指某一篇）。
 
 | 分组 | 页面 | 能力 |
 | --- | --- | --- |
@@ -77,8 +77,8 @@ x-macro-lab/
 │   ├── blog-data.js        # 技术博客文章数据（章节/小节/段落块/内联 SVG 示意图/术语表，纯数据）
 │   ├── dsc-data.js         # DSC 技术解析长文数据（追加进 BLOGData.posts，含 9 张内联 SVG 原理图，纯数据）
 │   ├── blog.js             # 技术博客渲染层：行内标记、目录、正文、术语表、文章切换条 → HTML 字符串（无 DOM 依赖）
-│   ├── adult-data.js       # 成长 · 成年人基本功笔记数据（与 blog post 同构，纯数据）
-│   ├── adult.js            # 成长页渲染适配层：复用 BLOG 渲染器 + 自查清单 HTML（无 DOM 依赖）
+│   ├── adult-data.js       # 成长专栏数据（多篇文章，每篇与 blog post 同构，纯数据）
+│   ├── adult.js            # 成长页渲染适配层：复用 BLOG 渲染器 + 每篇自查/行动清单 + 文章切换条（无 DOM 依赖）
 │   ├── cie-data.js         # 色彩空间纯数据（参考白点 / RGB 空间基色与白点 / 色度适应矩阵 / 光谱轨迹 / 色度图配色）
 │   ├── cie.js              # CIE 1931 色彩空间逻辑：矩阵与色度适应、六组坐标互转、色度图几何与取点、色温/Duv（无 DOM 依赖）
 │   └── app.js              # 界面接线：标签页、表单、草稿、导出
@@ -612,7 +612,7 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 > 本项目的测试脚本（`_ref/test-*.js`，覆盖编解码往返、时序矩阵、报告层、时序对比、伽马、
 > DDC/CI 协议、串口协议与传输适配器、技术博客数据与渲染层（含 DSC 长文的覆盖度与示意图一致性）、
 > CIE 1931 色彩空间，以及 jsdom 驱动的界面层）都在仓库外的 `_ref/`，不会随静态站点发布。
-> 当前基线：**108 / 356 / 2094 / 20095 / 122 / 258 / 269 / 1420 / 521 + 界面 118，全部 0 失败**
+> 当前基线：**108 / 356 / 2094 / 20095 / 122 / 258 / 269 / 1420 / 521 + 界面 124，全部 0 失败**
 > （依次为 `test-edid` / `test-timing` / `test-render` / `test-vtc` / `test-gamma` /
 > `test-mccs` / `test-serial` / `test-blog` / `test-cie`，最后是 `test-app-dom`）。
 
@@ -682,31 +682,37 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 
 ---
 
-## 11. 成长 · 成年人基本功
+## 11. 成长专栏
+
+成长专栏是一个**多篇文章**的笔记本，与博客页同一套三层结构，但更薄；侧栏多了「文章切换条」与每篇自带的**自查 / 行动清单**。
 
 ### 11.1 内容来源
 
-整理自小红书用户 **@空山素衣** 的视频
-[《25岁到30岁做到这些，你将领先同龄人十年》](https://www.xiaohongshu.com/explore/6ac09c7a0000000018014719)
-（时长 5:49，约 890 赞 / 881 收藏）。本页是按视频章节与口述内容做的**结构化学习笔记**：
-开篇 + 8 个正章 + 结语，每章附视频时间点对照；内容版权归原作者所有，原视频作者声明含 AI 生成内容。
+目前收录两篇，均为结构化重排笔记（要点提炼 + 结构重组，非逐字转载），版权归原作者所有：
+
+1. **成年人基本功** —— 整理自小红书用户 **@空山素衣** 的视频
+   [《25岁到30岁做到这些，你将领先同龄人十年》](https://www.xiaohongshu.com/explore/6ac09c7a0000000018014719)
+   （时长 5:49，约 890 赞 / 881 收藏）：开篇 + 8 个正章，每章附视频时间点对照；原视频作者声明含 AI 生成内容。
+2. **30 岁后的职场价值** —— 整理自微信公众号 **ProcessOn** 的文章
+   [《为什么 30 岁以后，你的经验突然不值钱了？》](https://mp.weixin.qq.com/s/sCdt1GUJo7bYC1eIOeAVYA)
+   （发布于 2026-10-10）：讲经验为何会贬值、经验如何被复用产生复利、30 岁后怎样重建职场价值，共 4 个部分。
 
 ### 11.2 分层
 
-与博客页同一套三层结构，但更薄：
-
-- `js/adult-data.js` —— 纯数据。`post` 对象与 `BLOGData.posts` 里的 post **完全同构**
-  （`chapters → sections → blocks`，block 支持 p / list / table / callout / quote），
-  外加 `checklist`（8 项自查清单）。
+- `js/adult-data.js` —— 纯数据。`window.ADULTData = { meta, articles: [...] }`，
+  每篇 `article` 内：`post`（与 `BLOGData.posts` 里的 post **完全同构**，`chapters → sections → blocks`，
+  block 支持 p / list / table / callout / quote）、`checklist`（该篇的自查 / 行动清单）、`meta`（updated / sourceUrl）、
+  以及 `picker` / `checklistTitle` / `checklistDesc` 等展示字段。
 - `js/adult.js` —— 渲染适配层（挂 `window.ADULT`）：`renderArticle` / `renderToc` 直接**复用 `BLOG` 的实现**，
-  自己只写 `renderHero` / `renderChecklist` / `renderSource`（来源措辞与博客页不同），无 DOM 依赖，可在 Node 直测。
-- `app.js` 的 `initAdult()` 只做三件事：填四个槽位（`#ad-side-slot` / `#ad-hero-slot` / `#ad-post-slot` / `#ad-check-slot`）、
-  接线目录锚点与清单勾选、滚动侦测（`adultSpy()`，与 `blogSpy()` 同款，切页时同步首算）。
+  自己只写 `renderHero` / `renderChecklist` / `renderSource` / `renderPicker`（来源措辞数据驱动，适配视频与文章两种来源），无 DOM 依赖，可在 Node 直测。
+- `app.js` 的 `initAdult()` + `adultPick()`：填槽位（`#ad-side-slot` 含切换条 + 目录 / `#ad-hero-slot` / `#ad-post-slot` / `#ad-check-slot`）、
+  接线切换条 / 目录锚点 / 清单勾选、滚动侦测（`adultSpy()`，与 `blogSpy()` 同款，切页时同步首算）；并支持深链 `?tab=adult&post=xxx`。
 
-### 11.3 自查清单
+### 11.3 每篇的自查 / 行动清单
 
-侧栏「基本功自查」8 行，勾选状态存 `localStorage`（键 `xm-adult-check`），刷新 / 重开浏览器不丢；
-全部勾完计数变绿。存取都包了 try/catch，隐身模式等存储被禁的场景静默降级。
+侧栏清单标题与条目随文章不同（基本功 8 项、职场价值 7 项），勾选状态存 `localStorage`：
+首篇沿用历史键 `xm-adult-check`，其余用 `xm-adult-check-<articleId>`，刷新 / 重开浏览器不丢；全部勾完计数变绿。
+存取都包了 try/catch，隐身模式等存储被禁的场景静默降级。
 
 ---
 

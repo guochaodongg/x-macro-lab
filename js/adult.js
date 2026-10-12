@@ -8,8 +8,9 @@
  *   renderHero(post, data)         顶部信息卡 HTML
  *   renderToc(post)                目录 HTML（复用 BLOG）
  *   renderArticle(post)            正文 HTML（复用 BLOG，本页无示意图）
- *   renderChecklist(items, done)   自查清单 HTML（done: {id:true} 或 null）
- *   renderSource(data)             来源与版权说明 HTML
+ *   renderChecklist(items, done, opts)  自查 / 行动清单 HTML（opts: {title, desc}）
+ *   renderSource(data)             来源与版权说明 HTML（数据驱动，适配视频 / 文章）
+ *   renderPicker(articles, activeId)  文章切换条（复用 blog 的 .bl-picker 样式）
  *   renderEmpty()                  数据缺失占位
  *
  * 设计约定：所有可见文本先转义再套行内标记；任何字段缺失都不能产出
@@ -49,12 +50,16 @@
     return h;
   }
 
-  /* 自查清单：八件事各一行，勾选状态由 app.js 存 localStorage */
-  function renderChecklist(items, done) {
+  /* 自查 / 行动清单：每篇各一行，勾选状态由 app.js 存 localStorage。
+     opts: { title, desc } —— 标题与说明随文章不同（基本功 / 行动清单）。 */
+  function renderChecklist(items, done, opts) {
     if (!items || !items.length) return '';
+    var o = opts || {};
     var map = done || {};
     var n = items.filter(function (it) { return map[it.id]; }).length;
-    var h = '<div class="ad-check" id="ad-checklist" role="group" aria-label="基本功自查清单">' +
+    var h = '<h3>' + escapeHtml(o.title || '自查清单') + '</h3>' +
+      (o.desc ? '<p class="small muted">' + escapeHtml(o.desc) + '</p>' : '') +
+      '<div class="ad-check" id="ad-checklist" role="group" aria-label="' + escapeHtml(o.title || '自查清单') + '">' +
       '<div class="ad-check-head"><span class="small muted">已完成</span>' +
       '<span class="chip' + (n === items.length ? ' ok' : '') + '" id="ad-check-count">' +
       escapeHtml(n + ' / ' + items.length) + '</span></div>';
@@ -67,21 +72,34 @@
     return h + '</div>';
   }
 
-  /* 来源与版权：本页是视频笔记，措辞与博客页不同 */
+  /* 来源与版权：数据驱动，适配「视频笔记」与「文章重排」两种来源；
+     视频的元信息放在 post.source.note 里，通用版权文案这里统一给出。 */
   function renderSource(data) {
     var post = data && data.post;
     var m = (data && data.meta) || {};
+    var src = post && post.source;
     return '<section class="bl-source" id="ad-source">' +
       '<h2>来源与版权<span class="bl-en">Source &amp; Credits</span></h2>' +
       '<ul class="bl-list">' +
-      '<li>视频：<a href="' + escapeHtml(m.sourceUrl || '#') + '" target="_blank" rel="noopener">' +
-      escapeHtml(post && post.source ? post.source.name + '「' + post.source.label + '」' : '') + '</a>' +
-      '，时长 5:49，共 8 个正章。</li>' +
-      '<li>本页为按原视频章节与口述内容整理的「结构化学习笔记」（要点提炼 + 时间点对照），' +
-      '不是逐字字幕；内容版权归原作者「' + escapeHtml(post && post.source ? post.source.name : '') + '」所有。</li>' +
-      '<li>原视频作者声明含 AI 生成内容；笔记中的观点请在实践中自行验证。</li>' +
+      '<li>出处：<a href="' + escapeHtml(m.sourceUrl || '#') + '" target="_blank" rel="noopener">' +
+      escapeHtml(src ? src.name + '「' + src.label + '」' : '') + '</a></li>' +
+      (src && src.note ? '<li>' + escapeHtml(src.note) + '</li>' : '') +
+      '<li>本页为按原内容整理的结构化重排笔记（要点提炼 + 结构重组），不是逐字转载；' +
+      '内容版权归原作者「' + escapeHtml(src ? src.name : '') + '」所有。</li>' +
+      '<li>原作者声明含 AI 生成内容；其中的观点请在实践中自行验证。</li>' +
       '<li>整理日期：' + escapeHtml(m.updated || '') + '。</li>' +
       '</ul></section>';
+  }
+
+  /* 文章切换条：只有一篇时不返回（与 blog 的 renderPicker 同构，复用 .bl-picker 样式）。
+     文案取每篇的 picker 字段（短名，适合做按钮）。 */
+  function renderPicker(articles, activeId) {
+    if (!articles || articles.length < 2) return '';
+    return '<div class="bl-picker pill-list">' + articles.map(function (a) {
+      return '<button type="button" class="chip' + (a.id === activeId ? ' accent' : '') +
+        '" data-ad-post="' + escapeHtml(a.id) + '">' +
+        escapeHtml(a.picker || (a.post ? a.post.title : a.id)) + '</button>';
+    }).join('') + '</div>';
   }
 
   function renderEmpty() {
@@ -102,6 +120,7 @@
     renderArticle: renderArticle,
     renderChecklist: renderChecklist,
     renderSource: renderSource,
+    renderPicker: renderPicker,
     renderEmpty: renderEmpty,
     sectionCount: sectionCount,
     readingMinutes: readingMinutes

@@ -1099,6 +1099,17 @@
     return ok ? want : null;
   }
 
+  /* 成长专栏的深链：?tab=adult&post=career-30 直接定位到某篇文章。
+     未知的 post 值一律忽略（落回第一篇），与 ?tab= 的策略一致。 */
+  function adultPostFromUrl() {
+    var want = null;
+    try { want = new URLSearchParams(location.search).get('post'); } catch (err) { /* 老环境 */ }
+    if (!want) return null;
+    var D = window.ADULTData || {};
+    var ok = (D.articles || []).some(function (a) { return a.id === want; });
+    return ok ? want : null;
+  }
+
   function switchTab(name) {
     state.tab = name;
     $$('nav.tabs button[data-tab]').forEach(function (b) {
@@ -3912,20 +3923,27 @@
   /* 单篇笔记页：渲染复用 BLOG 的文章/目录渲染器；额外带一个八项自查清单，
      勾选状态存 localStorage（key: xm-adult-check），刷新不丢。 */
 
-  var adult = { ready: false, data: null, activeId: '', queued: false };
-  var ADULT_CHECK_KEY = 'xm-adult-check';
+  var adult = { ready: false, data: null, activeId: '', queued: false, wantId: null, deepLink: false, arts: [], art: null, checkKey: 'xm-adult-check' };
+  var ADULT_CHECK_KEY = 'xm-adult-check';   /* 首篇文章沿用历史 key，保证老用户勾选状态不丢 */
 
-  function adultCheckLoad() {
+  /* 每篇文章独立存一份勾选状态：首篇用 xm-adult-check，其余用 xm-adult-check-<id> */
+  function adultCheckKey(art) {
+    if (!art) return ADULT_CHECK_KEY;
+    var idx = adult.arts.indexOf(art);
+    return idx === 0 ? ADULT_CHECK_KEY : ADULT_CHECK_KEY + '-' + art.id;
+  }
+
+  function adultCheckLoad(key) {
     try {
-      var raw = localStorage.getItem(ADULT_CHECK_KEY);
+      var raw = localStorage.getItem(key || ADULT_CHECK_KEY);
       if (!raw) return {};
       var v = JSON.parse(raw);
       return (v && typeof v === 'object') ? v : {};
     } catch (e) { return {}; }
   }
 
-  function adultCheckSave(map) {
-    try { localStorage.setItem(ADULT_CHECK_KEY, JSON.stringify(map)); } catch (e) { /* 隐身模式等场景忽略 */ }
+  function adultCheckSave(key, map) {
+    try { localStorage.setItem(key || ADULT_CHECK_KEY, JSON.stringify(map)); } catch (e) { /* 隐身模式等场景忽略 */ }
   }
 
   /* 重画清单的勾选态与计数（不重建 DOM，保持焦点） */
@@ -3983,32 +4001,70 @@
     window.requestAnimationFrame(function () { adult.queued = false; adultSpy(); });
   }
 
+  /* 切文章：重画侧栏（切换条 + 目录）、信息卡、正文 + 来源、该篇的自查 / 行动清单，并同步 URL。
+     只在「本来就是用深链打开的」才同步 URL，普通访问不会被塞上查询参数。 */
+  function adultSyncUrl(postId) {
+    try {
+      if (!adult.deepLink) return;
+      if (!window.history || !window.history.replaceState) return;
+      var q = new URLSearchParams(location.search);
+      q.set('post', postId);
+      window.history.replaceState(null, '', '?' + q.toString());
+    } catch (err) { /* 老环境 / file:// 下静默忽略 */ }
+  }
+
+  function adultPick(id) {
+    var arts = adult.arts;
+    if (!arts || !arts.length) return;
+    var art = null;
+    arts.forEach(function (a) { if (a.id === id) art = a; });
+    if (!art) art = arts[0];
+    adult.art = art;
+
+    var data = { meta: art.meta, post: art.post, checklist: art.checklist };
+    $('#ad-side-slot').innerHTML = ADULT.renderPicker(arts, art.id) + ADULT.renderToc(art.post);
+    $('#ad-hero-slot').innerHTML = ADULT.renderHero(art.post, data);
+    $('#ad-post-slot').innerHTML = ADULT.renderArticle(art.post) + ADULT.renderSource(data);
+
+    var key = adultCheckKey(art);
+    adult.checkKey = key;
+    $('#ad-check-slot').innerHTML = ADULT.renderChecklist(art.checklist, adultCheckLoad(key), {
+      title: art.checklistTitle || '自查清单',
+      desc: art.checklistDesc || ''
+    });
+
+    adult.activeId = '';
+    adultSyncUrl(art.id);
+    adultSpy();
+  }
+
   function initAdult() {
     var panel = $('#panel-adult');
     if (!panel) return;
     adult.data = window.ADULTData;
-    if (!adult.data || !adult.data.post || !window.ADULT) {
+    var arts = adult.data && adult.data.articles;
+    if (!arts || !arts.length || !window.ADULT) {
       $('#ad-post-slot').innerHTML = window.ADULT ? ADULT.renderEmpty() : '';
       return;
     }
     adult.ready = true;
-    var post = adult.data.post;
+    adult.arts = arts;
 
-    $('#ad-side-slot').innerHTML = ADULT.renderToc(post);
-    $('#ad-hero-slot').innerHTML = ADULT.renderHero(post, adult.data);
-    $('#ad-post-slot').innerHTML = ADULT.renderArticle(post) + ADULT.renderSource(adult.data);
-    $('#ad-check-slot').innerHTML = ADULT.renderChecklist(adult.data.checklist, adultCheckLoad());
-    adult.activeId = '';
-    adultSpy();
+    /* 深链优先：?tab=adult&post=xxx 直接定位；未知值落回第一篇 */
+    var want = adult.wantId && arts.some(function (a) { return a.id === adult.wantId; }) ? adult.wantId : arts[0].id;
+    adultPick(want);
 
-    /* 目录锚点：同博客页，接管默认跳转 + 平滑滚动 */
+    /* 侧栏切换条 / 目录锚点 / 勾选：统一在 panel 上委托 */
     panel.addEventListener('click', function (e) {
+      var pick = e.target.closest('[data-ad-post]');
+      if (pick) { adultPick(pick.getAttribute('data-ad-post')); return; }
+
       var box = e.target.closest('[data-ad-check]');
       if (box) {
-        var map = adultCheckLoad();
+        var map = adultCheckLoad(adult.checkKey);
         if (box.checked) map[box.getAttribute('data-ad-check')] = true;
         else delete map[box.getAttribute('data-ad-check')];
-        adultCheckSave(map);
+        adultCheckSave(adult.checkKey, map);
         adultCheckPaint(map);
         return;
       }
@@ -4327,9 +4383,12 @@
     if (linkTab) state.tab = linkTab;      /* 深链优先于本地草稿 */
 
     /* 深链参数必须在任何模块改 URL 之前读走：时序计算器会重写整个查询串，
-       等到 initBlog 再去读 location.search 就晚了（这是实测踩到的坑）。 */
+       等到 initBlog 再去读 location.search 就晚了（这是实测踩到的坑）。
+       按 tab 判定 deepLink，避免 adult 的深链被 blogSyncUrl 顺手冲掉。 */
     blog.wantId = blogPostFromUrl();
-    blog.deepLink = !!(linkTab || blog.wantId);
+    blog.deepLink = !!(linkTab === 'blog' || blog.wantId);
+    adult.wantId = adultPostFromUrl();
+    adult.deepLink = !!(linkTab === 'adult' || adult.wantId);
 
     setTheme(state.theme);
     switchTab(state.tab);
