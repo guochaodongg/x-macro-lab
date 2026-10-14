@@ -5,7 +5,7 @@
 
 对 [edidcraft.com](https://edidcraft.com/) 全部功能的**完整复刻**：解析（Decoder）、生成（Encoder）、校验（Validator）、时序计算（Timing Calculator），外加一页 EDID 速成课；在此之上又扩了七块内容：**时序对比**（多标准时序与接口带宽核算）、**伽马验证**（CA410 测量数据）、**色彩空间**（CIE 1931 分析转换）、**DDC/CI 控制**（直连显示器读写 VCP）、**串口调试**（普通 / 终端双模式的 COM 口调试台）、**Technology Blog**（显示技术长文专栏）与**成长专栏**（成年人基本功笔记）。
 
-导航按功能域分成八组：**EDID**（解析 / 生成 / 校验 / 学习 EDID）、**PQ**（伽马验证 / 色彩空间）、**DDC/CI**（DDC/CI 控制）、**串口调试**、**Timing**（时序计算 / 时序对比）、**Technology Blog**（技术长文：显示器进阶技术 / DSC）、**成长**（成长专栏：成年人基本功 / 30 岁后的职场价值）、**关于**。
+导航按功能域分成八组：**EDID**（解析 / 生成 / 校验 / 学习 EDID）、**PQ**（伽马验证 / 色彩空间）、**DDC/CI**（DDC/CI 控制）、**串口调试**、**Timing**（时序计算 / 时序对比）、**Technology Blog**（技术长文：显示器进阶技术 / DSC / HDMI 2.1）、**成长**（成长专栏：成年人基本功 / 30 岁后的职场价值）、**关于**。
 
 - **纯静态**：`index.html` + `css/` + `js/`，可直接放到 GitHub Pages / Cloudflare Pages / 任意静态服务器。
 - **前端实现**：解析、生成、校验与时序计算全部由浏览器端 JavaScript 完成。
@@ -38,7 +38,7 @@
 | **串口调试** | **串口调试** | 两种**可识别的界面模式**：**普通模式**（发送区 + 接收区，接收视图可选 文本 / HEX / HEXDUMP，带时间戳与收发记录）与**终端模式**（提示符 + 命令行 + 闪烁光标，按真实终端语义解释 CR/LF/BS/TAB）。**切到本页即自动枚举已连接的 COM 口**（含友好名与 VID/PID，并自动选回上次用过的口）；波特率 300–2000000、5–8 数据位、五种校验、1 / 1.5 / 2 位停止位、三种流控、DTR/RTS、编码、行结尾、定时发送、常用指令预设（AT / SCPI / 控制字符）；普通模式会**嗅探内容**（命中 ANSI 转义、裸 CR、BEL、BS、FF 即提示切到终端模式）。两种传输方式：**本地桥接**（列全部 COM 口，`file://` 可用）与 **Web Serial**（零安装，仅 https/localhost） |
 | **Timing** | **时序计算** | VESA **CVT 1.1**（标准消隐）与 **CVT 1.2**（RB / RBv2 / RBv3）、**GTF 1.1**（含隔行与缩边）；输出完整参数表、消隐结构图、X11 `Modeline`、`xrandr --newmode` / `--addmode`，以及可直接写进 DTD 的 18 字节 |
 |  | **时序对比** | 多标准时序对比计算器（对标 Tom Verbeure 的 Video Timings Calculator）：一次计算 CVT / CVT-RB / CVT-RBv2 / CEA-861 / DMT / 自定义六种时序，并核算 DP / HDMI / DVI / SDI / RFC4175 各接口带宽余量 |
-| **Technology Blog** | **技术长文** | 长文专栏页：左侧**分章目录**（滚动自动高亮当前节并只展开所在章）+ 右侧正文 + 顶部阅读进度条；多篇文章时顶部出现**文章切换条**，术语表与来源说明**按篇切换**。首篇《显示器进阶技术全解》是 TFTCentral 显示器进阶技术专题（`tftcentral.co.uk/advanced`）的**完整中文翻译与结构化重排**：4 章 41 节，覆盖过驱 RTC（FFD / 双重过驱 / 过冲与光晕 / G2G 口径 / 六家厂商命名）、运动与响应增强（BFI / 扫描背光 / ASPD / MPA / MP Mode / MEMC 插帧 / 真 120 Hz）、面板涂层（X-Black / CrystalBrite / 保护玻璃 / OptiClear）、画面增强与预设（Senseye / 三星 Magic 系列 / eColor / f-Engine / 环境光 / 均匀性校正 / 动态对比度），附 **5 张内联 SVG 原理图**与 **19 条中英术语对照表**。第二篇《显示流压缩（DSC）技术解析》整理自 VESA DSC 标准 v1.2a：12 章 54 节，从「为什么要压缩」讲到色彩变换、三种预测（MMAP / BP / MPP）、索引色历史（ICH）、熵编码（DSU-VLC）、速率控制（RC）、切片复用与 PPS，附 **9 张内联 SVG 原理图**与 **25 条术语对照表** |
+| **Technology Blog** | **技术长文** | 长文专栏页：左侧**分章目录**（滚动自动高亮当前节并只展开所在章）+ 右侧正文 + 顶部阅读进度条；多篇文章时顶部出现**文章切换条**，术语表与来源说明**按篇切换**。首篇《显示器进阶技术全解》是 TFTCentral 显示器进阶技术专题（`tftcentral.co.uk/advanced`）的**完整中文翻译与结构化重排**：4 章 41 节，覆盖过驱 RTC（FFD / 双重过驱 / 过冲与光晕 / G2G 口径 / 六家厂商命名）、运动与响应增强（BFI / 扫描背光 / ASPD / MPA / MP Mode / MEMC 插帧 / 真 120 Hz）、面板涂层（X-Black / CrystalBrite / 保护玻璃 / OptiClear）、画面增强与预设（Senseye / 三星 Magic 系列 / eColor / f-Engine / 环境光 / 均匀性校正 / 动态对比度），附 **5 张内联 SVG 原理图**与 **19 条中英术语对照表**。第二篇《显示流压缩（DSC）技术解析》整理自 VESA DSC 标准 v1.2a：12 章 54 节，从「为什么要压缩」讲到色彩变换、三种预测（MMAP / BP / MPP）、索引色历史（ICH）、熵编码（DSU-VLC）、速率控制（RC）、切片复用与 PPS，附 **9 张内联 SVG 原理图**与 **25 条术语对照表**。第三篇《HDMI 2.1 接口规范技术解析》整理自 HDMI Specification 2.1：13 章 42 节，从连接器与 Category 3 线缆、TMDS 与 FRL 双传输模式、链路训练、RS(255,251) 纠错与 16b18b 编码，讲到 4:2:0 与 BT.2020、VRR / FVA、压缩视频传输、eARC、E-EDID / SCDC / ALLM 与 CEC 2.0，附 **9 张内联 SVG 原理图**与 **32 条术语对照表** |
 | **成长** | **成年人基本功** | 整理自小红书 @空山素衣 视频《25岁到30岁做到这些，你将领先同龄人十年》（5:49）的结构化学习笔记：开篇 + **8 个正章**（处理大额消费 / 理解合同 / 搞懂自己的钱 / 处理突发情况 / 法律职场常识 / 经营身体 / 处理关系 / 了解自己）+ 结语，每章带视频时间点对照；左侧分章目录（滚动自动高亮）+ 阅读进度条，侧栏还有 **8 项基本功自查清单**，勾选状态存 `localStorage`，刷新不丢 |
 | **关于** | — | 项目介绍、部署说明、开发说明、清除草稿 |
 
@@ -76,6 +76,7 @@ x-macro-lab/
 │   ├── serial.js           # 串口协议逻辑：编解码、HEX 视图、终端缓冲、内容嗅探、两种传输适配器（无 DOM 依赖）
 │   ├── blog-data.js        # 技术博客文章数据（章节/小节/段落块/内联 SVG 示意图/术语表，纯数据）
 │   ├── dsc-data.js         # DSC 技术解析长文数据（追加进 BLOGData.posts，含 9 张内联 SVG 原理图，纯数据）
+│   ├── hdmi-data.js        # HDMI 2.1 接口规范技术解析长文数据（追加进 BLOGData.posts，含 9 张内联 SVG 原理图，纯数据）
 │   ├── blog.js             # 技术博客渲染层：行内标记、目录、正文、术语表、文章切换条 → HTML 字符串（无 DOM 依赖）
 │   ├── adult-data.js       # 成长专栏数据（多篇文章，每篇与 blog post 同构，纯数据）
 │   ├── adult.js            # 成长页渲染适配层：复用 BLOG 渲染器 + 每篇自查/行动清单 + 文章切换条（无 DOM 依赖）
@@ -89,8 +90,8 @@ x-macro-lab/
 └── README.md
 ```
 
-脚本按 `core → timing → vtc-data → video-timings → decoder → encoder → validator → report → zip-lite → xlsx-lite → gamma → gamma-data → mccs-data → mccs → serial-data → serial → blog-data → dsc-data → blog → adult-data → adult → cie-data → cie → app` 的顺序加载，**顺序不能改**（都是普通 `<script>`，不是 ES module）。
-`dsc-data.js` 依赖 `blog-data.js` 先执行（它把 DSC 那篇 `post` 追加进 `BLOGData.posts`），而 `blog.js` 只在渲染时才去读 `BLOGData`，所以它排在两者之间最稳妥。
+脚本按 `core → timing → vtc-data → video-timings → decoder → encoder → validator → report → zip-lite → xlsx-lite → gamma → gamma-data → mccs-data → mccs → serial-data → serial → blog-data → dsc-data → hdmi-data → blog → adult-data → adult → cie-data → cie → app` 的顺序加载，**顺序不能改**（都是普通 `<script>`，不是 ES module）。
+`dsc-data.js` / `hdmi-data.js` 依赖 `blog-data.js` 先执行（它们把自己的那篇 `post` 追加进 `BLOGData.posts`），而 `blog.js` 只在渲染时才去读 `BLOGData`，所以它排在这些数据之后最稳妥。
 
 > `data/*.xlsx` 是原始测量文件，页面不会去 fetch 它们（`file://` 下会被 CORS 拦），
 > 而是用 `js/gamma-data.js` 里的预提取数组，因此双击 `index.html` 也能直接看到内置图表；
@@ -612,7 +613,7 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 > 本项目的测试脚本（`_ref/test-*.js`，覆盖编解码往返、时序矩阵、报告层、时序对比、伽马、
 > DDC/CI 协议、串口协议与传输适配器、技术博客数据与渲染层（含 DSC 长文的覆盖度与示意图一致性）、
 > CIE 1931 色彩空间，以及 jsdom 驱动的界面层）都在仓库外的 `_ref/`，不会随静态站点发布。
-> 当前基线：**108 / 356 / 2094 / 20095 / 122 / 258 / 269 / 1420 / 521 + 界面 124，全部 0 失败**
+> 当前基线：**108 / 356 / 2094 / 20095 / 122 / 258 / 269 / 2001 / 521 + 界面 126，全部 0 失败**
 > （依次为 `test-edid` / `test-timing` / `test-render` / `test-vtc` / `test-gamma` /
 > `test-mccs` / `test-serial` / `test-blog` / `test-cie`，最后是 `test-app-dom`）。
 
@@ -631,24 +632,27 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
   示意图统一登记在 `BLOGData.figures` 字典里（多篇文章共用一张登记表，键不重名），全部是**内联 SVG**，
   颜色取 `var(--*)`，因此跟随明暗主题变化，且不产生任何外部请求。
   每篇 `post` 可自带 `glossary`（术语表）与 `source`（来源说明），缺省时才回落到全局默认值。
-- `js/dsc-data.js` —— DSC 长文的数据层。与 `blog-data.js` **同构**：加载时把自己那篇 `post`
-  `push` 进 `BLOGData.posts`，并把它用到的 9 张示意图登记进 `BLOGData.figures`。
+- `js/dsc-data.js` / `js/hdmi-data.js` —— DSC / HDMI 2.1 两篇长文的数据层。与 `blog-data.js`
+  **同构**：加载时把自己那篇 `post` `push` 进 `BLOGData.posts`，并把它用到的 9 张示意图
+  登记进 `BLOGData.figures`。
   因此「加一篇新文章」= 新增一个数据文件 + 在 `index.html` 里多加一行 `<script>`，渲染层一行都不用改。
 - `js/blog.js` —— 只把数据渲染成 HTML 字符串（`renderArticle` / `renderToc` / `renderGlossary` /
   `renderSource` / `renderPicker`），**不碰 DOM**。所有可见文本先转义再套行内标记，
   所以 `[x](javascript:...)` 之类不会变成可点链接。`renderGlossary` / `renderSource` 接受可选的
-  `post` 参数，用来呈现**这一篇自己的**术语表与来源（首篇指向 TFTCentral，DSC 篇指向 VESA）。
+  `post` 参数，用来呈现**这一篇自己的**术语表与来源（首篇指向 TFTCentral，DSC 篇指向 VESA，
+  HDMI 篇指向 HDMI Forum）。
 - `js/app.js` 里的 `initBlog()` —— 只负责填槽位、接管目录锚点的平滑滚动、以及滚动侦测
   （当前节高亮 + 所在章展开 + 阅读进度条）；切篇后同步重算侦测状态。
 
 ### 10.2 新增一篇文章
 
 往 `BLOGData.posts` 里加一个对象即可：页面会自动出现文章切换条（只有一篇时不显示），
-目录、阅读时长、术语表、正文全部自动生成。现有两篇都是这么来的 ——
-`blog-data.js` 是第一篇，《显示流压缩（DSC）技术解析》则由 `dsc-data.js` 在加载时追加上去。
+目录、阅读时长、术语表、正文全部自动生成。现有三篇都是这么来的 ——
+`blog-data.js` 是第一篇，《显示流压缩（DSC）技术解析》与《HDMI 2.1 接口规范技术解析》
+分别由 `dsc-data.js` / `hdmi-data.js` 在加载时追加上去。
 
-深链：`index.html?tab=blog` 打开专栏（默认首篇），`index.html?tab=blog&post=dsc` 直接定位到 DSC 那篇；
-`post` 取值不认识时按首篇处理，不会报错。
+深链：`index.html?tab=blog` 打开专栏（默认首篇），`index.html?tab=blog&post=dsc` 直接定位到 DSC 那篇、
+`index.html?tab=blog&post=hdmi` 定位到 HDMI 那篇；`post` 取值不认识时按首篇处理，不会报错。
 
 ### 10.3 首篇《显示器进阶技术全解》· 来源与版权
 
@@ -679,6 +683,25 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
   不复述无法确证的逐格数值 —— 需要精确值请查标准原件。
 - 译文/整理稿定位是**技术资料梳理，不是官方译文**，页面里也写明了这一点；
   实现相关结论（延迟、缓冲、平坦度信令）以标准正文与自家 IP 数据手册为准。
+
+### 10.5 第三篇《HDMI 2.1 接口规范技术解析》· 来源与版权
+
+按 **HDMI Specification Version 2.1**（HDMI Forum，518 页，替代 HDMI 2.0b 并以引用方式并入 HDMI 1.4b）
+整理的中文技术解析：<https://www.hdmi.org/>。规范原文版权归 HDMI Forum, Inc. 所有，
+商业使用需另行获得 HDMI Licensing Administrator, Inc. 许可。
+
+- 共 **13 章 42 节**，行文顺序对齐规范正文：概述与营销名 → 连接器与 Category 3 线缆 →
+  TMDS（340→600 Mcsc）→ FRL（速率档位与电气）→ 链路训练（LTP / LTS）→ FRL 链路层
+  （Tri-Byte / FRL 包 / 字符块 / 超块 / RS FEC / 16b18b）→ 视频格式（VIC / 4:2:0 / BT.2020 / A·B）→
+  VRR 与 FVA → 压缩视频传输（DSC 1.2a）→ 音频与 eARC → 控制与发现（E-EDID / HF-VSDB / SCDC / ALLM）→
+  CEC 2.0 与中继器 → 速查与回顾。
+- 文中 9 张示意图（端到端系统、Type A 引脚、TMDS 行结构、FRL 带宽阶梯、训练状态机、
+  FRL 封装层级、VRR/FVA 时序、eARC 系统、8 bpc FRL 配置速查）均为**按规范所述机制自行绘制**的
+  内联 SVG，**没有转载规范的原图与原表**。
+- 第 13 章的「8 bpc 非压缩 FRL 配置速查表」按规范 Table 7-32 的可确证条目整理
+  （格式 → 每 Lane 速率 / Lane 数）；10 / 12 bit 的对应表（Table 7-33 / 7-34）未逐行复述，
+  需要时请查规范原件。
+- 整理稿定位是**技术资料梳理，不是官方译文**；产品合规请以规范原文与 HDMI CTS 为最终依据。
 
 ---
 
@@ -803,6 +826,10 @@ McCamy 是**近似**公式，色度一旦远离黑体轨迹（最典型的是光
   9 张示意图全部自行绘制；QP → qLevel 映射表（Table 6-2）在 PDF 抽文字时会丢行末数值，正文只复述
   可确证的**表结构**（0–31 行 × 8/10/12/14/16 bpc 分列），需要逐格精确值请查标准原件。文中涉及
   实现代价的判断（缓冲、平坦度信令开销、CBR/VBR 取舍）是标准正文与工程经验的归纳，落地请以自家 IP 数据手册为准。
+- **Technology Blog** 的 HDMI 2.1 长篇同样是**非官方中文解析**，不含规范原文的图与表：
+  9 张示意图全部自行绘制；第 13 章的 FRL 配置速查表只复述了 8 bpc 一档（Table 7-32）的可确证条目，
+  10 / 12 bit 两档未逐行收录；营销名（4K100A/B、QMS、QFT 等）按规范 Table 2-1 整理，
+  实际产品支持情况以厂商标称与实测为准。
 
 ---
 
@@ -821,6 +848,8 @@ EDID / CEA-861 / DisplayID / CVT / GTF 的具体细节请以 VESA 与 CTA 官方
 
 「Technology Blog」页首篇为 **TFTCentral** 专题 *Technologies*（<https://tftcentral.co.uk/advanced>）
 的中文翻译整理，第二篇《显示流压缩（DSC）技术解析》按 **VESA DSC 标准 v1.2a**（<https://vesa.org/vesa-stds/>）
-整理；原文及其中厂商资料、商标、型号名称的权利均归各自所有者；两篇的标准原文**插图与表格均未随文转载**，
-站内示意图全部自行绘制。版权声明见 [§10.3](#103-首篇显示器进阶技术全解-来源与版权) 与
-[§10.4](#104-第二篇显示流压缩dsc技术解析-来源与版权)。
+整理，第三篇《HDMI 2.1 接口规范技术解析》按 **HDMI Specification 2.1**（<https://www.hdmi.org/>）整理；
+原文及其中厂商资料、商标、型号名称的权利均归各自所有者；三篇的标准原文**插图与表格均未随文转载**，
+站内示意图全部自行绘制。版权声明见 [§10.3](#103-首篇显示器进阶技术全解-来源与版权)、
+[§10.4](#104-第二篇显示流压缩dsc技术解析-来源与版权) 与
+[§10.5](#105-第三篇hdmi-21-接口规范技术解析-来源与版权)。
