@@ -617,7 +617,7 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 > 本项目的测试脚本（`_ref/test-*.js`，覆盖编解码往返、时序矩阵、报告层、时序对比、伽马、
 > DDC/CI 协议、串口协议与传输适配器、技术博客数据与渲染层（含 DSC 长文的覆盖度与示意图一致性）、
 > CIE 1931 色彩空间，以及 jsdom 驱动的界面层）都在仓库外的 `_ref/`，不会随静态站点发布。
-> 当前基线：**108（edid）/ 356（timing）/ 2094（render）/ 20095（vtc）/ 258（mccs）/ 269（serial）/ 521（cie）/ 106（gamma）/ 4062（blog）+ 界面 134（app-dom），全部 0 失败**
+> 当前基线：**108（edid）/ 356（timing）/ 2094（render）/ 20095（vtc）/ 258（mccs）/ 269（serial）/ 521（cie）/ 106（gamma）/ 4076（blog）+ 界面 134（app-dom），全部 0 失败**
 > （依次为 `test-edid` / `test-timing` / `test-render` / `test-vtc` / `test-gamma` /
 > `test-mccs` / `test-serial` / `test-blog` / `test-cie`，最后是 `test-app-dom`）。
 
