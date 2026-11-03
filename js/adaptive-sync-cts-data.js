@@ -1,6 +1,6 @@
 /* =============================================================================
  * adaptive-sync-cts-data.js — Technology Blog 第六篇文章：
- *      VESA Adaptive-Sync Display CTS（认证测试规范）r1.1 技术解析
+ *      Adaptive-Sync CTS 认证测试规范（r1.1）
  *      （纯数据，无逻辑、不碰 DOM）
  *
  * 数据来源：VESA Adaptive-Sync Display Certification Test Specification
@@ -245,7 +245,7 @@
   /* ---------------------------------------------------------------- 文章 */
   D.posts.push({
     id: 'adaptive-sync-cts',
-    title: 'VESA Adaptive-Sync Display CTS 认证测试规范技术解析（r1.1）',
+    title: 'Adaptive-Sync CTS 认证测试规范（r1.1）',
     titleEn: 'VESA Adaptive-Sync Display CTS r1.1 — Certification Test Specification Deep Dive',
     subtitle: '从两个认证等级（MediaSync / AdaptiveSync）的定位差异、测试环境搭建、闪烁与灰阶响应（G2G）' +
       '的逐条强制项，到丢帧、抖动判定与 HDR 模式测试：把一份 89 页的「显示器前屏性能合规测试规范」拆开读',

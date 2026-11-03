@@ -1,5 +1,5 @@
 /* =============================================================================
- * hdmi-data.js — Technology Blog 第三篇文章：HDMI 2.1 接口规范技术解析
+ * hdmi-data.js — Technology Blog 第三篇文章：HDMI 2.1 规范解析
  *                （纯数据，无逻辑、不碰 DOM）
  *
  * 数据来源：HDMI Specification Version 2.1（HDMI Forum，518 页，替代 HDMI 2.0b，
@@ -421,7 +421,7 @@
   /* ------------------------------------------------------------------ 文章 */
   D.posts.push({
     id: 'hdmi',
-    title: 'HDMI 2.1 接口规范技术解析',
+    title: 'HDMI 2.1 规范解析',
     titleEn: 'HDMI Specification 2.1 — Deep Dive',
     subtitle: '从 19 针连接器、TMDS 与 FRL 双传输模式、链路训练、RS 纠错，到 4:2:0、VRR/FVA、' +
       '压缩视频传输与 eARC：把「48 Gbps」这条链路拆开看',

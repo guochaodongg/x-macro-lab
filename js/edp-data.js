@@ -1,5 +1,5 @@
 /* =============================================================================
- * edp-data.js — Technology Blog 第七篇文章：嵌入式 DisplayPort（eDP）Standard v1.5a 技术解析
+ * edp-data.js — Technology Blog 第七篇文章：嵌入式 DisplayPort（eDP）v1.5a 解析
  *              （纯数据，无逻辑、不碰 DOM）
  *
  * 数据来源：VESA Embedded DisplayPort (eDP) Standard Version 1.5a（VESA，2023-02-27，447 页）
@@ -307,7 +307,7 @@
   /* ---------------------------------------------------------------- 文章 */
   D.posts.push({
     id: 'edp',
-    title: '嵌入式 DisplayPort（eDP）Standard v1.5a 技术解析',
+    title: '嵌入式 DisplayPort（eDP）v1.5a 解析',
     titleEn: 'VESA Embedded DisplayPort (eDP) Standard v1.5a — Deep Dive',
     subtitle: 'eDP 是基于 DP v2.1 的嵌入式面板接口，为笔记本/一体机内屏而生；本文从 eDP 与标准 DP 的' +
       '关键差异、典型系统、MSO 多流、电气与链路速率、ALPM/PSR/Panel Replay 省电族、AUX_FRAME_SYNC、' +

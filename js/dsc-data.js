@@ -1,5 +1,5 @@
 /* =============================================================================
- * dsc-data.js — Technology Blog 第二篇文章：DSC（显示流压缩）技术解析
+ * dsc-data.js — Technology Blog 第二篇文章：显示流压缩（DSC）解析
  *                （纯数据，无逻辑、不碰 DOM）
  *
  * 数据来源：VESA Display Stream Compression (DSC) Standard, Version 1.2a
@@ -463,7 +463,7 @@
   /* ------------------------------------------------------------------ 文章 */
   D.posts.push({
     id: 'dsc',
-    title: '显示流压缩（DSC）技术解析',
+    title: '显示流压缩（DSC）解析',
     titleEn: 'VESA Display Stream Compression — Deep Dive',
     subtitle: '从色彩变换、三种预测、索引色历史、DSU-VLC 熵编码，到速率控制、子流复用与切片划分：' +
       '把「视觉无损」这条链路拆开看',

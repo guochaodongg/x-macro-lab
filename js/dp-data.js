@@ -1,5 +1,5 @@
 /* =============================================================================
- * dp-data.js — Technology Blog 第四篇文章：DisplayPort 2.1 接口规范技术解析
+ * dp-data.js — Technology Blog 第四篇文章：DisplayPort 2.1 规范解析
  *              （纯数据，无逻辑、不碰 DOM）
  *
  * 数据来源：VESA DisplayPort (DP) Standard Version 2.1（VESA，2022-10-10，1560 页）
@@ -358,7 +358,7 @@
   /* ---------------------------------------------------------------- 文章 */
   D.posts.push({
     id: 'dp',
-    title: 'DisplayPort 2.1 接口规范技术解析',
+    title: 'DisplayPort 2.1 规范解析',
     titleEn: 'VESA DisplayPort Standard 2.1 — Deep Dive',
     subtitle: '从 Main-Link / AUX / HPD 的端到端分工、128b/132b 编码与 RS 纠错、链路训练，' +
       '到 SST/MST 多流、DPCD、UHBR 带宽、Adaptive-Sync 与 DP 隧道：把「20 Gbps/lane」这条链路拆开看',
