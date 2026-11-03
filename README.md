@@ -38,7 +38,7 @@
 | **串口调试** | **串口调试** | 两种**可识别的界面模式**：**普通模式**（发送区 + 接收区，接收视图可选 文本 / HEX / HEXDUMP，带时间戳与收发记录）与**终端模式**（提示符 + 命令行 + 闪烁光标，按真实终端语义解释 CR/LF/BS/TAB）。**切到本页即自动枚举已连接的 COM 口**（含友好名与 VID/PID，并自动选回上次用过的口）；波特率 300–2000000、5–8 数据位、五种校验、1 / 1.5 / 2 位停止位、三种流控、DTR/RTS、编码、行结尾、定时发送、常用指令预设（AT / SCPI / 控制字符）；普通模式会**嗅探内容**（命中 ANSI 转义、裸 CR、BEL、BS、FF 即提示切到终端模式）。两种传输方式：**本地桥接**（列全部 COM 口，`file://` 可用）与 **Web Serial**（零安装，仅 https/localhost） |
 | **Timing** | **时序计算** | VESA **CVT 1.1**（标准消隐）与 **CVT 1.2**（RB / RBv2 / RBv3）、**GTF 1.1**（含隔行与缩边）；输出完整参数表、消隐结构图、X11 `Modeline`、`xrandr --newmode` / `--addmode`，以及可直接写进 DTD 的 18 字节 |
 |  | **时序对比** | 多标准时序对比计算器（对标 Tom Verbeure 的 Video Timings Calculator）：一次计算 CVT / CVT-RB / CVT-RBv2 / CEA-861 / DMT / 自定义六种时序，并核算 DP / HDMI / DVI / SDI / RFC4175 各接口带宽余量 |
-| **Technology Blog** | **技术长文** | 长文专栏页：左侧**分章目录**（滚动自动高亮当前节并只展开所在章）+ 右侧正文 + 顶部阅读进度条；多篇文章时顶部出现**文章切换条**，术语表与来源说明**按篇切换**。首篇《显示器进阶技术全解》是 TFTCentral 显示器进阶技术专题（`tftcentral.co.uk/advanced`）的**完整中文翻译与结构化重排**：4 章 41 节，覆盖过驱 RTC（FFD / 双重过驱 / 过冲与光晕 / G2G 口径 / 六家厂商命名）、运动与响应增强（BFI / 扫描背光 / ASPD / MPA / MP Mode / MEMC 插帧 / 真 120 Hz）、面板涂层（X-Black / CrystalBrite / 保护玻璃 / OptiClear）、画面增强与预设（Senseye / 三星 Magic 系列 / eColor / f-Engine / 环境光 / 均匀性校正 / 动态对比度），附 **5 张内联 SVG 原理图**与 **19 条中英术语对照表**。第二篇《显示流压缩（DSC）解析》整理自 VESA DSC 标准 v1.2a：12 章 54 节，从「为什么要压缩」讲到色彩变换、三种预测（MMAP / BP / MPP）、索引色历史（ICH）、熵编码（DSU-VLC）、速率控制（RC）、切片复用与 PPS，附 **9 张内联 SVG 原理图**与 **25 条术语对照表**。第三篇《HDMI 2.1 规范解析》整理自 HDMI Specification 2.1：13 章 42 节，从连接器与 Category 3 线缆、TMDS 与 FRL 双传输模式、链路训练、RS(255,251) 纠错与 16b18b 编码，讲到 4:2:0 与 BT.2020、VRR / FVA、压缩视频传输、eARC、E-EDID / SCDC / ALLM 与 CEC 2.0，附 **9 张内联 SVG 原理图**与 **32 条术语对照表**。第四篇《DisplayPort 2.1 规范解析》整理自 VESA DisplayPort Standard 2.1：13 章 39 节，从端到端系统（Main-Link / AUX / HPD）与分层架构、8b/10b 与 128b/132b 两种信道编码、RS(198,194) 前向纠错、链路训练与 LTTPR，讲到 SST/MST 多流、DPCD、UHBR 带宽预算与 DSC 强制、Adaptive-Sync 与 Panel Replay、DP over USB4 隧道化，附 **9 张内联 SVG 原理图**与 **34 条术语对照表**。第五篇《显示器先进技术汇编（2026）》是一份面向测试设备研发工程师的**学习性产业与技术汇编**（非任何规范的官方译文，也不转载规范原文图表）：把 OLED（Tandem / QD-OLED / 印刷 OLED / ViP）、LCD 的 Oxide 背板与四基色、Micro LED 量产元年、AR/VR 微显示与光波导、柔性/车载/电子纸/裸眼 3D、显示接口（DP 2.1b / HDMI 2.2 / USB4 v2）与测试标准（IEC 62341 / VESA 认证 / DeMura 量检测）按「技术原理 + 2026 产业状态 + 测试标准 + 学习路径」组织成速查，附 **8 张内联 SVG 示意图**与 **31 条术语对照表**。第六篇《Adaptive-Sync CTS 认证测试规范（r1.1）》整理自 VESA Adaptive-Sync Display CTS Revision 1.1（2023-05-19，89 页）：12 章 42 节，从 MediaSync / AdaptiveSync 两个认证等级的定位差异、测试环境（温度 / 预热 / 仪器 / 软件 / 源设备）、OSD 标注强制项、认证与 HDR-1000+ 测试顺序，讲到刷新率 / 闪烁、灰阶响应 G2G 与过冲 / 欠冲（Delta-PQ 容差网格）、视频丢帧、视频抖动（双图差分的 ±0.5 ms 判据）、HDR 模式这几类核心测试的判据与方法，附 **8 张内联 SVG 示意图**与 **34 条术语对照表**。第七篇《嵌入式 DisplayPort（eDP）v1.5a 解析》整理自 VESA Embedded DisplayPort Standard v1.5a：13 章 44 节，从 eDP 与 DP 的差异总表、实时帧模式与分段面板的 MSO 多 SST 操作、HBR3 及自定义链路速率的电气规范、ALPM（AUX 唤醒 / AUX-less 与 LFPS·ACDS 低功耗状态）、PSR1/PSR2 远程帧缓冲与选择性更新、AUX_FRAME_SYNC 帧同步、Adaptive-Sync（FAVT/AVT）、Panel Replay 面板重放、ARP 自适应刷新、DSC 与 FEC 在 eDP 下的特殊用法、AUX 背光与分区调光、多点触控与显示电源时序，附 **8 张内联 SVG 示意图**与 **39 条术语对照表** |
+| **Technology Blog** | **技术长文** | 长文专栏页：左侧**分章目录**（滚动自动高亮当前节并只展开所在章）+ 右侧正文 + 顶部阅读进度条；多篇文章时顶部出现**文章切换条**，术语表与来源说明**按篇切换**。首篇《显示器进阶技术全解》是 TFTCentral 显示器进阶技术专题（`tftcentral.co.uk/advanced`）的**完整中文翻译与结构化重排**：4 章 41 节，覆盖过驱 RTC（FFD / 双重过驱 / 过冲与光晕 / G2G 口径 / 六家厂商命名）、运动与响应增强（BFI / 扫描背光 / ASPD / MPA / MP Mode / MEMC 插帧 / 真 120 Hz）、面板涂层（X-Black / CrystalBrite / 保护玻璃 / OptiClear）、画面增强与预设（Senseye / 三星 Magic 系列 / eColor / f-Engine / 环境光 / 均匀性校正 / 动态对比度），附 **5 张内联 SVG 原理图**与 **19 条中英术语对照表**。第二篇《显示流压缩（DSC）解析》整理自 VESA DSC 标准 v1.2a：12 章 54 节，从「为什么要压缩」讲到色彩变换、三种预测（MMAP / BP / MPP）、索引色历史（ICH）、熵编码（DSU-VLC）、速率控制（RC）、切片复用与 PPS，附 **9 张内联 SVG 原理图**与 **25 条术语对照表**。第三篇《HDMI 2.1 规范解析》整理自 HDMI Specification 2.1：13 章 42 节，从连接器与 Category 3 线缆、TMDS 与 FRL 双传输模式、链路训练、RS(255,251) 纠错与 16b18b 编码，讲到 4:2:0 与 BT.2020、VRR / FVA、压缩视频传输、eARC、E-EDID / SCDC / ALLM 与 CEC 2.0，附 **9 张内联 SVG 原理图**与 **32 条术语对照表**。第四篇《DisplayPort 2.1 规范解析》整理自 VESA DisplayPort Standard 2.1：13 章 39 节，从端到端系统（Main-Link / AUX / HPD）与分层架构、8b/10b 与 128b/132b 两种信道编码、RS(198,194) 前向纠错、链路训练与 LTTPR，讲到 SST/MST 多流、DPCD、UHBR 带宽预算与 DSC 强制、Adaptive-Sync 与 Panel Replay、DP over USB4 隧道化，附 **9 张内联 SVG 原理图**与 **34 条术语对照表**。第五篇《显示器先进技术汇编（2026）》是一份面向测试设备研发工程师的**学习性产业与技术汇编**（非任何规范的官方译文，也不转载规范原文图表）：把 OLED（Tandem / QD-OLED / 印刷 OLED / ViP）、LCD 的 Oxide 背板与四基色、Micro LED 量产元年、AR/VR 微显示与光波导、柔性/车载/电子纸/裸眼 3D、显示接口（DP 2.1b / HDMI 2.2 / USB4 v2）与测试标准（IEC 62341 / VESA 认证 / DeMura 量检测）按「技术原理 + 2026 产业状态 + 测试标准 + 学习路径」组织成速查，附 **8 张内联 SVG 示意图**与 **31 条术语对照表**。第六篇《Adaptive-Sync CTS 认证测试规范（r1.1）》整理自 VESA Adaptive-Sync Display CTS Revision 1.1（2023-05-19，89 页）：12 章 42 节，从 MediaSync / AdaptiveSync 两个认证等级的定位差异、测试环境（温度 / 预热 / 仪器 / 软件 / 源设备）、OSD 标注强制项、认证与 HDR-1000+ 测试顺序，讲到刷新率 / 闪烁、灰阶响应 G2G 与过冲 / 欠冲（Delta-PQ 容差网格）、视频丢帧、视频抖动（双图差分的 ±0.5 ms 判据）、HDR 模式这几类核心测试的判据与方法，附 **8 张内联 SVG 示意图**与 **34 条术语对照表**。第七篇《嵌入式 DisplayPort（eDP）v1.5a 解析》整理自 VESA Embedded DisplayPort Standard v1.5a：13 章 44 节，从 eDP 与 DP 的差异总表、实时帧模式与分段面板的 MSO 多 SST 操作、HBR3 及自定义链路速率的电气规范、ALPM（AUX 唤醒 / AUX-less 与 LFPS·ACDS 低功耗状态）、PSR1/PSR2 远程帧缓冲与选择性更新、AUX_FRAME_SYNC 帧同步、Adaptive-Sync（FAVT/AVT）、Panel Replay 面板重放、ARP 自适应刷新、DSC 与 FEC 在 eDP 下的特殊用法、AUX 背光与分区调光、多点触控与显示电源时序，附 **8 张内联 SVG 示意图**与 **39 条术语对照表**。第八篇《显卡接口能力矩阵与 EDID 调试参考》是一份面向测试设备研发工程师的**源端能力与 EDID 声明交叉验证速查**：6 章 24 节，从「HDMI 2.1」标签不携带带宽信息与 FRL 六档阶梯、Intel 核显仅 TMDS 的指纹、DSC 在 HDMI 与 DP 上是两套独立能力，讲到市面主流显卡（NVIDIA / Intel / AMD / 移动版 / 专业工作站卡）的接口能力总表、QHD 各刷新率在 DP 1.4 HBR3 与 HDMI FRL3/FRL4/FRL6 上的带宽余量对照与三个临界值（26.57 Gbps / +6.6% / +0.4%）、EDID 中真正决定成败的五个位置（HF-VSDB 的 `Max_FRL_Rate` 与 `SCDC_Present`、byte 11/12 的五个 DSC 位、基础块 byte 20 的位深与接口类型、CTA Video Capability Descriptor、Display Range Limits 的 `Max Pixel Clock`、DPCD 0x060 与校验和）、按能力等级划分的 G1–G8 测试矩阵与 G6 黄金实验、现象到责任方的判定流程，附 **5 张内联 SVG 示意图**与 **30 条术语对照表** |
 | **成长** | **成年人基本功** | 整理自小红书 @空山素衣 视频《25岁到30岁做到这些，你将领先同龄人十年》（5:49）的结构化学习笔记：开篇 + **8 个正章**（处理大额消费 / 理解合同 / 搞懂自己的钱 / 处理突发情况 / 法律职场常识 / 经营身体 / 处理关系 / 了解自己）+ 结语，每章带视频时间点对照；左侧分章目录（滚动自动高亮）+ 阅读进度条，侧栏还有 **8 项基本功自查清单**，勾选状态存 `localStorage`，刷新不丢 |
 | **关于** | — | 项目介绍、部署说明、开发说明、清除草稿 |
 
@@ -81,6 +81,7 @@ x-macro-lab/
 │   ├── display-tech-compilation-data.js  # 《显示器先进技术汇编（2026）》长文数据（追加进 BLOGData.posts，含 8 张内联 SVG 示意图，纯数据）
 │   ├── adaptive-sync-cts-data.js  # 《Adaptive-Sync CTS 认证测试规范（r1.1）》长文数据（追加进 BLOGData.posts，含 8 张内联 SVG 示意图，纯数据）
 │   ├── edp-data.js          # 《嵌入式 DisplayPort（eDP）v1.5a 解析》长文数据（追加进 BLOGData.posts，含 8 张内联 SVG 示意图，纯数据）
+│   ├── gpu-matrix-data.js    # 《显卡接口能力矩阵与 EDID 调试参考》长文数据（追加进 BLOGData.posts，含 5 张内联 SVG 示意图，纯数据）
 │   ├── blog.js             # 技术博客渲染层：行内标记、目录、正文、术语表、文章切换条 → HTML 字符串（无 DOM 依赖）
 │   ├── adult-data.js       # 成长专栏数据（多篇文章，每篇与 blog post 同构，纯数据）
 │   ├── adult.js            # 成长页渲染适配层：复用 BLOG 渲染器 + 每篇自查/行动清单 + 文章切换条（无 DOM 依赖）
@@ -94,7 +95,7 @@ x-macro-lab/
 └── README.md
 ```
 
-脚本按 `core → timing → vtc-data → video-timings → decoder → encoder → validator → report → zip-lite → xlsx-lite → gamma → gamma-data → mccs-data → mccs → serial-data → serial → blog-data → dsc-data → hdmi-data → dp-data → display-tech-compilation-data → adaptive-sync-cts-data → edp-data → blog → adult-data → adult → cie-data → cie → app` 的顺序加载，**顺序不能改**（都是普通 `<script>`，不是 ES module）。
+脚本按 `core → timing → vtc-data → video-timings → decoder → encoder → validator → report → zip-lite → xlsx-lite → gamma → gamma-data → mccs-data → mccs → serial-data → serial → blog-data → dsc-data → hdmi-data → dp-data → display-tech-compilation-data → adaptive-sync-cts-data → edp-data → gpu-matrix-data → blog → adult-data → adult → cie-data → cie → app` 的顺序加载，**顺序不能改**（都是普通 `<script>`，不是 ES module）。
 `dsc-data.js` / `hdmi-data.js` / `dp-data.js` / `display-tech-compilation-data.js` / `adaptive-sync-cts-data.js` 依赖 `blog-data.js` 先执行（它们把自己的那篇 `post` 追加进 `BLOGData.posts`），而 `blog.js` 只在渲染时才去读 `BLOGData`，所以它排在这些数据之后最稳妥。
 
 > `data/*.xlsx` 是原始测量文件，页面不会去 fetch 它们（`file://` 下会被 CORS 拦），
@@ -617,7 +618,7 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 > 本项目的测试脚本（`_ref/test-*.js`，覆盖编解码往返、时序矩阵、报告层、时序对比、伽马、
 > DDC/CI 协议、串口协议与传输适配器、技术博客数据与渲染层（含 DSC 长文的覆盖度与示意图一致性）、
 > CIE 1931 色彩空间，以及 jsdom 驱动的界面层）都在仓库外的 `_ref/`，不会随静态站点发布。
-> 当前基线：**108（edid）/ 356（timing）/ 2094（render）/ 20095（vtc）/ 258（mccs）/ 269（serial）/ 521（cie）/ 106（gamma）/ 4076（blog）+ 界面 134（app-dom），全部 0 失败**
+> 当前基线：**108（edid）/ 356（timing）/ 2094（render）/ 20095（vtc）/ 258（mccs）/ 269（serial）/ 521（cie）/ 106（gamma）/ 4545（blog）+ 界面 136（app-dom），全部 0 失败**
 > （依次为 `test-edid` / `test-timing` / `test-render` / `test-vtc` / `test-gamma` /
 > `test-mccs` / `test-serial` / `test-blog` / `test-cie`，最后是 `test-app-dom`）。
 
@@ -651,11 +652,12 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 ### 10.2 新增一篇文章
 
 往 `BLOGData.posts` 里加一个对象即可：页面会自动出现文章切换条（只有一篇时不显示），
-目录、阅读时长、术语表、正文全部自动生成。现有七篇都是这么来的 ——
+目录、阅读时长、术语表、正文全部自动生成。现有八篇都是这么来的 ——
 `blog-data.js` 是第一篇，《显示流压缩（DSC）解析》《HDMI 2.1 规范解析》、
 《DisplayPort 2.1 规范解析》《显示器先进技术汇编（2026）》、
-《Adaptive-Sync CTS 认证测试规范（r1.1）》与《嵌入式 DisplayPort（eDP）v1.5a 解析》分别由
-`dsc-data.js` / `hdmi-data.js` / `dp-data.js` / `display-tech-compilation-data.js` / `adaptive-sync-cts-data.js` / `edp-data.js` 在加载时追加上去。
+《Adaptive-Sync CTS 认证测试规范（r1.1）》《嵌入式 DisplayPort（eDP）v1.5a 解析》与
+《显卡接口能力矩阵与 EDID 调试参考》分别由
+`dsc-data.js` / `hdmi-data.js` / `dp-data.js` / `display-tech-compilation-data.js` / `adaptive-sync-cts-data.js` / `edp-data.js` / `gpu-matrix-data.js` 在加载时追加上去。
 
 标题写法：中文 `title` 保持**简短**（用于左侧切换条的 chip 与 hero 大标题），完整规范全称放在
 `titleEn`（hero 里以小字副标题形式跟在中文标题下方）。新增文章时同样遵守，避免切换条被长标题挤爆。
@@ -777,6 +779,15 @@ DisplayPort 认证计划官方文件为最终依据。
 - 文中 8 张示意图（端到端系统、eDP 与 DP 差异总表、MSO 拓扑、PSR 状态机、PSR2 选择性更新、ALPM 信令流、Panel Replay 与 PSR 对比、上电时序）均为**按规范所述机制自行绘制**的内联 SVG，**没有转载规范的原图或原表**。
 - 受「站点零外链」约定与 `test-blog.js` 断言约束，示意图全程只用 `var(--*)` 表达色块，且全文 `imgs = 0`。
 - eDP 与标准 DP 在链路层不兼容（ASSR 替换了 DP 的加密握手），因此「eDP 屏接 DP 源」通常需要协议转换；整理稿定位是**技术资料梳理，非官方译文**，具体寄存器位（DPCD 0002Eh / 00116h / 00700h 等）与电气限值以规范原件为准。
+
+### 10.10 第八篇《显卡接口能力矩阵与 EDID 调试参考》· 来源与版权
+
+面向测试设备研发工程师的**源端能力与 EDID 声明交叉验证速查**，数据来自 NVIDIA / AMD / Intel 官方产品规格页、CTA-861.3 与 HDMI 2.1 规范、Linux DRM 驱动源码（`drm_edid.c` / `intel_dp.c` / `drm_dp_helper.h`）：<https://www.nvidia.com/en-us/geforce/graphics-cards/>。原始素材是一份面向 HT6316-EHDQ / HT6316-BHDQ 的 EDID 调试速查表，本篇将其重写为可发布的博客长文。厂商产品页与标准规范原文的知识产权归各自所有者。
+
+- 共 **6 章 24 节**：为什么「HDMI 2.1」标签不携带带宽信息（FRL 六档阶梯）→ 市面显卡接口能力总表（NVIDIA 桌面 / 专业卡 / Intel Arc 与核显 / AMD Radeon 与 PRO / 移动版）→ 带宽算术（QHD 各刷新率 × DP 1.4 HBR3 与 HDMI FRL3/FRL4/FRL6 对照、三个临界值）→ EDID 检查清单（HF-VSDB 的 `Max_FRL_Rate` 与 `SCDC_Present`、byte 11/12 的五个 DSC 位、基础块 byte 20 的位深与接口类型、CTA Video Capability Descriptor、Display Range Limits 的 `Max Pixel Clock`、DPCD 0x060 与校验和）→ 按能力等级划分的 G1–G8 测试矩阵与 G6 黄金实验、Linux / Windows 命令速查 → 现象到责任方的判定流程与报告必记六项。
+- 文中 5 张示意图（带宽阶梯、FRL 档位阶梯、EDID 字节定位、测试矩阵分组、判定流程）均为**按所述机理自行绘制**的内联 SVG，**没有转载厂商数据表与规范原文的插图或原表**；受「站点零外链」约定约束，色值全程只用 `var(--*)`，且全文 `imgs = 0`。
+- 三个必须记住的临界值：**QHD@220 10bpc = 26.57 Gbps**（超 DP 1.4 HBR3 仅 2.5%）、**FRL4 在 220Hz/10bpc 上余量 +6.6%**、**FRL3 在 220Hz/8bpc 上余量 +0.4%**。
+- 显卡规格随厂商与具体 SKU 存在差异（AIB 可能改版接口配置），移动版接口数量与台式差异较大、常需转接；本篇定位是**学习性工程整理，非官方译文**，实际以手中设备实测为准。
 
 ---
 
@@ -928,12 +939,14 @@ EDID / CEA-861 / DisplayID / CVT / GTF 的具体细节请以 VESA 与 CTA 官方
 第四篇《DisplayPort 2.1 规范解析》按 **VESA DisplayPort Standard 2.1**（<https://www.vesa.org/>）整理，
 第五篇《显示器先进技术汇编（2026）》为公开行业资料的学习性汇编，
 第六篇《Adaptive-Sync CTS 认证测试规范（r1.1）》按 **VESA Adaptive-Sync Display CTS r1.1** 整理，
-第七篇《嵌入式 DisplayPort（eDP）v1.5a 解析》按 **VESA Embedded DisplayPort Standard v1.5a** 整理；
-原文及其中厂商资料、商标、型号名称的权利均归各自所有者；七篇的标准原文**插图与表格均未随文转载**，
+第七篇《嵌入式 DisplayPort（eDP）v1.5a 解析》按 **VESA Embedded DisplayPort Standard v1.5a** 整理，
+第八篇《显卡接口能力矩阵与 EDID 调试参考》按 NVIDIA / AMD / Intel 官方规格页与 CTA-861.3 / HDMI 2.1 规范整理；
+原文及其中厂商资料、商标、型号名称的权利均归各自所有者；八篇的标准原文**插图与表格均未随文转载**，
 站内示意图全部自行绘制。版权声明见 [§10.3](#103-首篇显示器进阶技术全解-来源与版权)、
 [§10.4](#104-第二篇显示流压缩dsc解析-来源与版权)、
 [§10.5](#105-第三篇hdmi-21-规范解析-来源与版权)、
 [§10.6](#106-第四篇displayport-21-规范解析-来源与版权)、
 [§10.7](#107-第五篇显示器先进技术汇编2026-来源与版权)、
-[§10.8](#108-第六篇adaptive-sync-cts-认证测试规范r11-来源与版权) 与
-[§10.9](#109-第七篇嵌入式-displayportedpv15a-解析-来源与版权)。
+[§10.8](#108-第六篇adaptive-sync-cts-认证测试规范r11-来源与版权)、
+[§10.9](#109-第七篇嵌入式-displayportedpv15a-解析-来源与版权) 与
+[§10.10](#1010-第八篇显卡接口能力矩阵与-edid-调试参考-来源与版权)。
