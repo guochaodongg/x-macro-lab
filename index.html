@@ -96,6 +96,7 @@
           <button type="button" role="tab" aria-selected="false" data-tab="validator"><svg class="ic"><use href="#i-shield"/></svg><span class="lbl">校验</span><span class="hint">Validate</span></button>
           <button type="button" role="tab" aria-selected="false" data-tab="learn"><svg class="ic"><use href="#i-book"/></svg><span class="lbl">学习 EDID</span><span class="hint">Learn</span></button>
           <button type="button" role="tab" aria-selected="false" data-tab="edid-toolkit"><svg class="ic"><use href="#i-decode"/></svg><span class="lbl">工具箱</span><span class="hint">Toolkit</span></button>
+          <button type="button" role="tab" aria-selected="false" data-tab="edid-fields"><svg class="ic"><use href="#i-book"/></svg><span class="lbl">字段详解</span><span class="hint">Fields</span></button>
         </div>
       </div>
       <div class="tabgroup" data-group="pq">
@@ -1183,6 +1184,12 @@
     </div></div>
   </section>
 
+  <!-- =============================================== EDID 字段详解 Fields ===== -->
+  <!-- 内容由 js/edid-fields-data.js（数据）+ js/edid-fields-ui.js（渲染）生成，这里只放挂载点。 -->
+  <section class="panel" id="panel-edid-fields">
+    <div id="ef-root"></div>
+  </section>
+
 
   <!-- =============================================== Technology Blog ===== -->
   <!-- 文章本体由 js/blog-data.js + js/dsc-data.js + js/hdmi-data.js + js/dp-data.js + js/display-tech-compilation-data.js + js/adaptive-sync-cts-data.js + js/edp-data.js + js/gpu-matrix-data.js（数据）+ js/blog.js（渲染）+ app.js（挂载）生成，
@@ -1258,13 +1265,14 @@
 
       <div class="card"><div class="body">
         <h3>功能清单</h3>
-        <p class="small muted" style="margin-top:0">顶部导航按 <b>EDID</b> / <b>PQ</b> / <b>DDC/CI</b> / <b>串口调试</b> / <b>Timing</b> / <b>Technology Blog</b> / <b>成长</b> / <b>关于</b> 八组组织，点分组标题展开下拉菜单；每个页面也能用深链直达，例如 <code>?tab=edid-toolkit</code>（EDID 工具箱）、<code>?tab=mccs</code>、<code>?tab=cie</code>、<code>?tab=blog</code>、<code>?tab=blog&amp;post=dsc</code>、<code>?tab=blog&amp;post=hdmi</code>、<code>?tab=blog&amp;post=display-compilation</code>、<code>?tab=blog&amp;post=adaptive-sync-cts</code>、<code>?tab=blog&amp;post=edp</code>、<code>?tab=blog&amp;post=gpu-matrix</code>（博客可指定文章）、<code>?tab=adult</code>、<code>?tab=adult&amp;post=career-30</code>（成长专栏可指定文章）。</p>
+        <p class="small muted" style="margin-top:0">顶部导航按 <b>EDID</b> / <b>PQ</b> / <b>DDC/CI</b> / <b>串口调试</b> / <b>Timing</b> / <b>Technology Blog</b> / <b>成长</b> / <b>关于</b> 八组组织，点分组标题展开下拉菜单；每个页面也能用深链直达，例如 <code>?tab=edid-toolkit</code>（EDID 工具箱）、<code>?tab=edid-fields</code>（EDID 字段详解）、<code>?tab=mccs</code>、<code>?tab=cie</code>、<code>?tab=blog</code>、<code>?tab=blog&amp;post=dsc</code>、<code>?tab=blog&amp;post=hdmi</code>、<code>?tab=blog&amp;post=display-compilation</code>、<code>?tab=blog&amp;post=adaptive-sync-cts</code>、<code>?tab=blog&amp;post=edp</code>、<code>?tab=blog&amp;post=gpu-matrix</code>（博客可指定文章）、<code>?tab=adult</code>、<code>?tab=adult&amp;post=career-30</code>（成长专栏可指定文章）。</p>
         <div class="kv">
           <dt>EDID · 解析</dt><dd>基础块全字段、既定 / 标准时序、四类描述符、CEA-861 数据块、DisplayID 分节、VTB、块映射</dd>
           <dt>EDID · 生成</dt><dd>厂商 / 产品 / 序列号、日期与版本、数字 / 模拟输入、色度、既定与标准时序、描述符与扩展块，自动校验和</dd>
           <dt>EDID · 校验</dt><dd>结构与校验和、日期范围、色度合法性与 sRGB 一致性、时序自洽、描述符格式、扩展块一致性，分级报告</dd>
           <dt>EDID · 学习 EDID</dt><dd>8 节速成课：基础块字节地图、四种描述符、18 字节 DTD 逐字节解释、CEA-861 与 DisplayID、CVT/GTF 原理、常见坑</dd>
           <dt>EDID · 工具箱</dt><dd>按结构分区着色的<b>字节网格编辑器</b>（点击定位、直接键入改字节、校验和自动重算）、五步新建 EDID 向导、8 个预置模板、BIN / Intel HEX / DAT / TXT 四种导出格式；对公开工具 INFINIDISPLY EDID Toolkit 的功能规格做独立实现，并修正其若干与规范不符的字节拼装</dd>
+          <dt>EDID · 字段详解</dt><dd>逐字段拆解 EDID：覆盖 128 字节基础块、CTA-861（CEA）扩展、DisplayID 扩展与 HDMI 1.4 / 2.1 关键数据块；每个字段给出<b>功能</b>、<b>如何设置（字节偏移 + 位域）</b>、<b>设置后系统实现的功能</b>与<b>要求硬件支持什么</b>四个维度，并可按「基础块 / CTA-861 / HDMI 数据块 / DisplayID」筛选、带粘性目录与展开/收起</dd>
           <dt>PQ · 伽马验证</dt><dd>读取 CA410 测量数据与灰阶占比表（.xlsx 本地解析），生成实测 / 参考伽马曲线与白点一致性图表，计算平均 Gamma；内置 6 组实测数据集（默认 BT1886，切换曲线自动重绘）</dd>
           <dt>PQ · 色彩空间</dt><dd>CIE 1931 / CIE 1976 色彩空间分析与转换（移植自 CIE Color Space Analyzer）：XYZ / xyY / CCT / 设备 RGB 与 HEX / Lab / Luv（含 LCH）六组坐标互为输入输出，六种参考白点、六种 RGB 空间、四套色度适应模型可换；色度图可在 CIE 1931 xy 与 CIE 1976 u′v′（均匀色度标尺）之间切换，均可点击拖动取点，背景是该色度下 sRGB 能达到的最饱和颜色，另有色域三角形与黑体轨迹，光谱轨迹经样条细分边缘平滑，超出色域会给出提示，并顺带算出 McCamy 色温与 Duv</dd>
           <dt>DDC/CI · 控制</dt><dd>像 MCCS 工具一样读写显示器 VCP 特性（亮度 / 对比度 / 输入源 / 电源模式…）、扫描支持码、读取并解析 capabilities 字符串；离线可用报文构建器（逐字节解释 + 校验和核对 + 等价 ddcutil / i2ctransfer / curl 命令）与 182 条 VCP 码参考表</dd>
@@ -1331,6 +1339,8 @@
 <script src="js/edid-core.js"></script>
   <script src="js/edid-toolkit.js"></script>
   <script src="js/edid-toolkit-ui.js"></script>
+  <script src="js/edid-fields-data.js"></script>
+  <script src="js/edid-fields-ui.js"></script>
 <script src="js/timing.js"></script>
 <script src="js/vtc-data.js"></script>
 <script src="js/video-timings.js"></script>

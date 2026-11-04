@@ -5,7 +5,7 @@
 
 对 [edidcraft.com](https://edidcraft.com/) 全部功能的**完整复刻**：解析（Decoder）、生成（Encoder）、校验（Validator）、时序计算（Timing Calculator），外加一页 EDID 速成课；在此之上又扩了七块内容：**时序对比**（多标准时序与接口带宽核算）、**伽马验证**（CA410 测量数据）、**色彩空间**（CIE 1931 分析转换）、**DDC/CI 控制**（直连显示器读写 VCP）、**串口调试**（普通 / 终端双模式的 COM 口调试台）、**Technology Blog**（显示技术长文专栏）与**成长专栏**（成年人基本功笔记）。
 
-导航按功能域分成八组：**EDID**（解析 / 生成 / 校验 / 学习 EDID）、**PQ**（伽马验证 / 色彩空间）、**DDC/CI**（DDC/CI 控制）、**串口调试**、**Timing**（时序计算 / 时序对比）、**Technology Blog**（技术长文：显示器进阶技术 / DSC / HDMI 2.1 / DP 2.1 / 技术汇编（2026））、**成长**（成长专栏：成年人基本功 / 30 岁后的职场价值）、**关于**。
+导航按功能域分成八组：**EDID**（解析 / 生成 / 校验 / 学习 EDID / 字段详解）、**PQ**（伽马验证 / 色彩空间）、**DDC/CI**（DDC/CI 控制）、**串口调试**、**Timing**（时序计算 / 时序对比）、**Technology Blog**（技术长文：显示器进阶技术 / DSC / HDMI 2.1 / DP 2.1 / 技术汇编（2026））、**成长**（成长专栏：成年人基本功 / 30 岁后的职场价值）、**关于**。
 
 - **纯静态**：`index.html` + `css/` + `js/`，可直接放到 GitHub Pages / Cloudflare Pages / 任意静态服务器。
 - **前端实现**：解析、生成、校验与时序计算全部由浏览器端 JavaScript 完成。
@@ -33,6 +33,7 @@
 |  | **校验** | 结构、固定头、块长度、逐块校验和、扩展块数量一致性、日期范围、色度合法性与 sRGB 一致性、时序自洽、描述符格式（文本终止符、范围限制填充、CVT 参数）、CEA/VSDB/HDR/色度块一致性；按**错误 / 警告 / 提示**三级报告 |
 |  | **学习 EDID** | 8 节速成课：EDID 是什么、基础块字节地图、四种描述符、18 字节 DTD 逐字节解释、CEA-861 与 DisplayID、CVT/GTF 原理、常见坑、参考资料 |
 |  | **工具箱** | 面向「拿到一份 EDID 要逐字节排查」场景的**字节网格编辑器**：按 EDID 结构分区着色（基础块 10 区 + CTA / DisplayID 扩展块分区），点击定位到字段、方向键导航、**直接键入十六进制改写字节**（先高半字节后低半字节）、Backspace 置零，**每次改动后所有块的校验和自动重算**；配套**字段说明**（位域逐项解释）、**概要**、**五步新建向导**（接口 / 厂商 / 显示参数 / 时序 / CEA，时序用 CVT 算法算，与 Timing 页同源）、**8 个预置模板**，以及 BIN / Intel HEX / DAT / TXT 四种导出格式；对公开工具 INFINIDISPLY EDID Toolkit 的功能规格做独立实现并修正其若干与规范不符的字节拼装 |
+|  | **字段详解** | 逐字段拆解 EDID 的**功能 / 如何设置（字节偏移 + 位域）/ 设置后系统实现的功能 / 要求硬件支持什么**四个维度：覆盖 128 字节基础块（固定头、厂商 PNP、产品、序列号、制造日期、版本、扩展块数、校验和、视频输入、屏幕尺寸、Gamma、特性位、色度坐标、既定与标准时序、DTD、0xFC/0xFF/0xFD 描述符）、CTA-861 扩展（头部全局能力、视频 / 音频 / 扬声器 / 视频能力 / 色度 / YCbCr420 数据块）、HDMI 数据块（HDMI VSDB 深彩与 TMDS、HDR 静态元数据、AMD FreeSync）与 HDMI 2.1 HF-VSDB（SCDC / FRL / ALLM / VRR / FVA / DSC），以及 DisplayID 扩展头与数据类型块；可按「基础块 / CTA-861 / HDMI 数据块 / DisplayID」筛选，带粘性目录与卡片展开/收起，纯数据驱动（`EDIDFieldsData`）与渲染层（`EDIDFieldsUI`）分离 |
 | **PQ** | **伽马验证** | 读取 CA410 色温仪测量数据与灰阶占比表（.xlsx，浏览器本地解析，自研 ZIP / OOXML 读取器），按所选 Gamma 曲线（GammaBT1886 / 1.8 / 2.0 / 2.2 / 2.4 / 2.6）的占比映射生成参考曲线（峰值亮度 × 灰阶占比）、白点一致性（Wx / Wy）图表，并计算平均 Gamma（对数回归，与目标值偏差 ±0.05 内标绿）；可导出 PNG。**内置 6 组实测数据集**（`data/` 内，默认载入 BT1886），切换曲线即自动重绘对应图表，也支持上传自己的 .xlsx |
 |  | **色彩空间** | CIE 1931 / CIE 1976 色彩空间分析与转换（对标 CIE Color Space Analyzer，纯前端）：**XYZ / xyY / CCT / 设备 RGB 与 HEX / Lab / Luv（含 LCH）六组坐标互为输入输出**，改任一组其余五组即时算出；六种参考白点（A / C / D50 / D55 / D65 / E）、六种 RGB 空间（sRGB / AdobeRGB / Display P3 / Rec.709 / Rec.2020 / ProPhoto）、四套色度适应模型（Bradford / Von Kries / XYZ Scaling / 不换算）可自由组合，含传递函数解码 / 编码与矩阵推导。**色度图可在 CIE 1931 xy 与 CIE 1976 u′v′（均匀色度标尺，横纵严格等比）之间切换**，同一份色度数据两种投影，均可**点击 / 拖动取点**（内联 SVG，无外部资源）：背景是该色度下 sRGB 能达到的最饱和亮度（6px 网格 + 光谱轨迹裁剪），叠加当前 RGB 空间色域三角形、黑体轨迹与波长刻度；光谱轨迹用 Catmull-Rom 样条细分成密折线，边缘平滑；越出色域给出提示，并同时算出 **McCamy 色温与 Duv**、设备 RGB 值与 HEX 色样 |
 | **DDC/CI** | **DDC/CI 控制** | 像 MCCS 工具那样直接读写显示器 VCP 特性：连接本地桥接后列出物理显示器、读/写任意 VCP 码（亮度 / 对比度 / 输入源 / 电源模式…）、扫描常用码、读取并解析显示器 capabilities 字符串；离线也有**报文构建器**（逐字节字段解释 + 校验和核对 + 等价 `ddcutil` / `i2ctransfer` / PowerShell / curl 命令）和 **182 条 VCP 码参考表**（中英文名、类型 C/NC/CNC/T、读写权限、分组、枚举值含义） |
@@ -69,6 +70,8 @@ x-macro-lab/
 │   ├── edid-report.js      # 结构化对象 → HTML 片段（纯字符串，无 DOM 依赖）
 │   ├── edid-toolkit.js     # 工具箱逻辑层：字节分区表、EDID 拼装、模板库、导出格式（纯逻辑，无 DOM）
 │   ├── edid-toolkit-ui.js  # 工具箱界面层：字节网格编辑器、字段说明、新建向导、模板库 UI
+│   ├── edid-fields-data.js # 字段详解数据层：基础块 / CTA-861 / DisplayID / HDMI 数据块逐字段四维度内容（纯数据）
+│   ├── edid-fields-ui.js   # 字段详解渲染层：英雄区、分组筛选、粘性目录、字段卡片与展开/收起（数据驱动）
 │   ├── zip-lite.js         # 纯 JS ZIP 读取（stored + deflate 解压，自研 inflate）
 │   ├── xlsx-lite.js        # 纯 JS .xlsx（OOXML）解析：工作表 / sharedStrings / 单元格
 │   ├── gamma.js            # 伽马验证逻辑（数据组装、平均 Gamma、SVG 折线图，无 DOM 依赖）
@@ -459,6 +462,8 @@ capabilities 字符串也能解析出型号、`mccs_ver`、支持的操作码、
 <script src="js/edid-validator.js"></script>
 <script src="js/edid-toolkit.js"></script>
 <script src="js/edid-toolkit-ui.js"></script>
+<script src="js/edid-fields-data.js"></script>
+<script src="js/edid-fields-ui.js"></script>
 <script>
   // 二进制 → 结构化对象
   var report = EDIDDecoder.decode(bytes);        // { ok, base, extensions, ... }
@@ -489,6 +494,8 @@ capabilities 字符串也能解析出型号、`mccs_ver`、支持的操作码、
 | `EDIDEncoder` | `encode(model)`、`defaultModel()`、`defaultDTD()`、`dtdFromTiming()`、`packDTD()`、`ceaHdExtension()`、`cea4kExtension()`、`FORMAT_PRESETS`（`1080p` / `1440p` / `4k` / `ultrawide` / `laptop` / `legacy` / `hdr`） |
 | `EDIDValidator` | `validate(bytes)`、`checkDTD(dtd)` |
 | `EDIDReport` | `decodeReport`、`validationReport`、`timingReport`、`hexViewer`、`chromaPlot`、`kv`、`card`、`chip`、`tableHtml`、`esc` |
+| `EDIDFieldsData` | 字段详解数据层：`sections`（按 `base` / `cta` / `hdmi` / `displayid` 分组的字段数组，每个字段含 `func` / `how` / `effect` / `hw` 四维度与可选 `bits` 位域表）、`groups`、`meta` |
+| `EDIDFieldsUI` | 字段详解渲染层：`init()`（在 `#ef-root` 内渲染英雄区、分组筛选、粘性目录与字段卡片，支持展开/收起与滚动高亮） |
 | `MCCS` | `buildGetVCP`、`buildSetVCP`、`buildSaveSettings`、`buildVcpReset`、`buildGetCapabilities`、`buildRaw`、`build(kind, opts)`、`parseReply`、`verifyChecksum`、`describe`、`parseCapabilities`、`vcp`、`vcpName`、`vcpText`、`formatValue`、`toDdcutil`、`toI2cTransfer`、`toCurl`、`toBridgeScript` |
 | `MCCSData` | `VCP`（182 条码表）、`OPCODES`（9 条操作码）、`VALUES`（枚举值表） |
 | `SERIAL` | `bytes`、`hex`、`hex2`、`hex4`、`concat`、`textToBytes`、`decodeBytes`、`eolBytes`、`eolLabel`、`printable`、`escapeText`、`hexdump`、`describeBytes`、`termNew`、`termFeed`、`termText`、`termSize`、`termHTML`（终端缓冲与 ANSI 颜色渲染）、`sniffMode`（内容嗅探）、`stamp`、`bridgePort`、`webPort`、`mergePortLists`、`matchPort`、`transportOrder`、`transportName`、`normalizeCfg`、`toWebSerialOptions`、`toBridgeArgs`、`presetBytes`、`makeWebSerialTransport`、`makeBridgeTransport` |

@@ -497,6 +497,73 @@ footer.site .wrap { display: flex; gap: 16px; flex-wrap: wrap; align-items: cent
 .gam-charts { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start; }
 .gam-charts svg { flex: 1 1 440px; min-width: 320px; height: auto; display: block; }
 
+/* ============================================================ EDID 字段详解 */
+.ef-filter { display: flex; gap: 8px; flex-wrap: wrap; }
+.ef-filter .sm { border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-soft); }
+.ef-filter .sm.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.ef-shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 18px; align-items: start; margin-top: 18px; }
+.ef-toc { position: sticky; top: 14px; align-self: start; }
+.ef-toc .card .body { padding: 10px 8px; }
+.ef-toc-nav a {
+  display: block; padding: 5px 9px; border-radius: 6px; color: var(--text-soft);
+  font-size: .85rem; text-decoration: none; line-height: 1.3;
+}
+.ef-toc-nav a:hover { background: var(--accent-soft); color: var(--accent-text); }
+.ef-toc-nav a.active { background: var(--accent-soft); color: var(--accent-text); font-weight: 650; }
+.ef-toc-nav .grp {
+  font-size: .7rem; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--text-dim); font-weight: 700; margin: 12px 9px 5px;
+}
+.ef-toc-nav .grp:first-child { margin-top: 2px; }
+
+.ef-sec { scroll-margin-top: 14px; margin-bottom: 24px; }
+.ef-sec h2 { font-size: 1.15rem; margin: 0 0 12px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.ef-sec h2 .sub { font-size: .8rem; color: var(--text-dim); font-weight: 500; }
+
+.ef-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.ef-field {
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+  overflow: hidden; box-shadow: var(--shadow-sm);
+}
+.ef-field > header {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border-bottom: 1px solid var(--border); cursor: pointer; user-select: none;
+}
+.ef-field > header h4 { margin: 0; font-size: .96rem; }
+.ef-field > header .chip { margin-left: auto; }
+.ef-field .ef-body { padding: 12px; }
+.ef-field.collapsed .ef-body { display: none; }
+
+.ef-aspects { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ef-aspect {
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+  background: var(--surface-2); font-size: .86rem; line-height: 1.5;
+}
+.ef-aspect .lab {
+  display: block; font-size: .72rem; font-weight: 700; letter-spacing: .03em;
+  margin-bottom: 5px; text-transform: none;
+}
+.ef-aspect .lab::before { content: "● "; opacity: .55; }
+.ef-aspect.a-func { border-left: 3px solid var(--accent); }
+.ef-aspect.a-func .lab { color: var(--accent-text); }
+.ef-aspect.a-how { border-left: 3px solid var(--info); }
+.ef-aspect.a-how .lab { color: var(--info); }
+.ef-aspect.a-effect { border-left: 3px solid var(--ok); }
+.ef-aspect.a-effect .lab { color: var(--ok); }
+.ef-aspect.a-hw { border-left: 3px solid var(--warn); }
+.ef-aspect.a-hw .lab { color: var(--warn); }
+
+.ef-bits { margin-top: 10px; }
+.ef-bits table { font-size: .82rem; }
+.ef-bits td.num { white-space: nowrap; color: var(--accent-text); }
+
+@media (max-width: 860px) {
+  .ef-shell { grid-template-columns: 1fr; }
+  .ef-toc { display: none; }
+  .ef-fields { grid-template-columns: 1fr; }
+}
+
 /* ==========================================================================
    串口调试页：普通模式 / 终端模式
    两种模式必须「一眼可辨」——所以差异不只写在文字上，也写在版式上：

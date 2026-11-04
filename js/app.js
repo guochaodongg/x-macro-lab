@@ -4404,6 +4404,7 @@
     initAdult();
     initCIE();
     if (window.EDIDToolkitUI) window.EDIDToolkitUI.init();
+    if (window.EDIDFieldsUI) window.EDIDFieldsUI.init();
 
     $$('nav.tabs button[data-tab]').forEach(function (b) {
       b.addEventListener('click', function () { switchTab(b.getAttribute('data-tab')); });
