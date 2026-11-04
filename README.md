@@ -32,6 +32,7 @@
 |  | **生成** | 可视化表单组包：厂商/产品/序列号、日期与版本、数字（位深/接口/颜色编码）或模拟（电平/同步方式）输入、DPMS 与特性位、色度坐标（一键 sRGB / D65）、17 项既定时序、最多 8 组标准时序、4 个可切换类型的描述符槽位、可增删的 CEA / DisplayID / VTB / 块映射扩展块；校验和自动计算，实时十六进制预览 + 自校验结果 |
 |  | **校验** | 结构、固定头、块长度、逐块校验和、扩展块数量一致性、日期范围、色度合法性与 sRGB 一致性、时序自洽、描述符格式（文本终止符、范围限制填充、CVT 参数）、CEA/VSDB/HDR/色度块一致性；按**错误 / 警告 / 提示**三级报告 |
 |  | **学习 EDID** | 8 节速成课：EDID 是什么、基础块字节地图、四种描述符、18 字节 DTD 逐字节解释、CEA-861 与 DisplayID、CVT/GTF 原理、常见坑、参考资料 |
+|  | **工具箱** | 面向「拿到一份 EDID 要逐字节排查」场景的**字节网格编辑器**：按 EDID 结构分区着色（基础块 10 区 + CTA / DisplayID 扩展块分区），点击定位到字段、方向键导航、**直接键入十六进制改写字节**（先高半字节后低半字节）、Backspace 置零，**每次改动后所有块的校验和自动重算**；配套**字段说明**（位域逐项解释）、**概要**、**五步新建向导**（接口 / 厂商 / 显示参数 / 时序 / CEA，时序用 CVT 算法算，与 Timing 页同源）、**8 个预置模板**，以及 BIN / Intel HEX / DAT / TXT 四种导出格式；对公开工具 INFINIDISPLY EDID Toolkit 的功能规格做独立实现并修正其若干与规范不符的字节拼装 |
 | **PQ** | **伽马验证** | 读取 CA410 色温仪测量数据与灰阶占比表（.xlsx，浏览器本地解析，自研 ZIP / OOXML 读取器），按所选 Gamma 曲线（GammaBT1886 / 1.8 / 2.0 / 2.2 / 2.4 / 2.6）的占比映射生成参考曲线（峰值亮度 × 灰阶占比）、白点一致性（Wx / Wy）图表，并计算平均 Gamma（对数回归，与目标值偏差 ±0.05 内标绿）；可导出 PNG。**内置 6 组实测数据集**（`data/` 内，默认载入 BT1886），切换曲线即自动重绘对应图表，也支持上传自己的 .xlsx |
 |  | **色彩空间** | CIE 1931 / CIE 1976 色彩空间分析与转换（对标 CIE Color Space Analyzer，纯前端）：**XYZ / xyY / CCT / 设备 RGB 与 HEX / Lab / Luv（含 LCH）六组坐标互为输入输出**，改任一组其余五组即时算出；六种参考白点（A / C / D50 / D55 / D65 / E）、六种 RGB 空间（sRGB / AdobeRGB / Display P3 / Rec.709 / Rec.2020 / ProPhoto）、四套色度适应模型（Bradford / Von Kries / XYZ Scaling / 不换算）可自由组合，含传递函数解码 / 编码与矩阵推导。**色度图可在 CIE 1931 xy 与 CIE 1976 u′v′（均匀色度标尺，横纵严格等比）之间切换**，同一份色度数据两种投影，均可**点击 / 拖动取点**（内联 SVG，无外部资源）：背景是该色度下 sRGB 能达到的最饱和亮度（6px 网格 + 光谱轨迹裁剪），叠加当前 RGB 空间色域三角形、黑体轨迹与波长刻度；光谱轨迹用 Catmull-Rom 样条细分成密折线，边缘平滑；越出色域给出提示，并同时算出 **McCamy 色温与 Duv**、设备 RGB 值与 HEX 色样 |
 | **DDC/CI** | **DDC/CI 控制** | 像 MCCS 工具那样直接读写显示器 VCP 特性：连接本地桥接后列出物理显示器、读/写任意 VCP 码（亮度 / 对比度 / 输入源 / 电源模式…）、扫描常用码、读取并解析显示器 capabilities 字符串；离线也有**报文构建器**（逐字节字段解释 + 校验和核对 + 等价 `ddcutil` / `i2ctransfer` / PowerShell / curl 命令）和 **182 条 VCP 码参考表**（中英文名、类型 C/NC/CNC/T、读写权限、分组、枚举值含义） |
@@ -66,6 +67,8 @@ x-macro-lab/
 │   ├── edid-encoder.js     # 模型 → 字节流（含 7 套预设）
 │   ├── edid-validator.js   # 结构 / 语义校验，分级报告
 │   ├── edid-report.js      # 结构化对象 → HTML 片段（纯字符串，无 DOM 依赖）
+│   ├── edid-toolkit.js     # 工具箱逻辑层：字节分区表、EDID 拼装、模板库、导出格式（纯逻辑，无 DOM）
+│   ├── edid-toolkit-ui.js  # 工具箱界面层：字节网格编辑器、字段说明、新建向导、模板库 UI
 │   ├── zip-lite.js         # 纯 JS ZIP 读取（stored + deflate 解压，自研 inflate）
 │   ├── xlsx-lite.js        # 纯 JS .xlsx（OOXML）解析：工作表 / sharedStrings / 单元格
 │   ├── gamma.js            # 伽马验证逻辑（数据组装、平均 Gamma、SVG 折线图，无 DOM 依赖）
@@ -454,6 +457,8 @@ capabilities 字符串也能解析出型号、`mccs_ver`、支持的操作码、
 <script src="js/edid-decoder.js"></script>
 <script src="js/edid-encoder.js"></script>
 <script src="js/edid-validator.js"></script>
+<script src="js/edid-toolkit.js"></script>
+<script src="js/edid-toolkit-ui.js"></script>
 <script>
   // 二进制 → 结构化对象
   var report = EDIDDecoder.decode(bytes);        // { ok, base, extensions, ... }
@@ -552,6 +557,39 @@ capabilities 字符串也能解析出型号、`mccs_ver`、支持的操作码、
 </script>
 ```
 
+### 8.1 EDID 工具箱引擎（字节网格编辑器）
+
+EDID 分类下的「工具箱」页由两个模块构成，**逻辑与界面分离**，都可以单独复用：
+
+- **`js/edid-toolkit.js`（纯逻辑，不碰 DOM，可在 Node 里直测）**
+  - `EDIDToolkit.regionAt(bytes, offset)` — 某个字节属于哪个结构区（基础块 10 区 + CTA / DisplayID 扩展块分区）
+  - `EDIDToolkit.layout(bytes)` — 把整份 EDID 切成分区序列
+  - `EDIDToolkit.buildEDID(opts)` — 按规范拼装一份 EDID（基础块 + CTA 扩展块）
+  - `EDIDToolkit.refreshChecksums(bytes)` / `checksumStatus(bytes)` — 重算与检查各块校验和
+  - `EDIDToolkit.buildTemplate(id)` — 8 个预置模板
+  - `EDIDToolkit.toIntelHex` / `toHexDump` / `toCommaHex` / `toSpaceHex` — 四种导出格式
+  - `EDIDToolkit.deriveTiming(preset)` — 走 `EDIDTiming.computeCVT`（CVT-RB），与「Timing · 时序计算」页同源
+- **`js/edid-toolkit-ui.js`（界面层）** — 字节网格编辑器、字段说明、概要、五步向导、模板库 UI
+
+```js
+// Node 里直接生成一份 4K60 HDMI EDID 并检查校验和
+var bytes = EDIDToolkit.buildEDID({
+  interfaceKey: 'hdmi20', manufacturer: 'ACM', productCode: '0001',
+  monitorName: 'MyMonitor', bitDepth: 10, extCount: 1
+});
+EDIDToolkit.checksumStatus(bytes);       // [{ block: 0, valid: true }, { block: 1, valid: true }]
+
+// 改一个字节，校验和自动重算
+EDIDToolkit.setByte(bytes, 20, 0xA0);
+```
+
+> **与原工具的差异**：本页是按 **EDID 1.4（VESA）与 CTA-861.3** 独立实现的，修正了公开工具
+> INFINIDISPLY EDID Toolkit V1.0 中若干与规范不符的字节拼装：byte 20 的位深码与接口码位域重叠、
+> DTD byte 17 的极性位与 sync scheme 位序、Established byte37 bit0 的含义、Short Audio Descriptor
+> 的采样率 / 位深位权重、Range Limits 描述符 byte10 写成了保留值、DisplayID 扩展标签误写为 0x20、
+> 以及 VIC ≥ 128 在 Video Data Block 中的归属。原工具的 I2C EEPROM 编程器依赖 CH341A 硬件与
+> 本地后台服务（`127.0.0.1:9860`），纯静态站点无法实现，故未收录。
+
 ---
 
 ## 9. 自测
@@ -618,7 +656,8 @@ Windows 上把 `NODE_PATH` 换成 `C:\...\edid-domtest\node_modules` 即可。
 > 本项目的测试脚本（`_ref/test-*.js`，覆盖编解码往返、时序矩阵、报告层、时序对比、伽马、
 > DDC/CI 协议、串口协议与传输适配器、技术博客数据与渲染层（含 DSC 长文的覆盖度与示意图一致性）、
 > CIE 1931 色彩空间，以及 jsdom 驱动的界面层）都在仓库外的 `_ref/`，不会随静态站点发布。
-> 当前基线：**108（edid）/ 356（timing）/ 2094（render）/ 20095（vtc）/ 258（mccs）/ 269（serial）/ 521（cie）/ 106（gamma）/ 4545（blog）+ 界面 136（app-dom），全部 0 失败**
+> 当前基线：**108（edid）/ 356（timing）/ 2094（render）/ 20095（vtc）/ 258（mccs）/ 269（serial）/ 521（cie）/ 106（gamma）/ 4545（blog）+ 界面 153（app-dom），全部 0 失败**
+> 另有工具箱专项测试：`_ref/_test_edid_toolkit.js`（字节拼装与导出逻辑 106 项）、`_ref/test-edid-toolkit-dom.js`（界面交互 54 项），均 0 失败。
 > （依次为 `test-edid` / `test-timing` / `test-render` / `test-vtc` / `test-gamma` /
 > `test-mccs` / `test-serial` / `test-blog` / `test-cie`，最后是 `test-app-dom`）。
 
