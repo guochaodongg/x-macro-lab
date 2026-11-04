@@ -804,3 +804,141 @@ footer.site .wrap { display: flex; gap: 16px; flex-wrap: wrap; align-items: cent
 .ad-check-row input { margin: 2px 0 0; accent-color: var(--accent); cursor: pointer; }
 .ad-check-row.done { color: var(--text-dim); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--text-dim) 55%, transparent); }
 .ad-check-row.done span { opacity: .75; }
+
+/* ============================== EDID 工具箱 Toolkit ==============================
+   字节网格编辑器 + 字段说明 + 新建向导 + 模板库。
+   分区配色全部走 CSS 变量，因此自动跟随明/暗主题。 */
+.tk-grid {
+  font-family: var(--mono);
+  font-size: .76rem;
+  line-height: 1.5;
+  overflow-x: auto;
+  padding: 2px 0 6px;
+  outline: none;
+}
+.tk-grid:focus-visible { box-shadow: 0 0 0 2px var(--accent-soft); border-radius: var(--radius-sm); }
+.tk-row { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.tk-addr {
+  flex: 0 0 auto; width: 44px; text-align: right;
+  color: var(--text-dim); font-size: .72rem; user-select: none;
+}
+.tk-bytes { display: inline-flex; gap: 2px; }
+.tk-asciis { display: inline-flex; gap: 2px; margin-left: 6px; }
+.tk-cell {
+  display: inline-block; min-width: 19px; padding: 1px 2px; border-radius: 4px;
+  text-align: center; cursor: pointer; user-select: none;
+  border: 1px solid transparent;
+}
+.tk-cell:hover { border-color: var(--border-strong); }
+.tk-ascii { min-width: 12px; color: var(--text-soft); }
+.tk-pad { cursor: default; }
+.tk-pad:hover { border-color: transparent; }
+.tk-sel {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+/* 分区配色：每个 EDID 结构区一种色 */
+.tk-r-header      { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.tk-r-vendor      { background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.tk-r-made        { background: color-mix(in srgb, var(--teal) 14%, transparent); }
+.tk-r-display     { background: color-mix(in srgb, var(--info) 14%, transparent); }
+.tk-r-chroma      { background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.tk-r-established { background: color-mix(in srgb, var(--teal) 10%, transparent); }
+.tk-r-standard    { background: color-mix(in srgb, var(--info) 10%, transparent); }
+.tk-r-detailed    { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.tk-r-extcount    { background: color-mix(in srgb, var(--warn) 18%, transparent); }
+.tk-r-checksum    { background: color-mix(in srgb, var(--err) 14%, transparent); }
+.tk-r-extheader   { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.tk-r-extdata     { background: color-mix(in srgb, var(--info) 10%, transparent); }
+
+/* 字段说明 */
+.tk-selbox {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  background: var(--surface-2); border-radius: var(--radius-sm);
+  padding: 9px 12px; margin-bottom: 10px;
+}
+.tk-seladdr { font-family: var(--mono); font-size: 1.05rem; font-weight: 600; color: var(--accent); }
+.tk-selval { font-family: var(--mono); font-size: 1.05rem; font-weight: 600; }
+.tk-selsub { font-size: .82rem; color: var(--text-soft); }
+.tk-desc { font-size: .82rem; color: var(--text-soft); margin: 0 0 10px; line-height: 1.6; }
+.tk-bits { width: 100%; border-collapse: collapse; font-size: .8rem; }
+.tk-bits th {
+  text-align: left; font-weight: 600; color: var(--text-dim);
+  font-size: .74rem; padding: 4px 6px; border-bottom: 1px solid var(--border);
+}
+.tk-bits td { padding: 4px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.tk-bits td:first-child { color: var(--text-dim); white-space: nowrap; }
+.tk-bits td:nth-child(2) { color: var(--accent-text); white-space: nowrap; }
+
+/* 概要 */
+.tk-summary { display: grid; gap: 7px; }
+.tk-sumitem { display: flex; gap: 10px; align-items: baseline; font-size: .84rem; }
+.tk-sumk { flex: 0 0 88px; color: var(--text-dim); }
+.tk-sumv { color: var(--text); word-break: break-word; }
+
+/* 模板库 */
+.tk-tpls { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 10px; }
+.tk-tpl {
+  display: grid; gap: 3px; text-align: left; cursor: pointer;
+  padding: 11px 13px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--surface-2);
+  color: var(--text); font: inherit;
+}
+.tk-tpl:hover { border-color: var(--accent); background: var(--surface); }
+.tk-tpl b { font-size: .88rem; font-weight: 600; }
+.tk-tplif { font-size: .74rem; color: var(--accent-text); }
+.tk-tpld { font-size: .76rem; color: var(--text-dim); line-height: 1.5; }
+
+/* 新建向导 */
+.tk-wizard { display: none; }
+.tk-wizard.open { display: block; }
+.tk-wizsteps { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.tk-wstep {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: .8rem; color: var(--text-dim);
+  padding: 3px 10px 3px 4px; border-radius: 999px;
+  border: 1px solid var(--border);
+}
+.tk-wstep b {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--surface-2); color: var(--text-soft);
+  font-size: .72rem; font-weight: 600;
+}
+.tk-wstep.on { border-color: var(--accent); color: var(--accent-text); background: var(--accent-soft); }
+.tk-wstep.on b { background: var(--accent); color: #fff; }
+.tk-wstep.done { color: var(--text-soft); border-color: var(--border-strong); }
+.tk-wstep.done b { background: var(--ok-soft); color: var(--ok); }
+
+.tk-wizbody { min-height: 190px; }
+.tk-wizgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.tk-iface {
+  display: grid; gap: 3px; text-align: left; cursor: pointer;
+  padding: 11px 13px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font: inherit;
+}
+.tk-iface:hover { border-color: var(--accent); }
+.tk-iface b { font-size: .88rem; font-weight: 600; }
+.tk-iface span { font-size: .76rem; color: var(--text-dim); line-height: 1.45; }
+.tk-iface.on { border-color: var(--accent); background: var(--accent-soft); }
+.tk-iface.on b { color: var(--accent-text); }
+
+.tk-form { display: grid; gap: 9px; }
+.tk-frow { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: 12px; align-items: center; }
+.tk-flabel { font-size: .84rem; color: var(--text-soft); }
+.tk-fctl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.tk-fctl input[type="number"], .tk-fctl input[type="text"], .tk-fctl select {
+  min-width: 0; max-width: 190px;
+}
+.tk-chk { display: inline-flex; align-items: center; gap: 5px; font-size: .82rem; color: var(--text-soft); cursor: pointer; }
+.tk-chk input { accent-color: var(--accent); cursor: pointer; }
+.tk-est {
+  margin-top: 6px; padding: 11px 13px; border-radius: var(--radius-sm);
+  background: var(--surface-2); border: 1px solid var(--border);
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 5px;
+}
+.tk-est .tk-t { grid-column: 1 / -1; font-size: .78rem; color: var(--text-dim); margin-bottom: 3px; }
+.tk-est .tk-chk { font-size: .8rem; }
