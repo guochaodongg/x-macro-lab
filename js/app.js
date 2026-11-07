@@ -3848,6 +3848,14 @@
     /* 术语表按文章走：post 自带 glossary 就用它，否则退回全局表 */
     $('#bl-extra-slot').innerHTML =
       BLOG.renderGlossary(post.glossary || D.glossary) + BLOG.renderSource(D, post);
+    /* 第八篇专属：逐型号接口速查表只在切到该篇时显示，且只挂载一次。
+       其它文章切回来时靠 hidden 收起，不重建 DOM、不重复绑定事件。 */
+    var gmRoot = $('#gm-models-root');
+    if (gmRoot) {
+      var showModels = post.id === 'gpu-matrix';
+      gmRoot.hidden = !showModels;
+      if (showModels && window.GPUMatrixModelsUI) window.GPUMatrixModelsUI.init(gmRoot);
+    }
     blog.activeId = '';
     blogSyncUrl(post.id);
     blogSpy();

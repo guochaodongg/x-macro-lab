@@ -6,6 +6,11 @@
  *           规范、Linux DRM 驱动源码（drm_edid.c / intel_dp.c / drm_dp_helper.h），
  *           以及 Corsair 的 DSC 技术说明。原始素材为一份面向 HT6316 系列
  *           （HT6316-EHDQ / HT6316-BHDQ）EDID 调试的工程速查表。
+ *           第 7 章「逐型号速查」另行补充自一份检索截止 2026-11-07 的笔记本 /
+ *           台式机显卡 / 核显主板视频输出接口速查表（各 OEM 规格页、PSREF、ARK、
+ *           datasheet）；其 445 条逐型号明细放在同目录的
+ *           gpu-matrix-models-data.js + gpu-matrix-models-ui.js，不进本文 blocks，
+ *           以免把长文的阅读时长撑成几万字的表格。
  *
  * 本文件按「新增文章只需往 BLOGData.posts 里加一条」的约定，在 edp-data.js
  * 之后加载，把文章对象 push 进 BLOGData.posts，并把本篇专用的内联 SVG 注册进
@@ -233,7 +238,17 @@
     ['VRR', 'VRR（可变刷新率）', '让显示器跟随源端输出速率动态刷新；跨越带宽阈值时可能引发闪黑，排查时应先关闭验证。'],
     ['MPRT', 'MPRT（运动画面响应时间）', '厂商用运动补偿降低拖影的技术，会改变时序与带宽需求，测试时需注明是否开启。'],
     ['Intel iGPU', 'Intel 核显', '集成在处理器中的显示单元；主流型号的物理层仅支持 TMDS，规格表上的「HDMI 2.1」不携带 FRL 能力。'],
-    ['AIB', 'AIB（板卡 partner）', '为 NVIDIA / AMD 代工并贴牌的板卡厂商，可能调整接口配置，规格以公版为基准、实测为准。']
+    ['AIB', 'AIB（板卡 partner）', '为 NVIDIA / AMD 代工并贴牌的板卡厂商，可能调整接口配置，规格以公版为基准、实测为准。'],
+    ['UHBR20', 'UHBR20（20 Gbps/lane）', 'DP 2.1b 的最高链路档位，4 lane 标称 80 Gbps、有效约 77.37 Gbps；需要 DP80 认证线缆，被动线长度通常只有 1 m 左右。'],
+    ['UHBR10 / UHBR13.5', 'UHBR10 / UHBR13.5', 'DP 2.1 的另两档链路速率：40 G / 54 G 标称，有效约 38.7 G / 52.2 G；分别对应 DP40 与 DP54 线缆等级。'],
+    ['DP Alt Mode', 'DP Alt Mode（DisplayPort 交替模式）', 'USB-C 接口把高速通道让给 DisplayPort 信号的工作模式；2-lane 保留 SuperSpeed USB，4-lane 提供全部 DP 带宽但 USB 降到 2.0 + PD。'],
+    ['PCON', 'PCON（协议转换器）', '把 DP 信号转换成 HDMI FRL 的桥接芯片；Intel DG2 原生 HDMI 只到 TMDS，板卡需靠 PCON 才能宣称 HDMI 2.1。'],
+    ['PSREF', 'PSREF（Lenovo 产品规格参考）', 'Lenovo 公开的逐机型规格数据库，是查商务本 HDMI 版本与「up to 4K/60Hz」这类限定语最可靠的来源。'],
+    ['TMDS-only HDMI 2.1', '缩水 HDMI 2.1（仅 TMDS）', '只实现 18 Gbps TMDS、不含 FRL 的产品仍可依 HDMI LA FAQ 宣称符合 HDMI 2.1，因为 2.1 的每项功能都是可选的。'],
+    ['DP++', 'DP++（双模 DisplayPort）', '能被动输出 HDMI 信号的 DP 口；非 DP++ 的 DP 口与反向 HDMI→DP 都需要有源协议转换器，且转接方向不可逆。'],
+    ['MST', 'MST（多流传输）', 'DisplayPort 的菊花链多屏技术，多个显示器共享同一条上游链路带宽，不能按物理口数量估算多屏能力。'],
+    ['vGPU', 'vGPU（虚拟 GPU）', '专业卡启用 vGPU 软件时，部分型号 datasheet 脚注写明显示输出口会被关闭，是「有口却点不亮」的隐蔽原因。'],
+    ['SKU', 'SKU（具体配置型号）', '同一产品名下按显卡、屏幕、区域划分的具体配置；接口版本与数量常随 SKU 变化，采购与测试必须落到 SKU 规格页。']
   ];
 
   /* ------------------------------------------------------------------ 文章 */
@@ -243,24 +258,29 @@
     titleEn: 'GPU Display Interface Capability Matrix & EDID Debugging Reference',
     subtitle: '当「同一台显示器在 A 主机上能识别、在 B 主机上识别不到」时，到底是源端能力不够，还是 EDID 写错了？' +
       '本文把市面主流显卡的接口能力、链路有效带宽、QHD 各刷新率的带宽余量、EDID 里那几个真正决定成败的字节，' +
-      '以及八组测试矩阵整理成一套可直接查表与执行的调试方法。',
+      '八组测试矩阵，以及一份覆盖 445 条逐型号记录的笔记本 / 台式机视频输出接口速查，' +
+      '整理成一套可直接查表与执行的调试方法。',
     category: '接口与调试',
-    tags: ['显卡接口', 'EDID', 'HDMI 2.1', 'FRL', 'DSC', 'DPCD', '带宽预算', '调试方法'],
+    tags: ['显卡接口', 'EDID', 'HDMI 2.1', 'FRL', 'DSC', 'DPCD', '带宽预算', '调试方法', '笔记本接口', 'UHBR20'],
     source: {
       name: 'NVIDIA / AMD / Intel 官方规格页',
-      label: 'CTA-861.3 · HDMI 2.1 规范 · Linux DRM 源码',
+      label: 'CTA-861.3 · HDMI 2.1 规范 · Linux DRM 源码 · 各 OEM 规格页 / PSREF / ARK',
       url: 'https://www.nvidia.com/en-us/geforce/graphics-cards/',
-      note: '本篇是面向中文工程师的学习性工程整理，非厂商或标准的官方译稿，也未转载厂商数据表与规范原文的插图与表格；' +
+      note: '本篇是面向中文工程师的学习性工程整理，非厂商或标准的官方译文，也未转载厂商数据表与规范原文的插图与表格；' +
         '数据来自 NVIDIA / AMD / Intel 官方产品规格页、CTA-861.3 与 HDMI 2.1 规范、Linux DRM 驱动源码，' +
-        '显卡规格随厂商与具体 SKU 存在差异，实际以手中设备实测为准。'
+        '第 7 章的逐型号速查另行依据各 OEM 官方规格页、Lenovo PSREF、Intel ARK 与公开 datasheet 整理，检索截止 2026-11-07；' +
+        '显卡与整机规格随厂商、区域及具体 SKU 存在差异，实际以手中设备实测为准。'
     },
-    license: '厂商产品页与标准规范原文的知识产权归各自所有者；本页为学习用途的中文工程整理，' +
-      '只复述接口能力口径与调试方法，未转载厂商数据表与规范原文的插图、表格，示意图均按所述机理自行重绘（纯内联 SVG）。',
+    license: '厂商产品页、PSREF、ARK 与标准规范原文的知识产权归各自所有者；本页为学习用途的中文工程整理，' +
+      '只复述接口能力口径与调试方法，未转载厂商数据表与规范原文的插图、表格；逐型号速查按公开规格页重新整理为便于查表的形式，' +
+      '未转载任何原始表格或截图，示意图均按所述机理自行重绘（纯内联 SVG）。',
     summary: '一份面向测试设备研发工程师的显卡源端能力与 EDID 声明交叉验证速查：覆盖 HDMI FRL 六档与 DP 各链路速率的有效带宽口径、' +
       '市面主流显卡的接口能力总表、QHD 各刷新率在 DP 1.4 HBR3 与 HDMI FRL3/FRL4/FRL6 上的带宽余量对照、' +
       'EDID 中真正影响模式枚举的五个位置（HF-VSDB 的 Max_FRL_Rate 与 SCDC_Present、基础块 byte 20 的位深与接口类型、' +
       'CTA Video Capability Descriptor 的位深位、Display Range Limits 的 Max Pixel Clock、DPCD 0x060 的 DSC 位）、' +
-      '按能力等级划分的 G1–G8 测试矩阵，以及一套「现象 → 原因 → 下一步动作」的判定流程。',
+      '按能力等级划分的 G1–G8 测试矩阵、一套「现象 → 原因 → 下一步动作」的判定流程，' +
+      '以及第 7 章新增的逐型号接口速查（445 条记录 / 19 个品牌，笔记本 235 款、台式机显卡 177 条、核显与主板 33 条）：' +
+      '怎么读标称与推算、台式机显卡七个关键发现、选型测试十条通用规则、笔记本四个陷阱、档位分布统计与数据置信度边界。',
     glossary: GLOSSARY,
     chapters: [
       {
@@ -699,6 +719,173 @@
               ] },
               { t: 'p', v: '**移动版显卡的接口数量与台式差异较大，常需转接线**，测试报告中务必注明连接路径与转接方式。' },
               { t: 'callout', kind: 'ok', title: '最后一条建议', v: '这张表里最该记住的一行是 **G6 组**：用一台源端能力远超需求的卡做对照。如果连它们都识别不到 QHD@220，那就是 EDID 写错了，与显卡无关——这是最快定位问题归属的实验。' }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'model-matrix',
+        num: '7',
+        title: '逐型号速查：笔记本与台式机接口',
+        titleEn: 'Per-Model Lookup: Laptop & Desktop Video Outputs',
+        lead: '前六章回答的是「一条链路能跑多少带宽」与「EDID 该怎么写」；但真正拿到一台设备时，第一步往往是确认它到底有没有那个口、口上跑的是 FRL 还是 TMDS。本章把一份检索截止 2026-11-07 的逐型号速查整理进来：445 条记录、19 个品牌，其中笔记本 235 款、台式机显卡 177 条、核显与主板 33 条，并给出从数据里读出来的规律、陷阱与置信度边界。',
+        sections: [
+          {
+            id: 'read-the-table',
+            title: '怎么读速查表：标称与推算要分开',
+            titleEn: 'How to Read the Table: Claimed vs. Derived Capability',
+            blocks: [
+              { t: 'p', v: '速查表把「厂商怎么标」和「这个口理论上能跑多少」分成两件事。前者是规格页上的文字，后者是按接口标准算出的能力上限；两者混淆，就会把「HDMI 2.1」直接当成 48 Gbps 来算余量。' },
+              { t: 'list', items: [
+                '**标称 vs 推算**：HDMI 接口列是厂商标称，推算最高模式按接口标准算出。展开任一行可看到 HDMI 口推算上限、DP / USB-C 通道推算上限、其他物理输出口与完整厂商原文。',
+                '**设备类型分三类**：笔记本（机身口 + USB-C / 雷电）、台式机显卡（独立显卡挡板上的物理口）、台式机核显 / 主板（CPU 显示引擎原生能力，或主板背部 I/O 实际焊接的口）。筛选时先选类型，结论才不会串。',
+                '**HDMI 2.1 有三种完全不同的形态**：满血 FRL（48 Gbps，4K@120 无压缩 / 8K@60 需 DSC）、缩水 TMDS（18 Gbps，等同 2.0，只有 4K@60）、以及标 2.1 但官方只给 4K@60。',
+                '**木桶效应**：实际能点亮多少还取决于 GPU 显示引擎、线材认证等级、显示器 EDID 与扩展坞，任一项不足都会回退，不能只按接口版本下结论。'
+              ] },
+              { t: 'table',
+                head: ['接口 / 档位', '标称带宽', '有效带宽', '典型上限（8bit 4:4:4、CVT-R2）'],
+                rows: [
+                  ['HDMI 1.4', '10.2 Gbps', '8.16 Gbps', '4K@30 / 1080p@120'],
+                  ['HDMI 2.0 / 2.1 TMDS', '18 Gbps', '14.4 Gbps', '4K@60（8bit RGB）'],
+                  ['HDMI 2.1 FRL', '48 Gbps', '42.6 Gbps', '4K@120 无压缩 / 8K@60 需 DSC'],
+                  ['HDMI 2.2', '96 Gbps', '84 Gbps', '4K@240 无压缩（2025-06 发布，暂无量产实装）'],
+                  ['DP 1.2 HBR2', '21.6 Gbps', '17.28 Gbps', '4K@60 / 1440p@144'],
+                  ['DP 1.4 HBR3', '32.4 Gbps', '25.92 Gbps', '4K@120；4K@240 / 8K@60 需 DSC'],
+                  ['DP 2.1 UHBR10', '40 Gbps', '38.7 Gbps', '4K@144 无压缩'],
+                  ['DP 2.1 UHBR13.5', '54 Gbps', '52.2 Gbps', '8K@60 4:4:4 / 4K@200 无压缩'],
+                  ['DP 2.1b UHBR20', '80 Gbps', '77.37 Gbps', '4K@240 / 8K@60 无压缩']
+                ] },
+              { t: 'callout', kind: 'key', title: 'HDMI LA 官方 FAQ 的原话很重要', v: '只支持 2.0 时代的 TMDS / 18 Gbps、不支持 FRL / 48 Gbps 的产品**也可以宣称符合 HDMI 2.1**，因为 2.1 的每项功能都是可选的。所以核查必须追问 FRL 档位与速率，而不是版本标签。' },
+              { t: 'p', v: '本章末尾附有可筛选的逐型号速查表：支持按设备类型、品牌、HDMI 档位、DP / USB-C 通道与置信度过滤，可搜索、排序、展开单行看推算依据，并可把当前筛选结果导出为 CSV。全部运算在浏览器本地完成，不发起任何网络请求。' }
+            ]
+          },
+          {
+            id: 'desktop-seven',
+            title: '台式机显卡的七个关键发现',
+            titleEn: 'Seven Findings on Desktop Graphics Cards',
+            blocks: [
+              { t: 'p', v: '把 177 条台式机显卡与 33 条核显 / 主板记录按厂商与代际铺开后，有些流传很广的说法站不住脚。以下七条是逐条比对官方规格页、VESA 公告与 datasheet 后的结论。' },
+              { t: 'list', items: [
+                '**1. 满血 UHBR20（80 Gbps）只有 NVIDIA 一家。** RTX 50 系全系（含最便宜的 RTX 5050）与 RTX PRO Blackwell 工作站全系都是 3–4 个 DP 2.1b UHBR20 加 HDMI 2.1b 或无 HDMI，官方标 4K@480 或 8K@165（需 DSC）。但 **8K@165 只在 DP 路径成立**，HDMI 2.1b 的官方脚注是 8K@120。',
+                '**2. AMD 全系不是 UHBR20。** VESA 官方站明确 RDNA3 与 RDNA4 的 DP 2.1 上限都是 54 Gbps（UHBR13.5）；AMD 规格页只写 DP 2.1 / 2.1a，从不标 UHBR 档，网上流传的「RX 9000 是 UHBR20」与 VESA 冲突，本表按 UHBR13.5 记录。新闻稿里的 8K@144 / 4K@480 描述的是**配套显示器**，不是显卡输出上限。',
+                '**3. 40 系 / 30 系 / RDNA2 都还是 DP 1.4a。** RTX 40 系全部 HDMI 2.1a + 3× DP 1.4a（无一款 DP 2.1），30 系 HDMI 2.1 FRL 48 Gbps + 3× DP 1.4a，RX 6000 系官方原文写 HDMI 2.1 VRR and FRL 加 DP 1.4a，8K@60 一律要 DSC。DP 1.4a + DSC 至今仍是市面存量主力。',
+                '**4. 专业卡整条产品线没有 HDMI。** NVIDIA RTX PRO Blackwell / RTX Ada / RTX A / Quadro，AMD Radeon PRO W7000 / W6000 / W5000 / WX 系全部只有 DP 或 miniDP。计算卡 A100 / H100 / A800 / MI300X / MI250X 完全没有显示连接器；但 L40S 与 RTX 6000 Ada 是反例，两者都有 4× DP，不能按「计算卡」一刀切。',
+                '**5. Intel ARK 的 DP 2.0 / HDMI 2.1 要打折看。** Arc A 系 ARK 标称 DP 2.0 UHBR10、HDMI 2.1，但同一页 Max Resolution (HDMI) 只有 4096×2160@60Hz——DG2 原生 HDMI 只到 TMDS（2.0b 级），板载 PCON 转出 FRL 才算 HDMI 2.1，且只有 Limited Edition 和部分 AIB 实装；DP 2.0 的 VESA CTS 认证未完成，实际链路常按 DP 1.4a HBR3 + DSC 协商。B580 / B570 则官方并列 UHBR13.5（主口，需 DP80 线）与 UHBR10（其余口）两档。',
+                '**6. 非公版 AIC 会改口，按 GPU 名建表必错。** NVIDIA 官方规格页自带免责声明 specifications may vary by add-in-card manufacturer：RTX 4090 FE 是 1×HDMI + 3×DP，ASUS ROG Strix 改成 2×HDMI + 3×DP；RTX 3050 公版 2×DP、微星非公 3×DP；GTX 1650 G5 版官方无 DP、G6 版才有；Sapphire PULSE RX 9050 改成 2×HDMI + 1×DP。',
+                '**7. CPU 核显原生能力不等于主板实际焊的口。** Core Ultra 9 285K 的 ARK 写 DP 2.1 UHBR20 + HDMI 2.1 FRL，但 ASUS Z890-E 直出 DP 只按 1.4 规格、仅一个 USB-C 在 Alt Mode 下能跑 UHBR20；GIGABYTE X870E 后置 HDMI 明写 TMDS compatible（非 FRL）；MSI B760M-A 四个口全部只到 4K@60。板载口还依赖 CPU 带核显，Intel F / KF 与无核显 SKU 装上去后背部视频口直接失效。'
+              ] },
+              { t: 'callout', kind: 'warn', title: '采购与测试必须落到 SKU', v: '公版规格、AIB 非公版、OEM 整机版、区域特供版的接口数量与版本都可能不同。测试报告里只写「用 RTX 4090 测的」等于没写——要记录**具体板卡型号与走的是哪一个物理口**。' }
+            ]
+          },
+          {
+            id: 'ten-rules',
+            title: '选型与测试的十条通用规则',
+            titleEn: 'Ten Rules for Selection and Bring-Up',
+            blocks: [
+              { t: 'p', v: '这十条是从逐型号核查里抽出来的通用判据，与具体品牌无关，适合直接贴进采购清单和测试报告的检查项。' },
+              { t: 'list', ordered: true, items: [
+                '**版本号不等于带宽**：HDMI LA FAQ 逐字确认，只支持 TMDS / 18 Gbps、不支持 FRL / 48 Gbps 的产品仍可标 HDMI 2.1；核查必须问 FRL 与速率。',
+                '**DSC 是端到端链路能力**：GPU、线材链路、显示器、KVM / 采集卡 / 坞站 / MST Hub 都要支持并透传，任一环不行就回退；不存在「DSC 线缆」这一说法。',
+                '**UHBR 分档配线材**：UHBR10 40 G / UHBR13.5 54 G / UHBR20 80 G；标「DP 2.1」的线不等于能跑 UHBR20，必须看 DP40 / DP54 / DP80 认证等级。',
+                '**多屏数由显示引擎决定**，不是物理口数量：NVIDIA 4090 / 5090 官方都是最多 4 屏，并给出带宽组合；MST 菊花链的多屏共享同一上游带宽。',
+                '**像素时钟与总带宽守恒**：官方只给典型组合，色深、4:4:4 与 4:2:0、DSC 开关、多屏都会抢同一预算；NVIDIA 脚注明写 Other display configurations may be possible based on available bandwidth。',
+                '**转接有方向和有源 / 无源之分**：DP++ 双模口可被动转 HDMI；非 DP++ 的 DP 口以及反向 HDMI→DP 必须有源协议转换器（常需 USB 供电），且转接线单向不可反插。',
+                '**USB-C DP Alt Mode 的 lane 取舍**：2-lane 保留 SuperSpeed USB 但只到 4K@60 级，4-lane 把全部高速通道给 DP、USB 只剩 2.0 + PD；看到「USB-C 8K@60」要确认是 DSC 达成还是原生，以及是否牺牲 USB 数据。',
+                '**VRR / G-SYNC / FreeSync / ALLM / HDR 与接口版本解耦**：在 HDMI 2.1 里都是可选功能，需 GPU、口、线、屏四者齐备。',
+                '**专业卡两个隐藏坑**：RTX 6000 Ada / A6000 datasheet 脚注写明启用 vGPU 软件时显示口会被关闭；miniDP 转接建议用主动式 / DP80 认证线。',
+                '**2026-11 采购基线**：DP 2.1 已下放到旗舰但 DP 1.4a + DSC 仍是存量主力；HDMI 2.2（96 Gbps，2025-06 发布）尚无任何量产笔记本或显卡实装，Ultra96 是功能名称而非单一 96 Gbps 档；未上市的传闻型号本表不收录。'
+              ] },
+              { t: 'table',
+                head: ['线缆等级', '可承载档位', '被动线典型长度', '备注'],
+                rows: [
+                  ['DP40', 'UHBR10（40 G）', '约 2 m', '标 DP 2.1 的入门线缆'],
+                  ['DP54', 'UHBR13.5（54 G）', '约 2 m', 'AMD / Intel 主流 DP 2.1 档位'],
+                  ['DP80', 'UHBR20（80 G）', '约 1 m', '更长距离信号完整性明显下降'],
+                  ['DP80LL（有源）', 'UHBR20（80 G）', '约 3 m', '线内带 retimer，需确认方向']
+                ] },
+              { t: 'callout', kind: 'info', title: '与本文前六章的接口', v: '这十条规则里的「带宽守恒」「DSC 端到端」「多屏共享上游带宽」，正是第 3 章带宽算术与第 5 章 EDID / DPCD 声明检查在**源端设备侧**的延伸：先把物理口能力查清，再判断某模式被剪枝究竟是 EDID 写错还是硬件本来就跑不动。' }
+            ]
+          },
+          {
+            id: 'laptop-traps',
+            title: '笔记本机身的四个陷阱',
+            titleEn: 'Four Laptop-Specific Pitfalls',
+            blocks: [
+              { t: 'p', v: '笔记本比台式机更容易踩坑：同一个型号名下面可能有完全不同的接口配置，且机身 HDMI 与 USB-C 常常挂在不同的 GPU 上。' },
+              { t: 'list', items: [
+                '**缩水 2.1 比满血还多**：华硕 Vivobook 16 (2026)、Zenbook S 14、荣耀 MagicBook Art 14 2025、REDMI Book Pro 16 2025、Dell Latitude 5450 官方直接写 HDMI 2.1 TMDS；联想 ThinkPad 商务本几乎全系 PSREF 写 HDMI 2.1, up to 4K/60Hz。',
+                '**同型号不同 SKU 会换接口**：Dell Inspiron 16 Plus 7640 核显版 HDMI 1.4（仅 1080p@60）、独显版 HDMI 2.1；Precision 7680 / 7770 按 UMA / DGPU 分 2.0a 与 2.1；Alienware 16 Area-51 按显卡分 TB4 / TB5。',
+                '**口挂在哪颗 GPU 上会影响高刷与 VRR**：MSI 官方 FAQ 明确 2024 款 HDMI 与 TB 全挂 dGPU，2025 款 Titan 18 HX 改成 TB5 挂 iGPU、HDMI 仍挂 dGPU；Razer Blade 18 (2025) 明写 TB5 走独显、TB4 走核显。',
+                '**Apple 从不标 HDMI 版本号**：2021 款 M1 Pro/Max 的 HDMI 经第三方确认是 2.0（仅 4K@60）；2023 起官方才标 8K@60 / 4K@240 并要求 48 Gbps 线。M1/M2 基础款只支持一台外接屏，M3 Air 双屏必须合盖，M4 起无需合盖。'
+              ] },
+              { t: 'callout', kind: 'warn', title: '用笔记本做 EDID 对照实验时要多记一项', v: '除了型号全称与视频口，还要记**这个口挂的是独显还是核显**：两条路径的驱动、DSC 支持与 VRR 行为都可能不同，否则「同一台机器两次结果不一样」会变成无法复现的玄学问题。' }
+            ]
+          },
+          {
+            id: 'distribution',
+            title: '445 条数据的档位分布',
+            titleEn: 'Distribution Across 445 Records',
+            blocks: [
+              { t: 'p', v: '把逐型号记录按 HDMI 档位与 DP / USB-C 通道聚合，能直观看出「纸面规格」与「实际存量」的差距。下表是速查表数据的直接统计，检索截止 2026-11-07。' },
+              { t: 'table',
+                head: ['HDMI 档位', '全部', '笔记本', '台式机显卡 / 核显'],
+                rows: [
+                  ['HDMI 2.1b', '15', '1', '14'],
+                  ['HDMI 2.1a', '13', '0', '13'],
+                  ['HDMI 2.1 FRL（官方明写）', '40', '16', '24'],
+                  ['HDMI 2.1 满血级（官方给 8K / 4K120+）', '38', '37', '1'],
+                  ['HDMI 2.1（未区分）', '81', '60', '21'],
+                  ['HDMI 2.1 但限 4K@60', '31', '29', '2'],
+                  ['HDMI 2.1 TMDS（缩水）', '29', '28', '1'],
+                  ['HDMI 2.0 / 2.0b', '64', '9', '55'],
+                  ['HDMI 1.4', '27', '5', '22'],
+                  ['无 HDMI（仅 DP 输出）', '42', '0', '42'],
+                  ['无 HDMI 口', '47', '47', '0'],
+                  ['无任何显示输出（计算卡）', '2', '0', '2'],
+                  ['HDMI 版本未标注', '16', '3', '13'],
+                  ['合计', '445', '235', '210']
+                ] },
+              { t: 'table',
+                head: ['DP / USB-C 通道', '条数'],
+                rows: [
+                  ['DP 1.4 / 1.4a（HBR3）', '115'],
+                  ['TB4（DP 1.4）', '108'],
+                  ['USB4 40G（DP 版本未标）', '27'],
+                  ['TB4（DP 2.1）', '25'],
+                  ['TB5（DP 2.1，80/120G）', '21'],
+                  ['DP 1.2 / 1.2a（HBR2）', '21'],
+                  ['DP 2.1 UHBR13.5（54G）', '21'],
+                  ['DP 2.1b UHBR20（80G）', '17'],
+                  ['USB-C / DP 版本未标注', '16'],
+                  ['USB-C 3.2（DP Alt Mode）', '15'],
+                  ['TB3 / USB4（DP 1.4）', '8'],
+                  ['USB4（DP 2.1）', '8']
+                ] },
+              { t: 'callout', kind: 'ok', title: '两张表合起来说明什么', v: '笔记本侧标 2.1 的共 191 条，其中「限 4K@60」31 条 +「TMDS 缩水」29 条 +「未区分」60 条——**明确写满血 FRL 的只有 16 条**；而 DP 侧仍是 DP 1.4 HBR3（115）与 TB4（108）占绝对多数，UHBR20 只有 17 条。这正是本文第 3 章「26.57 Gbps 卡在 HBR3 之上」在现实设备里的分布映射。' },
+              { t: 'p', v: '完整明细请用本章末尾的速查表按品牌或档位筛选；需要把某一类设备单独带进实验室时，可用「下载当前筛选 CSV」直接生成清单。' }
+            ]
+          },
+          {
+            id: 'data-boundary',
+            title: '数据边界与置信度',
+            titleEn: 'Data Boundaries and Confidence Levels',
+            blocks: [
+              { t: 'p', v: '逐型号数据的来源质量并不一致，因此每条记录都标了置信度。下表是 445 条的分布，读表时请把它和具体结论一起看。' },
+              { t: 'table',
+                head: ['置信度', '条数', '来源口径'],
+                rows: [
+                  ['官方规格页', '367', '厂商官网、Lenovo PSREF、Intel ARK、NVIDIA / AMD datasheet'],
+                  ['第三方权威', '44', 'TechPowerUp、GPU 数据库、OEM 规格页等交叉印证'],
+                  ['低置信度 / 存疑', '34', '电商页、营销 wiki、跨页推断或厂商自身口径冲突，仅供旁证']
+                ] },
+              { t: 'list', items: [
+                '**AMD 官方页结构性缺字段**：Connectivity 段通常只有 DP / HDMI 版本号，没有接口数量、UHBR 档位与 Max Resolution，因此 AMD 行的端口数、UHBR 档与最大分辨率大量依赖 VESA、TechPowerUp、新闻稿或 OEM 文档，已在备注标明「（推断）」并降低置信度。NVIDIA 10 系 / 900 系旧规格页已下线，同代数据多用官方新闻稿与第三方数据库互证。',
+                '**「未标注」表示厂商规格页确实没给该数值，不是漏查**。中国区机型（联想小新 / 拯救者、华硕天选 6 等）多数查不到 PSREF，来源质量明显低于国际线，已单独标出。',
+                '**厂商页面会随时间修订**，同机型不同区域站 / 不同 PDF 偶有矛盾（Yoga Pro 9i 的 8K@60 与 10K@30、RTX 2060 的 USB-C 有无、Intel ARK B70/B65 的输出口），速查表在备注中保留冲突说明，未强行取一。',
+                '**全部数据均为公版 / 参考设计 / 官方规格页口径**，非公 AIC、OEM 整机版、区域特供版（如 5090 D、7500F）可能改接口数量与版本；低置信度条目不可作为采购或测试判定依据。'
+              ] },
+              { t: 'callout', kind: 'warn', title: '不要拿表里的版本标签当实测结果', v: '规格页写的是**能力声明**，不是链路训练后的实际速率。同一张卡换一条线、换一台显示器、甚至换一个口，最后协商出的 HBR3 / UHBR / FRL 通道数都可能不同。' },
+              { t: 'callout', kind: 'key', title: '落到实测', v: '实际链路速率建议用 CRU / HWiNFO 读 EDID 与 link rate 复核，并与第 5 章的 HF-VSDB `Max_FRL_Rate`、DPCD 0x060 等字段对照。这正好把「源端能力」与「EDID 声明」两条线接上，也是本文一直强调的判定顺序。' }
             ]
           }
         ]
